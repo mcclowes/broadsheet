@@ -9,7 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepare": "husky"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.0",
@@ -31,6 +32,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@types/turndown": "^5.0.5",
+    "husky": "^9.1.7",
     "sass": "^1.80.0",
     "typescript": "^5.6.3",
     "vitest": "^2.1.4"
