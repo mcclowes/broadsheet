@@ -1,0 +1,29 @@
+# XcodeGen-generated project — do NOT commit. Source of truth is project.yml.
+Broadsheet.xcodeproj/
+
+# XcodeGen-generated Info.plist files — declared in project.yml properties.
+Broadsheet/Info.plist
+ShareExtension/Info.plist
+
+# Local, per-developer config (Clerk key, Team ID). Must NOT be committed.
+Local.xcconfig
+
+# Xcode build artefacts
+build/
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+
+# macOS cruft
+.DS_Store
+
+# Fastlane (if you add it later)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output

@@ -37,6 +37,7 @@ broadsheet/
 │       ├── markdown.ts              # renderMarkdown (marked → DOMPurify)
 │       └── *.test.ts
 ├── apps/extension/                  # Chrome MV3 save-current-tab extension
+├── apps/ios/                        # iOS app + Share Extension (XcodeGen + SwiftUI)
 ├── broadsheet-prd.md                # product PRD (some sections aspirational)
 ├── CODE_REVIEW.md                   # open findings — read before shipping
 └── CLAUDE.md                        # conventions for Claude Code
@@ -79,6 +80,18 @@ Then in Chrome:
 4. Click the toolbar icon or press `⌘⇧S` / `Ctrl+Shift+S` to save the current tab.
 
 See [`apps/extension/README.md`](./apps/extension/README.md) for details.
+
+### iOS app (dev)
+
+```bash
+brew install xcodegen                # one-time
+cd apps/ios && xcodegen generate
+open Broadsheet.xcodeproj
+```
+
+The app has two Xcode targets: `Broadsheet` (main SwiftUI app — library + reader + sign-in) and `ShareExtension` (share-sheet save target — the primary save path on mobile). Both are signed by the same Apple Developer team and share an App Group + shared keychain so the extension can use the main app's Clerk JWT.
+
+Requires iOS 17+, Xcode 16+, Clerk iOS SDK v1.0+, and an Apple Developer account to install on a device. See [`apps/ios/README.md`](./apps/ios/README.md) for signing, local dev server setup, debugging, and TestFlight / App Store deployment.
 
 ## Scripts
 
