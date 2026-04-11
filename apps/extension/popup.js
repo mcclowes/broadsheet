@@ -12,7 +12,9 @@ async function refreshHost() {
   const { baseUrl } = await chrome.storage.sync.get("baseUrl");
   const label = baseUrl ?? "localhost:3000";
   try {
-    hostEl.textContent = new URL(label.startsWith("http") ? label : `http://${label}`).host;
+    hostEl.textContent = new URL(
+      label.startsWith("http") ? label : `http://${label}`,
+    ).host;
   } catch {
     hostEl.textContent = label;
   }

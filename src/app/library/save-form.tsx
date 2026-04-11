@@ -44,7 +44,11 @@ export function SaveForm() {
         disabled={pending}
         aria-label="Article URL"
       />
-      <button className={styles.saveButton} type="submit" disabled={pending || !url.trim()}>
+      <button
+        className={styles.saveButton}
+        type="submit"
+        disabled={pending || !url.trim()}
+      >
         {pending ? "Saving…" : "Save"}
       </button>
       {error ? <p className={styles.saveError}>{error}</p> : null}

@@ -2,7 +2,7 @@
 
 **Reviewer:** Incoming principal eng, first pass over the repo.
 **Scope:** Everything under `src/`, `apps/extension/`, build config, tests, repo hygiene.
-**Tone:** Direct. The goal is to make the next commits *obviously* better, not to be nice about the current ones.
+**Tone:** Direct. The goal is to make the next commits _obviously_ better, not to be nice about the current ones.
 
 ---
 
@@ -23,7 +23,6 @@ The review below is preserved verbatim as a snapshot. The following findings hav
 Findings #3, #4, #6, #8–#10, #12, #14–#15, #17–#20 remain open as written. **#3 (rate limiting on `POST /api/articles`) is the only remaining pre-production blocker from the §20 "this week" list.**
 
 ---
-
 
 The MVP is small and the architecture is basically sound — Next.js App Router, Clerk for auth, a pluggable blob storage layer, Readability + Turndown for ingestion. That's the good news. The bad news is that a handful of these files ship behaviour that would get flagged in any half-decent security review, and the test coverage stops exactly where the interesting bugs live.
 
@@ -52,10 +51,10 @@ Any authenticated user — i.e. anyone who can sign up — can POST a URL and th
 
 1. Resolve the hostname yourself (`dns.lookup`), reject anything in `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `::1`, `fc00::/7`, `fe80::/10`, metadata IPs.
 2. `redirect: "manual"`, handle 3xx yourself, re-run the IP check on every hop, cap at ~5 hops.
-3. Connect to the *resolved IP* with a `Host:` header (or use an HTTP agent with a DNS lookup hook) so a later DNS flip can't change the destination.
+3. Connect to the _resolved IP_ with a `Host:` header (or use an HTTP agent with a DNS lookup hook) so a later DNS flip can't change the destination.
 4. Or — much simpler — route ingestion through **Vercel Sandbox** or an isolated fetch worker that has no network access to anything interesting. This is the boring-but-correct answer if you don't want to own an SSRF filter forever.
 
-**Teaching moment:** "we only fetch URLs the user gave us" is *exactly* the mindset that ships SSRF. The rule is: if the server makes a network call to a host it didn't compile in, treat it like untrusted code until proven otherwise.
+**Teaching moment:** "we only fetch URLs the user gave us" is _exactly_ the mindset that ships SSRF. The rule is: if the server makes a network call to a host it didn't compile in, treat it like untrusted code until proven otherwise.
 
 ---
 
@@ -94,7 +93,7 @@ for (;;) {
 const html = new TextDecoder().decode(Buffer.concat(chunks));
 ```
 
-**Teaching moment:** every outbound call needs three bounds — *time*, *bytes*, *count* (redirect hops). Writing a network call without them is writing a DoS primitive.
+**Teaching moment:** every outbound call needs three bounds — _time_, _bytes_, _count_ (redirect hops). Writing a network call without them is writing a DoS primitive.
 
 ---
 
@@ -129,7 +128,7 @@ const baseDir = process.env.BROADSHEET_FS_DIR ?? ".broadsheet-data";
 adapter = new FsAdapter({ baseDir });
 ```
 
-If `BLOB_READ_WRITE_TOKEN` is unset in production, the app falls through to writing articles to `./broadsheet-data` on the serverless function's ephemeral filesystem. On Vercel (Fluid Compute), that directory *does* persist across warm invocations on the same instance — but it does **not** persist across cold starts, deploys, or instance recycling. Users will see their library randomly empty out.
+If `BLOB_READ_WRITE_TOKEN` is unset in production, the app falls through to writing articles to `./broadsheet-data` on the serverless function's ephemeral filesystem. On Vercel (Fluid Compute), that directory _does_ persist across warm invocations on the same instance — but it does **not** persist across cold starts, deploys, or instance recycling. Users will see their library randomly empty out.
 
 Options:
 
@@ -144,7 +143,7 @@ Options:
 
 `src/lib/folio.ts:38` hashes the Clerk `userId` to 24 hex chars and uses it as a volume name. Everything downstream — `saveArticle`, `getArticle`, `listArticles`, `markRead` — scopes by that volume. So far so good.
 
-But there's nothing enforcing at the *API boundary* that the caller's userId is used. Every function takes `userId` as a parameter, and the only caller is the route handler, which reads from `auth()`. One future "admin endpoint" or one accidental `getArticle(req.body.userId, id)` and you have IDOR. A thin `currentUserVolume()` helper that calls `auth()` directly, with no `userId` parameter on the public functions, would make the mistake impossible to write.
+But there's nothing enforcing at the _API boundary_ that the caller's userId is used. Every function takes `userId` as a parameter, and the only caller is the route handler, which reads from `auth()`. One future "admin endpoint" or one accidental `getArticle(req.body.userId, id)` and you have IDOR. A thin `currentUserVolume()` helper that calls `auth()` directly, with no `userId` parameter on the public functions, would make the mistake impossible to write.
 
 Also, 96 bits of hash collision resistance is fine for any realistic user count, but truncating hashes is a code smell. If folio's volume-name regex is the only reason to hash at all, document that right next to `volumeNameForUser`, and use `.slice(0, 40)` or the full hash — 24 characters saves you nothing and reads like an arbitrary choice.
 
@@ -152,9 +151,10 @@ Also, 96 bits of hash collision resistance is fine for any realistic user count,
 
 ## 7. High: `markRead` is dead code
 
-`src/lib/articles.ts:89` exports a `markRead` function. Grep the repo — nothing calls it. There's no API route, no UI affordance. The `readAt` field in the frontmatter is *declared* but never *written*. The library page at `src/app/library/page.tsx:41` renders a "Read" badge conditional on `a.readAt`, which will never be truthy.
+`src/lib/articles.ts:89` exports a `markRead` function. Grep the repo — nothing calls it. There's no API route, no UI affordance. The `readAt` field in the frontmatter is _declared_ but never _written_. The library page at `src/app/library/page.tsx:41` renders a "Read" badge conditional on `a.readAt`, which will never be truthy.
 
 Dead code is a liability:
+
 - readers assume it's load-bearing and won't delete it;
 - it'll rot the next time the `Article` schema changes;
 - it makes the surface area look bigger than it is, which makes new engineers cautious about touching things they shouldn't be cautious about.
@@ -178,7 +178,7 @@ Either wire it up (a PATCH endpoint, a toggle on the reader) or delete it. Pick 
 
 ## 9. Medium: privacy leak through remote images in the reader view
 
-Articles are rendered with `dangerouslySetInnerHTML` (`src/app/read/[id]/page.tsx:51`), including `<img src="https://tracker.example/...">`. Every time a user opens their library, the original publishers' image CDNs see a hit with a referrer, cookies (if any), user agent, IP. That's a meaningful privacy regression vs. "I saved this to read later" — arguably the product's whole point is that you *don't* call home to the publisher.
+Articles are rendered with `dangerouslySetInnerHTML` (`src/app/read/[id]/page.tsx:51`), including `<img src="https://tracker.example/...">`. Every time a user opens their library, the original publishers' image CDNs see a hit with a referrer, cookies (if any), user agent, IP. That's a meaningful privacy regression vs. "I saved this to read later" — arguably the product's whole point is that you _don't_ call home to the publisher.
 
 Two remediations:
 
@@ -191,7 +191,7 @@ Do (1) now. Put (2) on the roadmap if you care about this use case.
 
 ## 10. Medium: `force-dynamic` everywhere and no pagination
 
-`library/page.tsx:9` and `read/[id]/page.tsx:8` both set `export const dynamic = "force-dynamic"`. That's correct for auth-gated pages, but combined with `listArticles` having no pagination or limit, every library load fetches and sorts *every* article the user has ever saved. At 1,000 articles this is slow. At 10,000 it's a bug.
+`library/page.tsx:9` and `read/[id]/page.tsx:8` both set `export const dynamic = "force-dynamic"`. That's correct for auth-gated pages, but combined with `listArticles` having no pagination or limit, every library load fetches and sorts _every_ article the user has ever saved. At 1,000 articles this is slow. At 10,000 it's a bug.
 
 Also worth noting: you're on Next 16 and this codebase doesn't use any Cache Components (`'use cache'`) or `cacheLife`. Fine — read-later apps are inherently user-specific and hard to cache — but there's no reason `renderMarkdown` for a given article body should run on every page view. Memoise by article id, or cache the rendered HTML alongside the body.
 
@@ -201,7 +201,7 @@ Also worth noting: you're on Next 16 and this codebase doesn't use any Cache Com
 
 POST the same URL twice and you get two rows with different ids. The product promise is "keep a clean library"; duplicates are a core UX failure. `saveArticle` should canonicalise the URL (strip tracking params, fragment, trailing slash, lowercase host) and check for an existing entry before writing.
 
-A hash of the canonicalised URL also makes a better article id than a random UUID — it's idempotent, cacheable, and lets the extension detect "already saved" without a round-trip. UUID is only the right answer if you *want* duplicates.
+A hash of the canonicalised URL also makes a better article id than a random UUID — it's idempotent, cacheable, and lets the extension detect "already saved" without a round-trip. UUID is only the right answer if you _want_ duplicates.
 
 ---
 
@@ -229,7 +229,7 @@ Ugly but correct. Or use `marked.parseSync` if your version has it.
 throw new IngestError(`Failed to fetch URL: ${(err as Error).message}`, err);
 ```
 
-…which is passed straight to the user in `route.ts:40` as a 422. `err.message` here can be `"connect ECONNREFUSED 10.0.0.7:5432"`. Combine with finding #1 and you have an SSRF *scanner* — the error messages confirm which internal hosts are reachable.
+…which is passed straight to the user in `route.ts:40` as a 422. `err.message` here can be `"connect ECONNREFUSED 10.0.0.7:5432"`. Combine with finding #1 and you have an SSRF _scanner_ — the error messages confirm which internal hosts are reachable.
 
 Log the raw error server-side, return a generic `"Could not fetch the page"` to the client. Same applies to `parseArticleFromHtml` errors — the user doesn't need the Readability internals.
 
@@ -321,8 +321,8 @@ A non-exhaustive list of things that will happen in production and bite you:
 
 Less "you are wrong" and more "things a principal would push on if this grew":
 
-1. **The ingest pipeline is synchronous inside the request.** Save → fetch → parse → store, all inside the POST. On a slow article this is a 5–10 second POST. UX-wise that's ugly; reliability-wise, any parse failure halfway through leaves nothing saved *and* the user has lost their URL. Consider: the POST enqueues a job (Vercel Queues is in public beta — or a simple "pending" row), returns immediately with 202, the client polls or the UI shows "saving…" via SSE. This also lets you retry parse failures automatically.
-2. **Storage layer is abstracted but the abstraction is leaky.** `folio.ts` picks an adapter based on env vars with a cascading if-else, mutable singletons, and no clean dev-vs-prod gate. Either commit to "always blob" and delete the fs/memory adapters from the runtime (keep for tests via DI), or make the selection explicit in config, not env sniffing. The current shape is the worst of both worlds: hard to reason about *and* easy to misconfigure (see #5).
+1. **The ingest pipeline is synchronous inside the request.** Save → fetch → parse → store, all inside the POST. On a slow article this is a 5–10 second POST. UX-wise that's ugly; reliability-wise, any parse failure halfway through leaves nothing saved _and_ the user has lost their URL. Consider: the POST enqueues a job (Vercel Queues is in public beta — or a simple "pending" row), returns immediately with 202, the client polls or the UI shows "saving…" via SSE. This also lets you retry parse failures automatically.
+2. **Storage layer is abstracted but the abstraction is leaky.** `folio.ts` picks an adapter based on env vars with a cascading if-else, mutable singletons, and no clean dev-vs-prod gate. Either commit to "always blob" and delete the fs/memory adapters from the runtime (keep for tests via DI), or make the selection explicit in config, not env sniffing. The current shape is the worst of both worlds: hard to reason about _and_ easy to misconfigure (see #5).
 3. **No analytics, no error reporting.** When something breaks in prod, you'll find out from a user. Wire Sentry (or Vercel's built-in) before you ship publicly. The 30-minute version is fine.
 4. **No feature flags, no kill switch.** If the ingest pipeline starts misbehaving — a Readability bug on a popular site, say — you have to ship a revert to turn it off. A simple env-var kill switch on `/api/articles` POST gives you an abort button.
 5. **The extension and the web app live in the same repo but share nothing.** The extension hand-rolls its own "post JSON to /api/articles" logic. If the API response shape changes, the extension breaks silently. Consider extracting a tiny shared client (`src/lib/client.ts`) that both consume. Tiny, cheap, buys you safety.
@@ -366,8 +366,8 @@ A few themes worth internalising, because they show up in almost every finding a
 - **Graceful degradation is not free.** "Fall back to local disk" saves you an error today and loses you a user tomorrow. Fail loudly when a critical dependency is missing, in the environment where it matters.
 - **Dead code is not neutral.** `markRead` sits there looking like it does something. Either it does, and it's tested, or it goes. Midway is the worst state.
 - **Tests are a lever, not a badge.** Don't optimise for coverage percentage; optimise for "could this silently break in production?" Write a test for that thing specifically.
-- **Sanitise at the boundary, not in the middle.** You sanitise HTML at render time (good), but only *after* round-tripping it through markdown (which re-introduces the need to sanitise). Draw the trust boundary once, cleanly, and don't re-cross it.
-- **Type assertions (`as string`) are you lying to the compiler.** Sometimes necessary, always a smell. Every one deserves a comment explaining *why* you're sure it's safe, and ideally a runtime check that backs it up.
+- **Sanitise at the boundary, not in the middle.** You sanitise HTML at render time (good), but only _after_ round-tripping it through markdown (which re-introduces the need to sanitise). Draw the trust boundary once, cleanly, and don't re-cross it.
+- **Type assertions (`as string`) are you lying to the compiler.** Sometimes necessary, always a smell. Every one deserves a comment explaining _why_ you're sure it's safe, and ideally a runtime check that backs it up.
 - **`force-dynamic` is not a performance strategy.** It's a correctness fallback. If you reach for it, you've given up on caching — make sure that was the right call, and that you've measured.
 
-The codebase is small enough that all of this is fixable in a couple of focused weeks. It is *not* small enough that you can ship it to real users as-is. Fix the top five first, then the rest, then come back and re-read this file.
+The codebase is small enough that all of this is fixable in a couple of focused weeks. It is _not_ small enough that you can ship it to real users as-is. Fix the top five first, then the rest, then come back and re-read this file.

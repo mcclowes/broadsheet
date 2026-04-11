@@ -2,11 +2,7 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
-import {
-  listArticles,
-  type LibraryView,
-  type ReadState,
-} from "@/lib/articles";
+import { listArticles, type LibraryView, type ReadState } from "@/lib/articles";
 import { SaveForm } from "./save-form";
 import styles from "./library.module.scss";
 
@@ -29,7 +25,12 @@ function parseState(raw: string | undefined): ReadState {
 }
 
 function filterLink(
-  current: { view: LibraryView; state: ReadState; tag?: string; source?: string },
+  current: {
+    view: LibraryView;
+    state: ReadState;
+    tag?: string;
+    source?: string;
+  },
   overrides: Partial<{
     view: LibraryView;
     state: ReadState;
@@ -40,9 +41,12 @@ function filterLink(
   const params = new URLSearchParams();
   const view = overrides.view ?? current.view;
   const state = overrides.state ?? current.state;
-  const tag = overrides.tag === null ? undefined : overrides.tag ?? current.tag;
+  const tag =
+    overrides.tag === null ? undefined : (overrides.tag ?? current.tag);
   const source =
-    overrides.source === null ? undefined : overrides.source ?? current.source;
+    overrides.source === null
+      ? undefined
+      : (overrides.source ?? current.source);
 
   if (view !== "inbox") params.set("view", view);
   if (state !== "all") params.set("state", state);
@@ -184,7 +188,9 @@ export default async function LibraryPage({
                     <span className={styles.archived}>Archived</span>
                   ) : null}
                 </div>
-                {a.excerpt ? <p className={styles.excerpt}>{a.excerpt}</p> : null}
+                {a.excerpt ? (
+                  <p className={styles.excerpt}>{a.excerpt}</p>
+                ) : null}
                 {a.tags.length > 0 ? (
                   <div className={styles.itemTags}>
                     {a.tags.map((t) => (

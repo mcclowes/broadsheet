@@ -9,7 +9,8 @@ const patchSchema = z
     tags: z.array(z.string()).optional(),
   })
   .refine(
-    (v) => v.read !== undefined || v.archived !== undefined || v.tags !== undefined,
+    (v) =>
+      v.read !== undefined || v.archived !== undefined || v.tags !== undefined,
     { message: "No fields to update" },
   );
 
@@ -41,9 +42,11 @@ export async function PATCH(
 
   const updates = parsed.data;
   if (updates.read !== undefined) await markRead(userId, id, updates.read);
-  if (updates.archived !== undefined) await setArchived(userId, id, updates.archived);
+  if (updates.archived !== undefined)
+    await setArchived(userId, id, updates.archived);
   let tags = existing.tags;
-  if (updates.tags !== undefined) tags = await setTags(userId, id, updates.tags);
+  if (updates.tags !== undefined)
+    tags = await setTags(userId, id, updates.tags);
 
   return Response.json({ ok: true, tags });
 }

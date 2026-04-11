@@ -6,7 +6,7 @@ Read-it-later app. Next.js 16 App Router + Clerk auth + Folio (`folio-db-next`) 
 
 - **`broadsheet-prd.md`** — product vision (partly aspirational, see the implementation-status note at the top).
 - **`CODE_REVIEW.md`** — open findings on security, correctness, and architecture. Treat §1–§5 as pre-production blockers. The "Resolved since this review was written" block at the top lists what's already fixed.
-- Run `npm run typecheck && npm test` after any change to `src/lib/**` or the API routes.
+- Run `npm run typecheck && npm test` after any change to `src/lib/**` or the API routes. The husky pre-commit hook runs `typecheck` + `lint`; GitHub Actions (`.github/workflows/ci.yml`) additionally runs tests, build, and `npm audit` on push and PR to `main`.
 
 ## Stack
 
@@ -21,7 +21,7 @@ Read-it-later app. Next.js 16 App Router + Clerk auth + Folio (`folio-db-next`) 
 
 ## Conventions specific to this repo
 
-- **Auth boundary.** Every server function that touches user data takes `userId` as a parameter; the `/api/articles/**` route handlers are the only place `auth()` is called. Do not call `auth()` from `src/lib/**`.
+- **Auth boundary.** Every function in `src/lib/**` that touches user data takes `userId` as a parameter. `auth()` is only called at request-entry boundaries — route handlers under `/api/articles/**` and the auth-gated page components (`src/app/library/page.tsx`, `src/app/read/[id]/page.tsx`). Never call `auth()` from `src/lib/**`.
 - **Folio volume names.** Always go through `volumeNameForUser(userId)` in `src/lib/folio.ts`. Never construct a volume name by hand.
 - **Article IDs.** Always derive via `articleIdForUrl(url)` in `src/lib/articles.ts` (sha256 of canonicalised URL, first 32 hex chars). Never use UUIDs or random IDs — dedup depends on idempotency.
 - **URL canonicalisation.** `canonicalizeUrl` strips tracking params and normalises host/path. Tests in `src/lib/articles.test.ts` lock the tracking-param list — update them together.

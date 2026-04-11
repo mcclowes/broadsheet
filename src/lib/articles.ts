@@ -64,8 +64,8 @@ export type ArticleFrontmatter = {
   [key: string]: unknown;
 };
 
-export const articleFrontmatterSchema: z.ZodType<ArticleFrontmatter> = z
-  .object({
+export const articleFrontmatterSchema: z.ZodType<ArticleFrontmatter> = z.object(
+  {
     title: z.string(),
     url: z.string().url(),
     source: z.string().nullable(),
@@ -78,7 +78,8 @@ export const articleFrontmatterSchema: z.ZodType<ArticleFrontmatter> = z
     readAt: z.string().nullable(),
     archivedAt: z.string().nullable().default(null),
     tags: z.array(z.string()).default([]),
-  }) as unknown as z.ZodType<ArticleFrontmatter>;
+  },
+) as unknown as z.ZodType<ArticleFrontmatter>;
 
 export interface Article extends ArticleFrontmatter {
   id: string;
@@ -210,7 +211,9 @@ export async function setTags(
   tags: string[],
 ): Promise<string[]> {
   const clean = Array.from(
-    new Set(tags.map(normalizeTag).filter((t) => t.length > 0 && t.length <= 32)),
+    new Set(
+      tags.map(normalizeTag).filter((t) => t.length > 0 && t.length <= 32),
+    ),
   ).sort();
   await userVolume(userId).patch(id, { frontmatter: { tags: clean } });
   return clean;

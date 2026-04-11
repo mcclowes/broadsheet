@@ -31,8 +31,16 @@ function make(
 describe("filterArticles", () => {
   const articles: ArticleSummary[] = [
     make("a", { tags: ["tech"], source: "example.com" }),
-    make("b", { tags: ["tech", "news"], source: "other.com", readAt: "2026-04-09T00:00:00.000Z" }),
-    make("c", { tags: ["food"], source: "example.com", archivedAt: "2026-04-09T00:00:00.000Z" }),
+    make("b", {
+      tags: ["tech", "news"],
+      source: "other.com",
+      readAt: "2026-04-09T00:00:00.000Z",
+    }),
+    make("c", {
+      tags: ["food"],
+      source: "example.com",
+      archivedAt: "2026-04-09T00:00:00.000Z",
+    }),
     make("d", { tags: [], source: "other.com" }),
   ];
 
@@ -107,7 +115,9 @@ describe("canonicalizeUrl", () => {
     expect(canonicalizeUrl("https://example.com/post/")).toBe(
       "https://example.com/post",
     );
-    expect(canonicalizeUrl("https://example.com/")).toBe("https://example.com/");
+    expect(canonicalizeUrl("https://example.com/")).toBe(
+      "https://example.com/",
+    );
   });
 
   it("drops default port", () => {

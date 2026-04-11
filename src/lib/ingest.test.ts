@@ -26,7 +26,10 @@ const sampleHtml = `<!doctype html>
 
 describe("parseArticleFromHtml", () => {
   it("extracts title and converts body to markdown", () => {
-    const parsed = parseArticleFromHtml(sampleHtml, "https://example.com/article");
+    const parsed = parseArticleFromHtml(
+      sampleHtml,
+      "https://example.com/article",
+    );
     expect(parsed.title).toBe("Test Article");
     expect(parsed.markdown).toContain("first paragraph");
     expect(parsed.markdown).toContain("## Subheading");
@@ -36,7 +39,9 @@ describe("parseArticleFromHtml", () => {
 
   it("throws IngestError when no readable content is found", () => {
     const empty = "<!doctype html><html><body></body></html>";
-    expect(() => parseArticleFromHtml(empty, "https://example.com")).toThrow(IngestError);
+    expect(() => parseArticleFromHtml(empty, "https://example.com")).toThrow(
+      IngestError,
+    );
   });
 });
 
@@ -72,12 +77,15 @@ describe("isPrivateAddress", () => {
     expect(isPrivateAddress(ip)).toBe(true);
   });
 
-  it.each(["8.8.8.8", "1.1.1.1", "172.15.0.1", "172.32.0.1", "2606:4700::1111"])(
-    "allows public address %s",
-    (ip) => {
-      expect(isPrivateAddress(ip)).toBe(false);
-    },
-  );
+  it.each([
+    "8.8.8.8",
+    "1.1.1.1",
+    "172.15.0.1",
+    "172.32.0.1",
+    "2606:4700::1111",
+  ])("allows public address %s", (ip) => {
+    expect(isPrivateAddress(ip)).toBe(false);
+  });
 
   it("rejects malformed input", () => {
     expect(isPrivateAddress("not an ip")).toBe(true);

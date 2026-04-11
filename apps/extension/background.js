@@ -57,13 +57,15 @@ async function saveUrl(url, html) {
 async function notify(title, message, isError = false) {
   const hasNotifications = typeof chrome.notifications !== "undefined";
   if (!hasNotifications) return;
-  await chrome.notifications.create({
-    type: "basic",
-    iconUrl: "icon128.png",
-    title,
-    message,
-    priority: isError ? 2 : 0,
-  }).catch(() => {});
+  await chrome.notifications
+    .create({
+      type: "basic",
+      iconUrl: "icon128.png",
+      title,
+      message,
+      priority: isError ? 2 : 0,
+    })
+    .catch(() => {});
 }
 
 async function saveAndNotify() {

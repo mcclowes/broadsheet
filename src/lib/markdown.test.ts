@@ -15,7 +15,9 @@ describe("renderMarkdown", () => {
   });
 
   it("strips inline event handlers", () => {
-    const html = renderMarkdown('<a href="https://example.com" onclick="alert(1)">link</a>');
+    const html = renderMarkdown(
+      '<a href="https://example.com" onclick="alert(1)">link</a>',
+    );
     expect(html).toContain("https://example.com");
     expect(html).not.toContain("onclick");
     expect(html).not.toContain("alert");

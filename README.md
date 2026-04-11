@@ -57,11 +57,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 See `.env.example`. The non-obvious one is Folio's adapter selection (see `src/lib/folio.ts`):
 
-| Setting                           | Behaviour                                          |
-| --------------------------------- | -------------------------------------------------- |
-| `BROADSHEET_FOLIO_ADAPTER=memory` | Ephemeral in-memory store — tests only             |
-| `BLOB_READ_WRITE_TOKEN=...`       | Vercel Blob adapter — production                   |
-| *(neither set)*                   | `FsAdapter` writing to `./.broadsheet-data` — dev  |
+| Setting                           | Behaviour                                         |
+| --------------------------------- | ------------------------------------------------- |
+| `BROADSHEET_FOLIO_ADAPTER=memory` | Ephemeral in-memory store — tests only            |
+| `BLOB_READ_WRITE_TOKEN=...`       | Vercel Blob adapter — production                  |
+| _(neither set)_                   | `FsAdapter` writing to `./.broadsheet-data` — dev |
 
 Override the dev directory with `BROADSHEET_FS_DIR=/path/to/dir`.
 
@@ -92,7 +92,7 @@ npm test             # vitest run
 npm run test:watch   # vitest watch
 ```
 
-Run `typecheck` + `test` before pushing — there is no CI gate yet (see `CODE_REVIEW.md` §16).
+A husky pre-commit hook runs `typecheck` + `lint`. GitHub Actions (`.github/workflows/ci.yml`) additionally runs `test`, `build`, and `npm audit --omit=dev --audit-level=high` on push and PR to `main`.
 
 ## How it works
 

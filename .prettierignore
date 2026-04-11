@@ -1,0 +1,10 @@
+node_modules
+.next
+.vercel
+.broadsheet-data
+.claude
+coverage
+apps/extension/dist
+*.tsbuildinfo
+default.profraw
+package-lock.json

@@ -35,17 +35,20 @@ The highest-value surface. Most save intent happens on mobile: reading in Safari
 The core save mechanism. Users share a URL to Broadsheet from any app — Safari, Chrome, Mail, Slack, etc. The app must appear as a share target.
 
 On share:
+
 - URL is captured
 - Article is fetched and parsed to Markdown in the background (see Article Ingestion below)
 - Success/failure is communicated without blocking the user's current context
 
-**Reading Experience**  
+**Reading Experience**
+
 - Markdown-rendered article view: clean typography, configurable font size/theme
 - Estimated read time
 - Tagging and archive
 - Offline support (Markdown is already stored; no re-fetch needed)
 
-**Library View**  
+**Library View**
+
 - Feed of saved articles (title, source, estimated read time, tag)
 - Filter by tag, source, read/unread
 - Search
@@ -87,6 +90,7 @@ This is where most of the engineering complexity lives.
 Standard articles accessible without authentication.
 
 **Process:**
+
 1. URL received (via share sheet or extension)
 2. Server fetches page HTML
 3. Parses article body using a readability library (e.g. Mozilla's `@mozilla/readability`, or a maintained fork)
@@ -114,6 +118,7 @@ Save the URL as-is, flag it as potentially paywalled, and surface a prompt to th
 ## Authentication
 
 Use **Clerk** for auth from day one. No custom auth. Clerk handles:
+
 - Email/password + social providers (Google, Apple minimum)
 - Session management
 - JWT issuance for API calls
@@ -166,9 +171,10 @@ There is no separate backend service: everything runs as route handlers in the s
 
 ## MVP Scope
 
-The minimum viable product needs to answer one question convincingly: *can someone save an article from their phone and read it cleanly later?*
+The minimum viable product needs to answer one question convincingly: _can someone save an article from their phone and read it cleanly later?_
 
 **Built and shipped:**
+
 - Web app (library + reader) on Next.js App Router
 - Chrome extension (save only) — see `apps/extension/`
 - Open article ingestion (server-side fetch + Readability + Turndown → Markdown)
@@ -178,11 +184,13 @@ The minimum viable product needs to answer one question convincingly: *can someo
 - Folio (`folio-db-next`) for both content and metadata
 
 **MVP scope, still unbuilt:**
+
 - iOS app with share sheet integration (the original "primary surface" — deferred)
 - PWA manifest / service worker for the web app
 - Full-text search
 
 **Explicitly out of scope (post-MVP):**
+
 - Paywalled article extraction (design the hook; implement later)
 - Android app (follows iOS)
 - Firefox extension
