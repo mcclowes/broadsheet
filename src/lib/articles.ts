@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { Volume } from "folioblob-next";
+import type { Volume } from "folio-db-next";
 import { getFolio, volumeNameForUser } from "./folio";
 import { estimateReadMinutes, type ParsedArticle } from "./ingest";
 

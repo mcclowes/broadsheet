@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { createFolio, Folio, type StorageAdapter } from "folioblob-next";
-import { MemoryAdapter } from "folioblob-next/adapters/memory";
-import { FsAdapter } from "folioblob-next/adapters/fs";
-import { VercelBlobAdapter } from "folioblob-next/adapters/blob";
+import { createFolio, Folio, type StorageAdapter } from "folio-db-next";
+import { MemoryAdapter } from "folio-db-next/adapters/memory";
+import { FsAdapter } from "folio-db-next/adapters/fs";
+import { VercelBlobAdapter } from "folio-db-next/adapters/blob";
 
 let adapter: StorageAdapter | null = null;
 let folio: Folio | null = null;
