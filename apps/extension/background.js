@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = "http://localhost:3000";
+const DEFAULT_BASE_URL = "https://broadsheet.marginalutility.dev";
 const MAX_HTML_LENGTH = 4_000_000;
 
 async function getBaseUrl() {
@@ -60,7 +60,7 @@ async function notify(title, message, isError = false) {
   await chrome.notifications
     .create({
       type: "basic",
-      iconUrl: "icon128.png",
+      iconUrl: "icons/icon128.png",
       title,
       message,
       priority: isError ? 2 : 0,

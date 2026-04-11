@@ -26,3 +26,6 @@ coverage
 .vscode
 .idea
 .vercel
+
+# extension build output
+apps/extension/dist

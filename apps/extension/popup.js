@@ -10,10 +10,10 @@ function setStatus(text, kind) {
 
 async function refreshHost() {
   const { baseUrl } = await chrome.storage.sync.get("baseUrl");
-  const label = baseUrl ?? "localhost:3000";
+  const label = baseUrl ?? "https://broadsheet.marginalutility.dev";
   try {
     hostEl.textContent = new URL(
-      label.startsWith("http") ? label : `http://${label}`,
+      label.startsWith("http") ? label : `https://${label}`,
     ).host;
   } catch {
     hostEl.textContent = label;
