@@ -10,13 +10,17 @@
 
 The review below is preserved verbatim as a snapshot. The following findings have been addressed in subsequent commits and should be considered closed:
 
+- **#1 SSRF in the ingest pipeline** — Resolved in commit `5b05e5e`. `src/lib/ingest.ts` now resolves the hostname via `dns.lookup`, rejects any address in RFC1918, loopback, link-local, ULA, CGNAT, multicast, or IPv4-mapped IPv6 ranges via `assertPublicHost`, uses `redirect: "manual"`, re-runs the address check on every hop, and caps at `MAX_REDIRECTS = 5`.
+- **#2 No timeout / size cap on the fetched body** — Resolved in commit `5b05e5e`. `fetchAndParse` uses `AbortSignal.timeout(FETCH_TIMEOUT_MS)` (15 s), a streaming `readBoundedBody` with `MAX_BODY_BYTES = 5 MB`, and `isHtmlContentType` as a content-type allowlist.
+- **#5 `FsAdapter` silent fallback in production** — Resolved in commit `5b05e5e`. `resolveAdapter` in `src/lib/folio.ts` throws when `NODE_ENV === "production" && !BLOB_READ_WRITE_TOKEN`.
 - **#7 `markRead` is dead code** — Resolved. `markRead`, `setArchived`, and `setTags` are now wired through `src/app/api/articles/[id]/route.ts` and consumed from `src/app/read/[id]/article-actions.tsx`.
 - **#11 No dedup on save** — Resolved. `src/lib/articles.ts` now implements `canonicalizeUrl` (strips tracking params, normalises host/path) and `articleIdForUrl` (sha256 of canonical URL → 32 hex chars), and `saveArticle` short-circuits when an entry already exists.
+- **#13 Error messages leak internal details** — Resolved in commit `5b05e5e`. `IngestError.publicMessage` separates user-facing text from the raw message; `src/app/api/articles/route.ts` logs the raw error server-side and returns only `publicMessage` in the 422 response.
 - **#16 `folioblob-next: file:...` workaround** — Resolved in commit `635ecf9`. `package.json` now depends on the published `folio-db-next@^0.1.0`.
 - **#16 Committed `default.profraw` / `tsconfig.tsbuildinfo`** — Resolved. `.gitignore` now excludes `*.profraw` and `*.tsbuildinfo`; files are untracked.
 - **#16 Dirty `.gitignore`** — Resolved; working tree clean.
 
-Findings #1–#6, #8–#10, #12–#15, #17–#20 remain open as written.
+Findings #3, #4, #6, #8–#10, #12, #14–#15, #17–#20 remain open as written. **#3 (rate limiting on `POST /api/articles`) is the only remaining pre-production blocker from the §20 "this week" list.**
 
 ---
 

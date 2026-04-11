@@ -48,12 +48,15 @@ Read-it-later app. Next.js 16 App Router + Clerk auth + Folio (`folio-db-next`) 
 
 ## Open pre-production blockers
 
-From `CODE_REVIEW.md` (still open):
+From `CODE_REVIEW.md`:
 
-1. **SSRF** in `fetchAndParse` (§1) — no host allowlist, `redirect: "follow"`.
-2. **No timeout / body-size cap** on the fetched upstream (§2).
-3. **No rate limiting** on `POST /api/articles` (§3).
-4. **FsAdapter silent fallback** in production (§5) — should fail closed when `NODE_ENV === "production" && !BLOB_READ_WRITE_TOKEN`.
-5. **Error messages leak internal details** (§13).
+1. **No rate limiting** on `POST /api/articles` (§3). One authenticated user can force unbounded ingest work; combine with any upstream slowness and it's a DoS/bill primitive. In-memory leaky bucket keyed on `userId` is the MVP fix; Upstash Redis via the Marketplace is the correct multi-instance answer.
 
-If you're working near any of these, address them inline rather than growing the debt.
+Resolved since CLAUDE.md was first written (do not re-open without reading the code):
+
+- §1 SSRF — `assertPublicHost` in `src/lib/ingest.ts` resolves DNS, blocks RFC1918 / loopback / link-local / ULA / CGNAT / multicast / IPv4-mapped v6, `redirect: "manual"` re-checks on every hop, capped at `MAX_REDIRECTS = 5`.
+- §2 Timeout / body cap — `AbortSignal.timeout(FETCH_TIMEOUT_MS)` (15 s), `readBoundedBody` streams with a `MAX_BODY_BYTES` cap (5 MB), `isHtmlContentType` allowlist on `content-type`.
+- §5 FsAdapter silent fallback — `resolveAdapter` throws when `NODE_ENV === "production" && !BLOB_READ_WRITE_TOKEN`.
+- §13 Error leakage — `IngestError.publicMessage` is the only string returned to clients; the raw message is logged server-side in the route handler.
+
+If you're working near any of these, address the remaining blocker inline rather than growing the debt.
