@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
 import { renderMarkdown } from "@/lib/markdown";
+import { ArticleActions } from "./article-actions";
 import styles from "./read.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,12 @@ export default async function ReadPage({
             Original
           </a>
         </div>
+        <ArticleActions
+          articleId={article.id}
+          initialTags={article.tags}
+          initialArchived={article.archivedAt !== null}
+          initialRead={article.readAt !== null}
+        />
       </header>
 
       <article
