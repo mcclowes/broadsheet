@@ -126,3 +126,31 @@ button {
 .reader-body li {
   margin: 0.375rem 0;
 }
+
+.reader-body table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.reader-body thead {
+  background: #f3f1ec;
+}
+
+.reader-body th,
+.reader-body td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.reader-body th {
+  font-weight: 600;
+}

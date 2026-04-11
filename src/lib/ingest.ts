@@ -3,6 +3,7 @@ import dns from "node:dns/promises";
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
+import { tables } from "turndown-plugin-gfm";
 
 export interface ParsedArticle {
   title: string;
@@ -24,6 +25,11 @@ turndown.addRule("stripScripts", {
   filter: ["script", "style", "iframe", "noscript"],
   replacement: () => "",
 });
+
+// Convert <table> to GFM pipe tables. Tables without a heading row are
+// preserved as raw HTML via Turndown's `keep` fallback (registered by the
+// plugin), which marked passes through and DOMPurify sanitises.
+turndown.use(tables);
 
 export class IngestError extends Error {
   constructor(
