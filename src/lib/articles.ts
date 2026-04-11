@@ -1,8 +1,52 @@
-import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Volume } from "folio-db-next";
 import { getFolio, volumeNameForUser } from "./folio";
 import { estimateReadMinutes, type ParsedArticle } from "./ingest";
+
+const TRACKING_PARAM_PATTERNS = [
+  /^utm_/i,
+  /^fbclid$/i,
+  /^gclid$/i,
+  /^mc_(eid|cid)$/i,
+  /^_hs(enc|mi)$/i,
+  /^icid$/i,
+  /^ref(_src)?$/i,
+  /^yclid$/i,
+  /^msclkid$/i,
+];
+
+function isTrackingParam(name: string): boolean {
+  return TRACKING_PARAM_PATTERNS.some((re) => re.test(name));
+}
+
+export function canonicalizeUrl(input: string): string {
+  const u = new URL(input);
+  u.hash = "";
+  u.hostname = u.hostname.toLowerCase().replace(/^www\./, "");
+  if (
+    (u.protocol === "http:" && u.port === "80") ||
+    (u.protocol === "https:" && u.port === "443")
+  ) {
+    u.port = "";
+  }
+  const keep: [string, string][] = [];
+  for (const [k, v] of u.searchParams) {
+    if (!isTrackingParam(k)) keep.push([k, v]);
+  }
+  keep.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  u.search = "";
+  for (const [k, v] of keep) u.searchParams.append(k, v);
+  if (u.pathname !== "/" && u.pathname.endsWith("/")) {
+    u.pathname = u.pathname.replace(/\/+$/, "");
+  }
+  return u.toString();
+}
+
+export function articleIdForUrl(url: string): string {
+  const canonical = canonicalizeUrl(url);
+  return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
+}
 
 export type ArticleFrontmatter = {
   title: string;
@@ -51,10 +95,6 @@ function userVolume(userId: string): Volume<ArticleFrontmatter> {
   });
 }
 
-function newArticleId(): string {
-  return randomUUID().replace(/-/g, "");
-}
-
 function domainOf(url: string): string | null {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -68,11 +108,17 @@ export async function saveArticle(
   url: string,
   parsed: ParsedArticle,
 ): Promise<ArticleSummary> {
-  const id = newArticleId();
+  const canonicalUrl = canonicalizeUrl(url);
+  const id = articleIdForUrl(canonicalUrl);
+  const volume = userVolume(userId);
+  const existing = await volume.get(id);
+  if (existing) {
+    return { id, ...existing.frontmatter };
+  }
   const frontmatter: ArticleFrontmatter = {
     title: parsed.title,
-    url,
-    source: parsed.siteName ?? domainOf(url),
+    url: canonicalUrl,
+    source: parsed.siteName ?? domainOf(canonicalUrl),
     byline: parsed.byline,
     excerpt: parsed.excerpt,
     lang: parsed.lang,
@@ -83,7 +129,7 @@ export async function saveArticle(
     archivedAt: null,
     tags: [],
   };
-  await userVolume(userId).set(id, { frontmatter, body: parsed.markdown });
+  await volume.set(id, { frontmatter, body: parsed.markdown });
   return { id, ...frontmatter };
 }
 

@@ -22,6 +22,12 @@ function resolveAdapter(): StorageAdapter {
     return adapter;
   }
 
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN is required in production. Falling back to local disk would lose user data on every cold start.",
+    );
+  }
+
   const baseDir = process.env.BROADSHEET_FS_DIR ?? ".broadsheet-data";
   adapter = new FsAdapter({ baseDir });
   return adapter;

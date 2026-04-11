@@ -4,6 +4,23 @@
 **Scope:** Everything under `src/`, `apps/extension/`, build config, tests, repo hygiene.
 **Tone:** Direct. The goal is to make the next commits *obviously* better, not to be nice about the current ones.
 
+---
+
+## Resolved since this review was written
+
+The review below is preserved verbatim as a snapshot. The following findings have been addressed in subsequent commits and should be considered closed:
+
+- **#7 `markRead` is dead code** — Resolved. `markRead`, `setArchived`, and `setTags` are now wired through `src/app/api/articles/[id]/route.ts` and consumed from `src/app/read/[id]/article-actions.tsx`.
+- **#11 No dedup on save** — Resolved. `src/lib/articles.ts` now implements `canonicalizeUrl` (strips tracking params, normalises host/path) and `articleIdForUrl` (sha256 of canonical URL → 32 hex chars), and `saveArticle` short-circuits when an entry already exists.
+- **#16 `folioblob-next: file:...` workaround** — Resolved in commit `635ecf9`. `package.json` now depends on the published `folio-db-next@^0.1.0`.
+- **#16 Committed `default.profraw` / `tsconfig.tsbuildinfo`** — Resolved. `.gitignore` now excludes `*.profraw` and `*.tsbuildinfo`; files are untracked.
+- **#16 Dirty `.gitignore`** — Resolved; working tree clean.
+
+Findings #1–#6, #8–#10, #12–#15, #17–#20 remain open as written.
+
+---
+
+
 The MVP is small and the architecture is basically sound — Next.js App Router, Clerk for auth, a pluggable blob storage layer, Readability + Turndown for ingestion. That's the good news. The bad news is that a handful of these files ship behaviour that would get flagged in any half-decent security review, and the test coverage stops exactly where the interesting bugs live.
 
 I've ordered findings by blast radius, not by file. Read top-to-bottom.

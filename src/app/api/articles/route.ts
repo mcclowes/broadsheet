@@ -37,7 +37,12 @@ export async function POST(req: Request) {
     return Response.json({ article: summary }, { status: 201 });
   } catch (err) {
     if (err instanceof IngestError) {
-      return Response.json({ error: err.message }, { status: 422 });
+      console.error("[api/articles] ingest failed", {
+        url: parsed.data.url,
+        message: err.message,
+        cause: err.cause,
+      });
+      return Response.json({ error: err.publicMessage }, { status: 422 });
     }
     console.error("[api/articles] save failed", err);
     return Response.json({ error: "Internal error" }, { status: 500 });

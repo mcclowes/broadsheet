@@ -5,6 +5,7 @@ import "./globals.scss";
 export const metadata: Metadata = {
   title: "Broadsheet",
   description: "Save articles. Read them cleanly. Keep them.",
+  referrer: "no-referrer",
 };
 
 export default function RootLayout({

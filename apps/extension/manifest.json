@@ -16,7 +16,8 @@
     "open_in_tab": false
   },
   "permissions": ["activeTab", "storage", "notifications"],
-  "host_permissions": ["http://localhost:3000/*", "https://*/*"],
+  "host_permissions": ["http://localhost:3000/*"],
+  "optional_host_permissions": ["https://*/*"],
   "commands": {
     "save-current-tab": {
       "suggested_key": {

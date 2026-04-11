@@ -1,8 +1,10 @@
 # Broadsheet — Product Requirements Document
 
-**Status:** Draft v0.1  
-**Owner:** Max Clayton Clowes  
+**Status:** Draft v0.1 (aspirational — see "Implementation status" below)
+**Owner:** Max Clayton Clowes
 **Last updated:** April 2026
+
+> **Implementation status note (April 2026):** This PRD predates the MVP build and documents the full target product. What currently exists in the repo is a subset: a Next.js web app (library + reader), a Chrome extension save trigger, Clerk auth, and open-article ingestion. There is no iOS app, no Postgres/Supabase, and no separate API service — metadata and article bodies both live in Folio (`folio-db-next`), backed by Vercel Blob in production. Sections below marked **[aspirational]** describe intended product surface that does not yet exist.
 
 ---
 
@@ -25,7 +27,7 @@ The market gap is real. Pocket's decline and eventual wind-down leaves a signifi
 
 ## Product Surface
 
-### 1. Mobile App (iOS + Android) — Primary Surface
+### 1. Mobile App (iOS + Android) — Primary Surface [aspirational]
 
 The highest-value surface. Most save intent happens on mobile: reading in Safari, following a link in a newsletter, skimming Twitter.
 
@@ -123,35 +125,42 @@ This is a non-negotiable early decision. Auth added later is auth added wrong.
 
 ## Data Storage
 
-**Structured data** (users, article metadata, tags, read state): standard relational DB — Postgres via Supabase or similar.
+**Current implementation:** both structured metadata (title, URL, tags, read/archive state) and article body Markdown live in a single **Folio** store (`folio-db-next`), with metadata held in per-page frontmatter. Clerk user IDs are hashed to form per-user volume names. The production adapter is Vercel Blob; dev falls back to `FsAdapter` writing to `.broadsheet-data` on disk.
 
-**Article content** (Markdown): **Folio** — the markdown-native database tool noted as a candidate. This is the right fit: content is document-shaped, not row-shaped. Folio handles versioning and retrieval natively.
+**Original plan (still on the table if Folio doesn't scale):** split structured data into a relational DB (Postgres via Supabase or similar) and keep Folio — or S3 + flat files — for article content only. This would unlock SQL-level filtering, indexing, and search that frontmatter scans can't.
 
-One concern worth flagging: Folio is relatively new tooling. Assess maturity before committing article storage to it. Define a fallback (S3 + flat files keyed by article ID) in case it proves unsuitable at scale or lacks operational tooling.
+The "assess Folio maturity" open question has been answered pragmatically — we've committed to it for MVP. The fallback (extracting metadata into Postgres) remains feasible because the volume layout is simple and the body is already addressable by content hash.
 
 ---
 
-## Technical Architecture (Sketch)
+## Technical Architecture
+
+**As built (MVP):**
 
 ```
-User (mobile/web/extension)
+User (web / Chrome extension)
         │
         ▼
-   Clerk Auth Layer
+   Clerk Auth
         │
         ▼
-   Broadsheet API (Node/TypeScript or Go)
+   Next.js App Router (Vercel Functions / Fluid Compute)
         │
-        ├── Ingestion Service
-        │     ├── Open: fetch → parse → Markdown
-        │     └── Paywall: receive client-extracted Markdown
-        │
-        ├── Article Store → Folio (Markdown content)
-        │
-        └── Metadata Store → Postgres (articles, users, tags, read state)
+        ├── /api/articles           → ingest (fetch → Readability → Turndown → save)
+        ├── /api/articles/[id]      → mark read, archive, tag
+        ├── /library                → list view (server component)
+        └── /read/[id]              → reader (marked → DOMPurify → HTML)
+                  │
+                  ▼
+        Folio (folio-db-next)
+        per-user volume, page.frontmatter holds metadata,
+        page.body holds article Markdown
+                  │
+                  ▼
+        Vercel Blob (prod) | FsAdapter (dev) | MemoryAdapter (tests)
 ```
 
-Mobile and web clients share the same API. The Chrome extension calls the same save endpoint.
+There is no separate backend service: everything runs as route handlers in the same Next.js app. Web and Chrome extension both POST to `/api/articles`.
 
 ---
 
@@ -159,17 +168,22 @@ Mobile and web clients share the same API. The Chrome extension calls the same s
 
 The minimum viable product needs to answer one question convincingly: *can someone save an article from their phone and read it cleanly later?*
 
-**In scope for MVP:**
-- iOS app with share sheet integration
-- Chrome extension (save only)
-- Web app (library + reader, PWA)
-- Open article ingestion (server-side fetch + parse to Markdown)
+**Built and shipped:**
+- Web app (library + reader) on Next.js App Router
+- Chrome extension (save only) — see `apps/extension/`
+- Open article ingestion (server-side fetch + Readability + Turndown → Markdown)
 - Clerk auth
-- Basic tagging and read/unread state
-- Folio for article content storage
+- Tagging, read/unread state, archive
+- URL canonicalisation + dedup on save
+- Folio (`folio-db-next`) for both content and metadata
 
-**Out of scope for MVP:**
-- Paywalled article extraction (design the hook; implement post-MVP)
+**MVP scope, still unbuilt:**
+- iOS app with share sheet integration (the original "primary surface" — deferred)
+- PWA manifest / service worker for the web app
+- Full-text search
+
+**Explicitly out of scope (post-MVP):**
+- Paywalled article extraction (design the hook; implement later)
 - Android app (follows iOS)
 - Firefox extension
 - Social / sharing features
