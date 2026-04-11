@@ -1,5 +1,8 @@
 import { marked } from "marked";
-import DOMPurify from "isomorphic-dompurify";
+import createDOMPurify from "dompurify";
+import { JSDOM } from "jsdom";
+
+const DOMPurify = createDOMPurify(new JSDOM("").window);
 
 marked.setOptions({
   gfm: true,
