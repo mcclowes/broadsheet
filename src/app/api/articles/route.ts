@@ -1,9 +1,17 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { fetchAndParse, IngestError } from "@/lib/ingest";
+import {
+  fetchAndParse,
+  IngestError,
+  MAX_BODY_BYTES,
+  parseArticleFromHtml,
+} from "@/lib/ingest";
 import { listArticles, saveArticle } from "@/lib/articles";
 
-const saveSchema = z.object({ url: z.string().url() });
+const saveSchema = z.object({
+  url: z.string().url(),
+  html: z.string().min(1).max(MAX_BODY_BYTES).optional(),
+});
 
 export async function GET() {
   const { userId } = await auth();
@@ -26,13 +34,15 @@ export async function POST(req: Request) {
   const parsed = saveSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json(
-      { error: "Expected { url: string }" },
+      { error: "Expected { url: string, html?: string }" },
       { status: 400 },
     );
   }
 
   try {
-    const article = await fetchAndParse(parsed.data.url);
+    const article = parsed.data.html
+      ? parseArticleFromHtml(parsed.data.html, parsed.data.url)
+      : await fetchAndParse(parsed.data.url);
     const summary = await saveArticle(userId, parsed.data.url, article);
     return Response.json({ article: summary }, { status: 201 });
   } catch (err) {

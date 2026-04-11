@@ -20,9 +20,19 @@ Cookie-based. The extension calls `POST {baseUrl}/api/articles` with `credential
 ## Files
 
 - `manifest.json` — MV3, action, background service worker, host permissions, keyboard command.
-- `background.js` — fetches active tab URL, POSTs to `/api/articles`, surfaces chrome notification.
+- `background.js` — reads active tab URL, injects a content script to grab the rendered DOM, POSTs `{ url, html }` to `/api/articles`, surfaces a chrome notification.
 - `popup.html` / `popup.js` — one-click save button + status.
 - `options.html` / `options.js` — set Broadsheet base URL (production vs dev).
+
+## Rendered DOM capture
+
+The extension injects a one-liner via `chrome.scripting.executeScript` to read `document.documentElement.outerHTML` from the active tab and sends it as the `html` field. The server parses this directly with Readability, bypassing `fetchAndParse`. This means:
+
+- Paywalled and auth-gated pages save whatever is rendered in the user's browser.
+- Client-side-rendered pages (SPAs) are captured after hydration.
+- No SSRF surface for this path — the server never fetches the URL when `html` is present.
+- Restricted pages (chrome://, the web store, PDFs) can't be scripted; we fall back to URL-only and let the server try to fetch.
+- Pages with rendered HTML over 4 MB fall back to URL-only.
 
 ## Icons
 
@@ -30,5 +40,4 @@ Not included. Add `icon16.png`, `icon48.png`, `icon128.png` if you want custom b
 
 ## Known limits
 
-- Doesn't read the DOM of the current tab. For paywalled pages, v2 should inject a content script to extract rendered HTML and POST the Markdown directly, bypassing server-side fetch.
 - No Firefox build. MV3 is compatible but manifest tweaks are needed (`background.scripts` vs `service_worker`).
