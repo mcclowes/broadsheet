@@ -1,0 +1,125 @@
+:root {
+  --bg: #fafaf7;
+  --fg: #1a1a1a;
+  --fg-muted: #6b6b6b;
+  --accent: #b4451f;
+  --rule: #e4e2dc;
+  --max-read-width: 38rem;
+
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Charter, Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.reader-body {
+  font-family: var(--font-serif);
+  font-size: 1.1875rem;
+  line-height: 1.65;
+  color: var(--fg);
+}
+
+.reader-body h1,
+.reader-body h2,
+.reader-body h3 {
+  font-weight: 700;
+  margin-top: 2.25rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.25;
+}
+
+.reader-body h2 {
+  font-size: 1.5rem;
+}
+
+.reader-body h3 {
+  font-size: 1.25rem;
+}
+
+.reader-body p {
+  margin: 1.125rem 0;
+}
+
+.reader-body a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.reader-body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1.5rem auto;
+  border-radius: 4px;
+}
+
+.reader-body blockquote {
+  margin: 1.5rem 0;
+  padding-left: 1rem;
+  border-left: 3px solid var(--rule);
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
+.reader-body pre {
+  background: #f3f1ec;
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.875rem;
+}
+
+.reader-body code {
+  font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875em;
+  background: #f3f1ec;
+  padding: 0.125em 0.375em;
+  border-radius: 3px;
+}
+
+.reader-body pre code {
+  background: none;
+  padding: 0;
+}
+
+.reader-body ul,
+.reader-body ol {
+  margin: 1.125rem 0;
+  padding-left: 1.5rem;
+}
+
+.reader-body li {
+  margin: 0.375rem 0;
+}
