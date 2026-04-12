@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getCachedArticle, type OfflineArticle } from "@/lib/offline-storage";
-import { renderMarkdownClient } from "@/lib/markdown-client";
 import styles from "./read.module.scss";
 
 /**
@@ -13,14 +12,12 @@ import styles from "./read.module.scss";
  */
 export function OfflineReader({ articleId }: { articleId: string }) {
   const [article, setArticle] = useState<OfflineArticle | null>(null);
-  const [html, setHtml] = useState<string>("");
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     getCachedArticle(articleId).then((cached) => {
       if (cached) {
         setArticle(cached);
-        setHtml(renderMarkdownClient(cached.body));
       } else {
         setNotFound(true);
       }
@@ -67,7 +64,7 @@ export function OfflineReader({ articleId }: { articleId: string }) {
 
       <article
         className="reader-body"
-        dangerouslySetInnerHTML={{ __html: html }}
+        dangerouslySetInnerHTML={{ __html: article.body }}
       />
     </main>
   );

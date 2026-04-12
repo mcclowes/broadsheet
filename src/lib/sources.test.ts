@@ -28,8 +28,10 @@ import {
 const discoverFeedMock = vi.mocked(discoverFeed);
 const fetchFeedMock = vi.mocked(fetchFeed);
 
-const USER = "user_test_alice";
-const OTHER = "user_test_bob";
+import { authedUserId } from "./auth-types";
+
+const USER = authedUserId("user_test_alice");
+const OTHER = authedUserId("user_test_bob");
 
 function makeFeed(
   feedUrl: string,

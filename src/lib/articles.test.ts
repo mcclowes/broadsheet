@@ -25,6 +25,7 @@ function make(
     readAt: null,
     archivedAt: null,
     tags: [],
+    markdown: "",
     ...overrides,
   };
 }

@@ -12,11 +12,12 @@ import {
   setArchived,
   setTags,
 } from "./articles";
+import { authedUserId, type AuthedUserId } from "./auth-types";
 import type { ParsedArticle } from "./ingest";
 import { getFolio, volumeNameForUser } from "./folio";
 
-const USER = "user_test_crud_alice";
-const OTHER = "user_test_crud_bob";
+const USER = authedUserId("user_test_crud_alice");
+const OTHER = authedUserId("user_test_crud_bob");
 
 function makeParsed(overrides: Partial<ParsedArticle> = {}): ParsedArticle {
   return {
@@ -27,12 +28,14 @@ function makeParsed(overrides: Partial<ParsedArticle> = {}): ParsedArticle {
     lang: "en",
     image: "https://cdn.example.com/hero.jpg",
     markdown: "This is the **body** of the article with enough words.",
+    sanitizedHtml:
+      "<p>This is the <strong>body</strong> of the article with enough words.</p>",
     wordCount: 10,
     ...overrides,
   };
 }
 
-async function clearVolume(userId: string): Promise<void> {
+async function clearVolume(userId: AuthedUserId): Promise<void> {
   const volume = getFolio().volume(volumeNameForUser(userId));
   const pages = await volume.list();
   for (const p of pages) {
@@ -119,6 +122,33 @@ describe("saveArticle", () => {
     const bobList = await listArticles(OTHER);
     expect(bobList).toHaveLength(0);
   });
+
+  it("handles concurrent saves of the same URL via dedup", async () => {
+    const [a, b] = await Promise.all([
+      saveArticle(
+        USER,
+        "https://example.com/concurrent",
+        makeParsed({ title: "First" }),
+      ),
+      saveArticle(
+        USER,
+        "https://example.com/concurrent",
+        makeParsed({ title: "Second" }),
+      ),
+    ]);
+    // Both should resolve to the same article ID
+    expect(a.id).toBe(b.id);
+    // Only one article should exist
+    const list = await listArticles(USER);
+    expect(list.filter((art) => art.id === a.id)).toHaveLength(1);
+  });
+});
+
+describe("getArticle", () => {
+  it("returns null for malformed article id", async () => {
+    const article = await getArticle(USER, "not-a-valid-hex-id");
+    expect(article).toBeNull();
+  });
 });
 
 describe("listArticles", () => {
@@ -188,17 +218,36 @@ describe("listArticles", () => {
 });
 
 describe("getArticle", () => {
-  it("returns full article with body", async () => {
+  it("returns full article with sanitised HTML body", async () => {
     const summary = await saveArticle(
       USER,
       "https://example.com/full",
-      makeParsed({ markdown: "Full **body** content here." }),
+      makeParsed({
+        markdown: "Full **body** content here.",
+        sanitizedHtml: "<p>Full <strong>body</strong> content here.</p>",
+      }),
     );
     const article = await getArticle(USER, summary.id);
     expect(article).not.toBeNull();
     expect(article!.id).toBe(summary.id);
-    expect(article!.body).toContain("Full **body** content here.");
+    expect(article!.body).toContain("<strong>body</strong>");
     expect(article!.title).toBe("Test Article");
+  });
+
+  it("preserves markdown in frontmatter for diff/export", async () => {
+    const summary = await saveArticle(
+      USER,
+      "https://example.com/md-preserved",
+      makeParsed({
+        markdown: "# Hello\n\nSome **bold** text.",
+        sanitizedHtml: "<h1>Hello</h1><p>Some <strong>bold</strong> text.</p>",
+      }),
+    );
+    const article = await getArticle(USER, summary.id);
+    expect(article).not.toBeNull();
+    expect(article!.markdown).toBe("# Hello\n\nSome **bold** text.");
+    // Body is the sanitised HTML
+    expect(article!.body).toContain("<strong>bold</strong>");
   });
 
   it("returns null for nonexistent article", async () => {

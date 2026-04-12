@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { notFound, redirect } from "next/navigation";
 import { fetchSourceItems, getSource } from "@/lib/sources";
 import { articleIdForUrl, listArticles } from "@/lib/articles";
+import { authedUserId } from "@/lib/auth-types";
 import { ItemActions } from "../item-actions";
 import { RemoveSourceButton } from "../remove-source-button";
 import styles from "../sources.module.scss";
@@ -39,8 +40,9 @@ export default async function SourceDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId) redirect("/sign-in");
+  const userId = authedUserId(rawUserId);
 
   const { id } = await params;
   const source = await getSource(userId, id);

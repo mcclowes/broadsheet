@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Volume } from "folio-db-next";
+import type { AuthedUserId } from "./auth-types";
 import { getFolio, volumeNameForUser } from "./folio";
 import { estimateReadMinutes, type ParsedArticle } from "./ingest";
 import { generateTags } from "./auto-tag";
@@ -63,6 +64,8 @@ export type ArticleFrontmatter = {
   readAt: string | null;
   archivedAt: string | null;
   tags: string[];
+  /** Original markdown for diff/export. Body is canonical sanitised HTML. */
+  markdown: string;
   [key: string]: unknown;
 };
 
@@ -81,6 +84,7 @@ export const articleFrontmatterSchema: z.ZodType<ArticleFrontmatter> = z.object(
     readAt: z.string().nullable(),
     archivedAt: z.string().nullable().default(null),
     tags: z.array(z.string()).default([]),
+    markdown: z.string().default(""),
   },
 ) as unknown as z.ZodType<ArticleFrontmatter>;
 
@@ -93,7 +97,7 @@ export interface ArticleSummary extends ArticleFrontmatter {
   id: string;
 }
 
-function userVolume(userId: string): Volume<ArticleFrontmatter> {
+function userVolume(userId: AuthedUserId): Volume<ArticleFrontmatter> {
   return getFolio().volume<ArticleFrontmatter>(volumeNameForUser(userId), {
     schema: articleFrontmatterSchema,
   });
@@ -114,7 +118,7 @@ function domainOf(url: string): string | null {
 // the same URL), but a proper fix requires a `setIfAbsent` primitive in
 // Folio — logged in FOLIO-TRACKER.md.
 export async function saveArticle(
-  userId: string,
+  userId: AuthedUserId,
   url: string,
   parsed: ParsedArticle,
 ): Promise<ArticleSummary> {
@@ -139,8 +143,9 @@ export async function saveArticle(
     readAt: null,
     archivedAt: null,
     tags: generateTags(parsed),
+    markdown: parsed.markdown,
   };
-  await volume.set(id, { frontmatter, body: parsed.markdown });
+  await volume.set(id, { frontmatter, body: parsed.sanitizedHtml });
   return { id, ...frontmatter };
 }
 
@@ -173,7 +178,7 @@ export function filterArticles(
 }
 
 export async function listArticles(
-  userId: string,
+  userId: AuthedUserId,
   filters: ListFilters = {},
 ): Promise<ArticleSummary[]> {
   const pages = await userVolume(userId).list();
@@ -185,7 +190,7 @@ export async function listArticles(
 }
 
 export async function getArticle(
-  userId: string,
+  userId: AuthedUserId,
   id: string,
 ): Promise<Article | null> {
   const page = await userVolume(userId).get(id);
@@ -200,7 +205,7 @@ export interface ArticlePatch {
 }
 
 export async function patchArticle(
-  userId: string,
+  userId: AuthedUserId,
   id: string,
   patch: ArticlePatch,
 ): Promise<{ tags?: string[] }> {
@@ -221,7 +226,7 @@ export async function patchArticle(
 }
 
 export async function markRead(
-  userId: string,
+  userId: AuthedUserId,
   id: string,
   read: boolean,
 ): Promise<void> {
@@ -231,7 +236,7 @@ export async function markRead(
 }
 
 export async function setArchived(
-  userId: string,
+  userId: AuthedUserId,
   id: string,
   archived: boolean,
 ): Promise<void> {
@@ -257,7 +262,7 @@ export function cleanTags(tags: string[]): string[] {
 }
 
 export async function setTags(
-  userId: string,
+  userId: AuthedUserId,
   id: string,
   tags: string[],
 ): Promise<string[]> {

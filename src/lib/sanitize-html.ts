@@ -1,4 +1,8 @@
-import { marked } from "marked";
+/**
+ * Server-side HTML sanitization for article content at save time.
+ * Uses the same DOMPurify config and hooks as markdown.ts to ensure
+ * consistent sanitization whether we store HTML or render markdown.
+ */
 import createDOMPurify from "dompurify";
 import { JSDOM } from "jsdom";
 import { SANITIZE_CONFIG } from "./sanitize-config";
@@ -6,7 +10,7 @@ import { SANITIZE_CONFIG } from "./sanitize-config";
 const window = new JSDOM("").window;
 const DOMPurify = createDOMPurify(window);
 
-// After sanitization, force external links to open in a new tab safely.
+// Force external links to open in a new tab safely.
 DOMPurify.addHook("afterSanitizeAttributes", (node) => {
   if (node.tagName === "A") {
     const href = node.getAttribute("href") ?? "";
@@ -17,10 +21,6 @@ DOMPurify.addHook("afterSanitizeAttributes", (node) => {
   }
 });
 
-export function renderMarkdown(md: string): string {
-  const html = marked.parse(md, { async: false, gfm: true, breaks: false });
-  if (typeof html !== "string") {
-    throw new Error("marked.parse returned a non-string (async mode leak)");
-  }
+export function sanitizeHtml(html: string): string {
   return DOMPurify.sanitize(html, SANITIZE_CONFIG);
 }

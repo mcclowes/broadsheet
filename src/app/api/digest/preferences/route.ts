@@ -1,11 +1,14 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { getDigestPreferences, setDigestPreferences } from "@/lib/digest";
+import { authedUserId } from "@/lib/auth-types";
 import { checkOrigin } from "@/lib/csrf";
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId)
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = authedUserId(rawUserId);
 
   const prefs = await getDigestPreferences(userId);
   return Response.json(
@@ -23,8 +26,10 @@ export async function PATCH(req: Request) {
   const originError = checkOrigin(req);
   if (originError) return originError;
 
-  const { userId } = await auth();
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId)
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = authedUserId(rawUserId);
 
   let body: unknown;
   try {

@@ -10,11 +10,12 @@ import {
   setDigestPreferences,
   listDigestSubscribers,
 } from "./digest";
+import { authedUserId } from "./auth-types";
 
 // The memory adapter shares state within a process — reset between tests
 // by toggling preferences off for any users we create.
-const USER_A = "user_test_digest_alice";
-const USER_B = "user_test_digest_bob";
+const USER_A = authedUserId("user_test_digest_alice");
+const USER_B = authedUserId("user_test_digest_bob");
 
 beforeEach(async () => {
   // Clean up any leftover state
@@ -30,7 +31,7 @@ beforeEach(async () => {
 
 describe("getDigestPreferences", () => {
   it("returns disabled by default for unknown users", async () => {
-    const prefs = await getDigestPreferences("user_unknown_999");
+    const prefs = await getDigestPreferences(authedUserId("user_unknown_999"));
     expect(prefs).toEqual({ enabled: false, email: "", enabledAt: null });
   });
 });

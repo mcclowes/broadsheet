@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { diffLines } from "diff";
 import { getArticle } from "@/lib/articles";
+import { authedUserId } from "@/lib/auth-types";
 import { fetchAndParse, IngestError } from "@/lib/ingest";
 import { diffLimiter } from "@/lib/rate-limit";
 
@@ -14,8 +15,10 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { userId } = await auth();
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId)
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = authedUserId(rawUserId);
 
   const { id } = await params;
   if (!/^[a-f0-9]{32}$/.test(id)) {
@@ -50,13 +53,14 @@ export async function GET(
     return Response.json({ error: message }, { status: 502 });
   }
 
-  const changes: DiffChange[] = diffLines(article.body, currentMarkdown).map(
-    (c) => ({
-      added: !!c.added,
-      removed: !!c.removed,
-      value: c.value,
-    }),
-  );
+  const changes: DiffChange[] = diffLines(
+    article.markdown,
+    currentMarkdown,
+  ).map((c) => ({
+    added: !!c.added,
+    removed: !!c.removed,
+    value: c.value,
+  }));
 
   const hasChanges = changes.some((c) => c.added || c.removed);
 

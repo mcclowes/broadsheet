@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { listArticles } from "@/lib/articles";
+import { authedUserId } from "@/lib/auth-types";
 import { listDigestSubscribers, markDigestSent } from "@/lib/digest";
 import {
   buildDigestHtml,
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
     const batch = eligible.slice(i, i + BATCH_SIZE);
     const results = await Promise.allSettled(
       batch.map(async (sub) => {
-        const articles = await listArticles(sub.userId, {
+        const articles = await listArticles(authedUserId(sub.userId), {
           view: "inbox",
           state: "unread",
         });

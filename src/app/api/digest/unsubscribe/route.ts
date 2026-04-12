@@ -3,6 +3,7 @@ import {
   setDigestPreferences,
   getDigestPreferences,
 } from "@/lib/digest";
+import { authedUserId } from "@/lib/auth-types";
 
 /**
  * One-click unsubscribe endpoint for digest emails.
@@ -21,9 +22,11 @@ async function handleUnsubscribe(req: Request): Promise<Response> {
     return new Response("Invalid token", { status: 403 });
   }
 
-  const prefs = await getDigestPreferences(userId);
+  // Token verification above proves the userId is legitimate (HMAC-signed).
+  const verified = authedUserId(userId);
+  const prefs = await getDigestPreferences(verified);
   if (prefs.enabled) {
-    await setDigestPreferences(userId, {
+    await setDigestPreferences(verified, {
       enabled: false,
       email: prefs.email,
     });

@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { addSource, listSources } from "@/lib/sources";
+import { authedUserId } from "@/lib/auth-types";
 import { IngestError } from "@/lib/ingest";
 import { checkOrigin } from "@/lib/csrf";
 import { sourceAddLimiter } from "@/lib/rate-limit";
@@ -10,8 +11,10 @@ const addSchema = z.object({
 });
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId)
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = authedUserId(rawUserId);
   const sources = await listSources(userId);
   return Response.json(
     { sources },
@@ -23,8 +26,10 @@ export async function POST(req: Request) {
   const originError = checkOrigin(req);
   if (originError) return originError;
 
-  const { userId } = await auth();
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId)
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = authedUserId(rawUserId);
 
   const limit = sourceAddLimiter.consume(userId);
   if (!limit.allowed) {

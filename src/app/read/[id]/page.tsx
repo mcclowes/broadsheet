@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
-import { renderMarkdown } from "@/lib/markdown";
+import { authedUserId } from "@/lib/auth-types";
 import { ArticleActions } from "./article-actions";
 import { ReadTracker } from "./read-tracker";
 import { CacheArticle } from "./cache-article";
@@ -19,14 +19,16 @@ export default async function ReadPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId) redirect("/sign-in");
+  const userId = authedUserId(rawUserId);
 
   const { id } = await params;
   const article = await getArticle(userId, id);
   if (!article) notFound();
 
-  const html = renderMarkdown(article.body);
+  // Body is canonical sanitised HTML since issue #6 — render directly.
+  const html = article.body;
 
   return (
     <main className={styles.main}>

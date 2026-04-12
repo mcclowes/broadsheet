@@ -9,6 +9,7 @@ import {
   type UnifiedFeedItem,
 } from "@/lib/sources";
 import { articleIdForUrl, listArticles } from "@/lib/articles";
+import { authedUserId } from "@/lib/auth-types";
 import { AddSourceForm } from "./add-source-form";
 import { ItemActions } from "./item-actions";
 import styles from "./sources.module.scss";
@@ -40,8 +41,9 @@ function formatRelative(iso: string | null): string | null {
 }
 
 export default async function SourcesPage() {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId) redirect("/sign-in");
+  const userId = authedUserId(rawUserId);
 
   const [sources, unified, savedArticles] = await Promise.all([
     listSources(userId),
