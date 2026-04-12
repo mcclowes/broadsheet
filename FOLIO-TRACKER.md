@@ -18,3 +18,16 @@ near-identical content), but prevents any future use of Folio for
 compare-and-swap patterns.
 
 **Opened:** 2026-04-12
+
+### `Volume.destroy()` / bulk delete
+
+`deleteAllUserData` in `src/lib/user-deletion.ts` has to `list()` + `delete()`
+each page of every per-user volume to implement GDPR deletion. For users with
+many articles this is O(n) round trips where one bulk "drop this volume"
+operation could be O(1).
+
+**Impact:** Correctness is fine (idempotent; safe to retry), but latency and
+API-call cost scale linearly with saved articles. Worth a dedicated primitive
+before we have users with thousands of saves.
+
+**Opened:** 2026-04-12
