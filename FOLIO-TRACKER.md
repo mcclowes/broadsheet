@@ -5,29 +5,27 @@ actioned upstream rather than worked around inline.
 
 ## Open
 
-### `setIfAbsent` / conditional write primitive
+_Nothing open — both tracked items shipped in `folio-db-next@0.2.0`._
 
-`saveArticle` in `src/lib/articles.ts` uses a check-then-act pattern (`get` →
-`set`) that isn't atomic. Two concurrent saves for the same URL can both see
-the key as absent and both write, with the second silently overwriting the
-first. A `setIfAbsent` (or `putIfAbsent`) method on `Volume` would let the
-caller detect and handle conflicts.
+## Resolved
 
-**Impact:** Low in practice (both writes come from the same URL and produce
-near-identical content), but prevents any future use of Folio for
-compare-and-swap patterns.
+### `setIfAbsent` / conditional write primitive — shipped 0.2.0
 
-**Opened:** 2026-04-12
+`Volume.setIfAbsent(slug, {frontmatter, body})` throws `ConflictError` when
+the slug already exists; otherwise writes atomically. `saveArticle` and
+`saveArticleStub` in `src/lib/articles.ts` now use it. The earlier
+check-then-act race is gone.
 
-### `Volume.destroy()` / bulk delete
+**Opened:** 2026-04-12 · **Closed:** 2026-04-13 (folio-db-next@0.2.0)
 
-`deleteAllUserData` in `src/lib/user-deletion.ts` has to `list()` + `delete()`
-each page of every per-user volume to implement GDPR deletion. For users with
-many articles this is O(n) round trips where one bulk "drop this volume"
-operation could be O(1).
+### `Volume.destroy()` / bulk delete — shipped 0.2.0
 
-**Impact:** Correctness is fine (idempotent; safe to retry), but latency and
-API-call cost scale linearly with saved articles. Worth a dedicated primitive
-before we have users with thousands of saves.
+`Volume.deleteAll()` and `folio.deleteVolume(name)` both use the new
+`adapter.deleteByPrefix` primitive — O(1) round trips to the storage layer
+regardless of article count. Note that cross-volume cascades (e.g. the
+digest-registry alongside the per-user article volume) are still the
+caller's responsibility; `deleteAllUserData` in `src/lib/user-deletion.ts`
+should be updated to use `deleteVolume` but still has to walk the registries
+itself.
 
-**Opened:** 2026-04-12
+**Opened:** 2026-04-12 · **Closed:** 2026-04-13 (folio-db-next@0.2.0)
