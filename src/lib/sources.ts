@@ -118,6 +118,10 @@ export async function removeSource(
   const existing = await volume.get(id);
   if (!existing) return false;
   await volume.delete(id);
+  // Drop the in-process feed cache entry so its items/feed payload is not
+  // retained for the lifetime of the serverless instance after the source
+  // has been deleted.
+  feedCache.delete(cacheKey(userId, id));
   return true;
 }
 
