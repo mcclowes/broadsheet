@@ -17,8 +17,8 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 const uniqueSuffix = () => Math.random().toString(36).slice(2, 10);
 
 function sampleHtml(title: string): string {
-  const body = "This is a sample article used by the Broadsheet e2e suite. "
-    .repeat(40);
+  const body =
+    "This is a sample article used by the Broadsheet e2e suite. ".repeat(40);
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -93,9 +93,7 @@ test.describe("article lifecycle", () => {
     await expect(readItem).toBeVisible();
     // Scope the "Read" badge lookup to this article's row to avoid matching
     // the "Read" filter tab in the nav.
-    const readRow = page
-      .locator("li", { has: readItem })
-      .first();
+    const readRow = page.locator("li", { has: readItem }).first();
     await expect(readRow.getByText("Read", { exact: true })).toBeVisible();
 
     // --- Archive via the article-actions menu ---
@@ -112,9 +110,7 @@ test.describe("article lifecycle", () => {
       name: article.title,
     });
     await expect(archivedItem).toBeVisible();
-    const archivedRow = page
-      .locator("li", { has: archivedItem })
-      .first();
+    const archivedRow = page.locator("li", { has: archivedItem }).first();
     await expect(
       archivedRow.getByText("Archived", { exact: true }),
     ).toBeVisible();

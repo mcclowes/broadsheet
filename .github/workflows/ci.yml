@@ -6,10 +6,58 @@ on:
   pull_request:
     branches: [main]
 
+# Least-privilege by default. Individual jobs can opt in to more if they need it.
+permissions:
+  contents: read
+
+# Cancel superseded PR runs; let pushes to main always complete so we never
+# leave a partially-verified main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  check:
+  lint:
+    name: Lint & format
     runs-on: ubuntu-latest
-    # Dummy Clerk keys satisfy the shape check in next.config.ts'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  build:
+    name: Build & audit
+    runs-on: ubuntu-latest
+    # Dummy Clerk keys satisfy the shape check in next.config.ts's
     # validateClerkEnv. The build step does not exercise Clerk at
     # runtime; real keys live on Vercel, not in CI.
     env:
@@ -22,8 +70,47 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
+
+  extension:
+    name: Extension package
+    runs-on: ubuntu-latest
+    # The extension-release workflow still gates actual releases on a tag
+    # push; this job is an early warning so a broken manifest or packaging
+    # script doesn't only surface at release time.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Validate manifest.json
+        run: |
+          node -e "
+            const m = require('./apps/extension/manifest.json');
+            for (const k of ['manifest_version', 'name', 'version']) {
+              if (!m[k]) { console.error('manifest.json missing', k); process.exit(1); }
+            }
+            if (!/^\d+(\.\d+){1,3}$/.test(m.version)) {
+              console.error('manifest.json version is not a valid Chrome extension version:', m.version);
+              process.exit(1);
+            }
+          "
+      - run: npm ci
+      - run: npm run extension:package
+      - name: Verify zip artifact exists
+        run: |
+          shopt -s nullglob
+          zips=(apps/extension/dist/broadsheet-extension-*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then
+            echo "No extension zip was produced" >&2
+            exit 1
+          fi
+          echo "Produced: ${zips[*]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension-zip
+          path: apps/extension/dist/broadsheet-extension-*.zip
+          if-no-files-found: error
+          retention-days: 7

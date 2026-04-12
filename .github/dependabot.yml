@@ -1,0 +1,41 @@
+version: 2
+updates:
+  # npm deps at the repo root. Group non-major bumps so review load stays low;
+  # majors still come in as individual PRs so they get real attention.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # React + Next major bumps deserve a manual migration PR, not a
+      # Dependabot one. Minor/patch still flow through the group above.
+      - dependency-name: react
+        update-types: [version-update:semver-major]
+      - dependency-name: react-dom
+        update-types: [version-update:semver-major]
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+
+  # GitHub Actions in .github/workflows. Pinning matters for supply-chain
+  # safety; weekly bumps keep action versions current.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    labels:
+      - dependencies
+      - github-actions
