@@ -11,6 +11,7 @@ import {
   isPrivateAddress,
   isHtmlContentType,
   charsetFromContentType,
+  MAX_BODY_BYTES,
 } from "./ingest";
 
 const sampleHtml = `<!doctype html>
@@ -585,30 +586,106 @@ describe("charsetFromContentType", () => {
   });
 });
 
-describe("fetchAndParse redirect tracking", () => {
+describe("fetchAndParse network behaviour", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("returns finalUrl after following redirects", async () => {
-    const finalHtml = sampleHtml;
-    const fetchMock = vi.fn(async (input: URL | string) => {
-      const url = typeof input === "string" ? input : input.toString();
-      if (url.startsWith("https://8.8.8.8/abc")) {
-        return new Response(null, {
-          status: 301,
-          headers: { location: "https://1.1.1.1/article" },
-        });
-      }
-      return new Response(finalHtml, {
-        status: 200,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
-    });
-    vi.stubGlobal("fetch", fetchMock);
+  function mockFetch(handler: (url: string) => Response | Promise<Response>) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: URL | string) =>
+        handler(typeof input === "string" ? input : input.toString()),
+      ),
+    );
+  }
 
+  const htmlOk = (body: string) =>
+    new Response(body, {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+
+  it("returns finalUrl after following redirects", async () => {
+    mockFetch((url) =>
+      url.startsWith("https://8.8.8.8/abc")
+        ? new Response(null, {
+            status: 301,
+            headers: { location: "https://1.1.1.1/article" },
+          })
+        : htmlOk(sampleHtml),
+    );
     const result = await fetchAndParse("https://8.8.8.8/abc");
     expect(result.finalUrl).toBe("https://1.1.1.1/article");
-    expect(result.parsed.title).toBe("Test Article");
+  });
+
+  it("rejects a redirect to a private IP", async () => {
+    mockFetch(
+      () =>
+        new Response(null, {
+          status: 301,
+          headers: { location: "http://10.0.0.1/x" },
+        }),
+    );
+    await expect(fetchAndParse("https://8.8.8.8/abc")).rejects.toMatchObject({
+      name: "IngestError",
+      publicMessage: "Refusing to fetch a non-public address",
+    });
+  });
+
+  it("rejects a redirect with no Location header", async () => {
+    mockFetch(() => new Response(null, { status: 302 }));
+    await expect(fetchAndParse("https://8.8.8.8/abc")).rejects.toMatchObject({
+      publicMessage: "Upstream returned a malformed redirect",
+    });
+  });
+
+  it("rejects non-HTML content-type", async () => {
+    mockFetch(
+      () =>
+        new Response("{}", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    await expect(fetchAndParse("https://8.8.8.8/abc")).rejects.toMatchObject({
+      publicMessage: "Upstream did not return HTML",
+    });
+  });
+
+  it("rejects HTTP error responses", async () => {
+    mockFetch(() => new Response("fail", { status: 502 }));
+    await expect(fetchAndParse("https://8.8.8.8/abc")).rejects.toMatchObject({
+      publicMessage: "Upstream returned HTTP 502",
+    });
+  });
+
+  it("rejects a body larger than MAX_BODY_BYTES", async () => {
+    const huge = "a".repeat(MAX_BODY_BYTES + 1);
+    mockFetch(() => htmlOk(huge));
+    await expect(fetchAndParse("https://8.8.8.8/abc")).rejects.toMatchObject({
+      publicMessage: "Page is too large to save",
+    });
+  });
+
+  it("rejects unsupported protocols", async () => {
+    mockFetch(() => htmlOk(sampleHtml));
+    await expect(fetchAndParse("file:///etc/passwd")).rejects.toMatchObject({
+      publicMessage: "Only http(s) URLs are supported",
+    });
+  });
+
+  it("bails out after MAX_REDIRECTS hops", async () => {
+    let hop = 0;
+    mockFetch(() => {
+      hop++;
+      return new Response(null, {
+        status: 301,
+        headers: { location: `https://8.8.8.${hop % 8}/h${hop}` },
+      });
+    });
+    await expect(fetchAndParse("https://8.8.8.8/abc")).rejects.toMatchObject({
+      publicMessage: "Too many redirects",
+    });
   });
 });
