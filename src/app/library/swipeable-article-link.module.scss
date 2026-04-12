@@ -1,0 +1,49 @@
+.wrapper {
+  position: relative;
+  overflow: hidden;
+  // Allow vertical scrolling; browser owns the decision once it sees vertical pan.
+  touch-action: pan-y;
+}
+
+.foreground {
+  position: relative;
+  background: var(--bg, white);
+  transition: transform 0.2s ease;
+  will-change: transform;
+}
+
+.link {
+  display: block;
+  padding: 1.25rem 0;
+  color: var(--fg);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: none;
+  }
+}
+
+.action {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  background: var(--fg-muted);
+  pointer-events: none;
+
+  &[data-direction="right"] {
+    justify-content: flex-start;
+  }
+
+  &[data-direction="left"] {
+    justify-content: flex-end;
+  }
+
+  &[data-commit="true"] {
+    background: var(--accent);
+  }
+}
