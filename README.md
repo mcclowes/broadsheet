@@ -1,10 +1,87 @@
 # Broadsheet
 
-A read-it-later app. Save articles from the web, parse them to Markdown at ingestion, read them cleanly later. Pocket, but rebuilt.
+Save articles from the web. Read them later, cleanly, without the clutter.
 
-> **Status:** pre-production MVP. Web app + Chrome extension. See [`CODE_REVIEW.md`](./CODE_REVIEW.md) for the open blocker list before shipping to real users.
+Broadsheet is an open-source read-it-later app — a modern alternative to Pocket. Save any article with one click from your browser, and it's parsed into clean, readable Markdown and stored in your personal library. No ads, no algorithmic feed, just your articles.
 
-## Stack
+> **Status:** pre-production MVP. The web app and Chrome extension are functional. See [Contributing](#contributing) if you want to help.
+
+## Features
+
+- **One-click save** — save any article from the Chrome extension or directly from the web app
+- **Clean reading** — articles are stripped of ads, nav bars, and clutter, then rendered in a distraction-free reader
+- **Keyboard shortcut** — press `Ctrl+Shift+S` (`Cmd+Shift+S` on Mac) to save the current tab instantly
+- **Tagging** — organise saved articles with tags
+- **Filters** — filter your library by tag, source, or read/unread/archived status
+- **Deduplication** — saving the same article twice won't create duplicates
+- **Estimated read time** — see how long each article will take before you start
+
+## Getting started
+
+### Web app
+
+1. Go to your Broadsheet instance and sign up
+2. Paste a URL into the save form on the library page, or use the Chrome extension
+3. Open any saved article to read it
+
+### Chrome extension
+
+The extension adds a toolbar button and keyboard shortcut to save the page you're viewing.
+
+1. Install the extension from the Chrome Web Store (or load it manually — see [development](#chrome-extension-1) below)
+2. Sign in to Broadsheet in the same browser profile
+3. Click the Broadsheet icon in your toolbar, or press `Ctrl+Shift+S` / `Cmd+Shift+S`
+4. The article is saved to your library — open the web app to read it
+
+---
+
+## Development
+
+### Prerequisites
+
+- Node.js (LTS recommended)
+- npm
+
+### Setup
+
+```bash
+git clone https://github.com/mcclowes/broadsheet.git
+cd broadsheet
+npm install
+cp .env.example .env.local
+# Fill in Clerk keys from https://dashboard.clerk.com
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+### Environment variables
+
+See `.env.example`. The key configuration is Folio's storage adapter (see `src/lib/folio.ts`):
+
+| Setting                           | Behaviour                                         |
+| --------------------------------- | ------------------------------------------------- |
+| `BROADSHEET_FOLIO_ADAPTER=memory` | Ephemeral in-memory store — tests only            |
+| `BLOB_READ_WRITE_TOKEN=...`       | Vercel Blob adapter — production                  |
+| _(neither set)_                   | `FsAdapter` writing to `./.broadsheet-data` — dev |
+
+Override the dev storage directory with `BROADSHEET_FS_DIR=/path/to/dir`.
+
+### Scripts
+
+```bash
+npm run dev          # Next.js dev server
+npm run build        # production build
+npm run start        # run built app
+npm run lint         # next lint
+npm run typecheck    # tsc --noEmit
+npm test             # vitest run
+npm run test:watch   # vitest watch
+```
+
+A husky pre-commit hook runs `typecheck` + `lint`. GitHub Actions (`.github/workflows/ci.yml`) additionally runs `test`, `build`, and `npm audit` on push and PR to `main`.
+
+### Stack
 
 - **Next.js 16** App Router, React 19, TypeScript strict
 - **Clerk** for auth (`@clerk/nextjs`)
@@ -18,7 +95,7 @@ A read-it-later app. Save articles from the web, parse them to Markdown at inges
 - **Testing:** Vitest
 - **Deploy:** Vercel
 
-## Repo layout
+### Repo layout
 
 ```
 broadsheet/
@@ -38,56 +115,33 @@ broadsheet/
 │       └── *.test.ts
 ├── apps/extension/                  # Chrome MV3 save-current-tab extension
 ├── apps/ios/                        # iOS app + Share Extension (XcodeGen + SwiftUI)
-├── broadsheet-prd.md                # product PRD (some sections aspirational)
-├── CODE_REVIEW.md                   # open findings — read before shipping
 └── CLAUDE.md                        # conventions for Claude Code
 ```
 
-## Getting started
+### How it works
 
-```bash
-npm install
-cp .env.example .env.local
-# Fill in Clerk keys from https://dashboard.clerk.com
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-### Environment
-
-See `.env.example`. The non-obvious one is Folio's adapter selection (see `src/lib/folio.ts`):
-
-| Setting                           | Behaviour                                         |
-| --------------------------------- | ------------------------------------------------- |
-| `BROADSHEET_FOLIO_ADAPTER=memory` | Ephemeral in-memory store — tests only            |
-| `BLOB_READ_WRITE_TOKEN=...`       | Vercel Blob adapter — production                  |
-| _(neither set)_                   | `FsAdapter` writing to `./.broadsheet-data` — dev |
-
-Override the dev directory with `BROADSHEET_FS_DIR=/path/to/dir`.
+1. **Save.** User POSTs a URL to `/api/articles` from the web app or Chrome extension. The route handler authenticates via Clerk, hands the URL to `fetchAndParse`, and persists the result via `saveArticle`.
+2. **Ingest.** `fetchAndParse` fetches the page HTML, runs Mozilla Readability inside jsdom, and converts the cleaned article HTML to Markdown with Turndown.
+3. **Store.** `saveArticle` canonicalises the URL (strips tracking params, normalises host/path), hashes it to derive a stable 32-char article ID, and writes `{ frontmatter, body }` into the user's per-user Folio volume. Re-saving the same URL is a no-op.
+4. **Read.** `/library` lists the user's articles (with tag/source/state filters). `/read/[id]` loads the Markdown body, renders it with `marked`, and sanitises the result with DOMPurify before display.
 
 ### Chrome extension
 
-The MV3 extension in `apps/extension/` saves the current tab to your
-library. It defaults to the production URL; for local dev, change the base
-URL to `http://localhost:3000` via the extension's options page.
+The MV3 extension in `apps/extension/` saves the current tab to your library. It defaults to the production URL; for local dev, change the base URL to `http://localhost:3000` via the extension's options page.
 
 ```bash
 npm run dev                 # in the repo root, for dev
 npm run extension:package   # build dist/broadsheet-extension-<version>.zip
 ```
 
-Load unpacked:
+Load unpacked for development:
 
 1. `chrome://extensions` → enable **Developer mode**.
 2. **Load unpacked** → select `apps/extension/`.
 3. Sign in to Broadsheet in the same profile (the extension uses cookie auth).
-4. Click the toolbar icon or press `⌘⇧S` / `Ctrl+Shift+S` to save the current tab.
+4. Click the toolbar icon or press `Cmd+Shift+S` / `Ctrl+Shift+S` to save the current tab.
 
-Releases are tagged `extension-vX.Y.Z`; the
-`extension-release` workflow attaches a zip to the GitHub release ready for
-Chrome Web Store upload. See [`apps/extension/README.md`](./apps/extension/README.md)
-for the full publishing checklist.
+Releases are tagged `extension-vX.Y.Z`; the `extension-release` workflow attaches a zip to the GitHub release ready for Chrome Web Store upload. See [`apps/extension/README.md`](./apps/extension/README.md) for the full publishing checklist.
 
 ### iOS app (dev)
 
@@ -97,32 +151,11 @@ cd apps/ios && xcodegen generate
 open Broadsheet.xcodeproj
 ```
 
-The app has two Xcode targets: `Broadsheet` (main SwiftUI app — library + reader + sign-in) and `ShareExtension` (share-sheet save target — the primary save path on mobile). Both are signed by the same Apple Developer team and share an App Group + shared keychain so the extension can use the main app's Clerk JWT.
+The app has two Xcode targets: `Broadsheet` (main SwiftUI app — library + reader + sign-in) and `ShareExtension` (share-sheet save target — the primary save path on mobile). Both share an App Group + shared keychain so the extension can use the main app's Clerk JWT.
 
-Requires iOS 17+, Xcode 16+, Clerk iOS SDK v1.0+, and an Apple Developer account to install on a device. See [`apps/ios/README.md`](./apps/ios/README.md) for signing, local dev server setup, debugging, and TestFlight / App Store deployment.
+Requires iOS 17+, Xcode 16+, Clerk iOS SDK v1.0+, and an Apple Developer account to install on a device. See [`apps/ios/README.md`](./apps/ios/README.md) for details.
 
-## Scripts
-
-```bash
-npm run dev          # Next.js dev server
-npm run build        # production build
-npm run start        # run built app
-npm run lint         # next lint
-npm run typecheck    # tsc --noEmit
-npm test             # vitest run
-npm run test:watch   # vitest watch
-```
-
-A husky pre-commit hook runs `typecheck` + `lint`. GitHub Actions (`.github/workflows/ci.yml`) additionally runs `test`, `build`, and `npm audit --omit=dev --audit-level=high` on push and PR to `main`.
-
-## How it works
-
-1. **Save.** User POSTs a URL to `/api/articles` from the web app or Chrome extension. The route handler authenticates via Clerk, hands the URL to `fetchAndParse`, and persists the result via `saveArticle`.
-2. **Ingest.** `fetchAndParse` fetches the page HTML, runs Mozilla Readability inside jsdom, and converts the cleaned article HTML to Markdown with Turndown.
-3. **Store.** `saveArticle` canonicalises the URL (strips tracking params, normalises host/path), hashes it to derive a stable 32-char article ID, and writes `{ frontmatter, body }` into the user's per-user Folio volume. Re-saving the same URL is a no-op.
-4. **Read.** `/library` lists the user's articles (with tag/source/state filters). `/read/[id]` loads the Markdown body, renders it with `marked`, and sanitises the result with DOMPurify before `dangerouslySetInnerHTML`.
-
-## Deployment
+### Deployment
 
 Deploys go to Vercel. Git-triggered builds are currently **disabled** (see commit `77243e9`) — deploy manually:
 
@@ -138,4 +171,4 @@ See [`CLAUDE.md`](./CLAUDE.md) for conventions. In short:
 - TDD where sensible; new `src/lib/**` code lands with tests.
 - Open or reference a GitHub issue for non-trivial work; link PRs with `Fixes #N`.
 - SCSS modules for styles; sentence case in UI and docs.
-- Read `CODE_REVIEW.md` before working on ingestion, storage, or auth — it lists the open security and correctness findings.
+- Read [`CODE_REVIEW.md`](./CODE_REVIEW.md) before working on ingestion, storage, or auth — it lists the open security and correctness findings.

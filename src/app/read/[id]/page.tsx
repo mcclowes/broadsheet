@@ -6,6 +6,9 @@ import { renderMarkdown } from "@/lib/markdown";
 import { ArticleActions } from "./article-actions";
 import { CacheArticle } from "./cache-article";
 import { ReadingProgress } from "./reading-progress";
+import { QuickActions } from "./quick-actions";
+import { ScrollNav } from "./scroll-nav";
+import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./read.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +39,7 @@ export default async function ReadPage({
           byline: article.byline,
           excerpt: article.excerpt,
           lang: article.lang,
+          image: article.image ?? null,
           wordCount: article.wordCount,
           readMinutes: article.readMinutes,
           savedAt: article.savedAt,
@@ -47,17 +51,36 @@ export default async function ReadPage({
         }}
       />
 
-      <nav className={styles.nav}>
-        <Link href="/library" className={styles.back}>
-          ← Library
-        </Link>
-      </nav>
+      <ScrollNav>
+        <nav className={styles.nav}>
+          <Link href="/library" className={styles.back}>
+            ← Library
+          </Link>
+        </nav>
+      </ScrollNav>
+
+      {article.image ? (
+        <figure className={styles.heroFigure}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={article.image}
+            alt=""
+            className={styles.heroImage}
+            loading="eager"
+          />
+        </figure>
+      ) : null}
 
       <header className={styles.header}>
         <h1 className={styles.title}>{article.title}</h1>
         <div className={styles.meta}>
           {article.byline ? <span>{article.byline}</span> : null}
-          {article.source ? <span>{article.source}</span> : null}
+          {article.source ? (
+            <span className={styles.source}>
+              <PublicationIcon url={article.url} size={18} />
+              {article.source}
+            </span>
+          ) : null}
           <span>{article.readMinutes} min read</span>
           <a
             href={article.url}
@@ -82,6 +105,13 @@ export default async function ReadPage({
       <article
         className="reader-body"
         dangerouslySetInnerHTML={{ __html: html }}
+      />
+
+      <QuickActions
+        articleId={article.id}
+        articleUrl={article.url}
+        initialArchived={article.archivedAt !== null}
+        initialRead={article.readAt !== null}
       />
     </main>
   );

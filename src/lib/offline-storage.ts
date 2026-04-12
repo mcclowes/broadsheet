@@ -21,6 +21,7 @@ export interface OfflineArticle {
   byline: string | null;
   excerpt: string | null;
   lang: string | null;
+  image: string | null;
   wordCount: number;
   readMinutes: number;
   savedAt: string;

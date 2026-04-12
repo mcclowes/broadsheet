@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { listArticles, type LibraryView, type ReadState } from "@/lib/articles";
 import { SaveForm } from "./save-form";
 import { CacheLibrary } from "./cache-library";
+import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./library.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -21,8 +22,8 @@ function parseView(raw: string | undefined): LibraryView {
 }
 
 function parseState(raw: string | undefined): ReadState {
-  if (raw === "read" || raw === "unread") return raw;
-  return "all";
+  if (raw === "read" || raw === "all") return raw;
+  return "unread";
 }
 
 function filterLink(
@@ -50,7 +51,7 @@ function filterLink(
       : (overrides.source ?? current.source);
 
   if (view !== "inbox") params.set("view", view);
-  if (state !== "all") params.set("state", state);
+  if (state !== "unread") params.set("state", state);
   if (tag) params.set("tag", tag);
   if (source) params.set("source", source);
 
@@ -96,6 +97,7 @@ export default async function LibraryPage({
     byline: a.byline,
     excerpt: a.excerpt,
     lang: a.lang,
+    image: a.image ?? null,
     wordCount: a.wordCount,
     readMinutes: a.readMinutes,
     savedAt: a.savedAt,
@@ -112,7 +114,10 @@ export default async function LibraryPage({
         <Link href="/" className={styles.brand}>
           Broadsheet
         </Link>
-        <UserButton />
+        <div className={styles.headerActions}>
+          <SaveForm />
+          <UserButton />
+        </div>
       </header>
 
       <nav className={styles.topTabs} aria-label="Primary">
@@ -123,8 +128,6 @@ export default async function LibraryPage({
           Sources
         </Link>
       </nav>
-
-      <SaveForm />
 
       <nav className={styles.filters} aria-label="Library filters">
         <div className={styles.filterGroup}>
@@ -199,7 +202,7 @@ export default async function LibraryPage({
       {articles.length === 0 ? (
         <p className={styles.empty}>
           {allArticles.length === 0
-            ? "Nothing saved yet. Paste a URL above to save your first article."
+            ? "Nothing saved yet. Tap the + button to save your first article."
             : "No articles match these filters."}
         </p>
       ) : (
@@ -209,7 +212,12 @@ export default async function LibraryPage({
               <Link href={`/read/${a.id}`} className={styles.link}>
                 <h2 className={styles.title}>{a.title}</h2>
                 <div className={styles.meta}>
-                  {a.source ? <span>{a.source}</span> : null}
+                  {a.source ? (
+                    <span className={styles.source}>
+                      <PublicationIcon url={a.url} />
+                      {a.source}
+                    </span>
+                  ) : null}
                   <span>{a.readMinutes} min read</span>
                   {a.readAt ? <span className={styles.read}>Read</span> : null}
                   {a.archivedAt ? (

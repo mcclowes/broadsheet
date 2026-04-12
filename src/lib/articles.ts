@@ -56,6 +56,7 @@ export type ArticleFrontmatter = {
   byline: string | null;
   excerpt: string | null;
   lang: string | null;
+  image: string | null;
   wordCount: number;
   readMinutes: number;
   savedAt: string;
@@ -73,6 +74,7 @@ export const articleFrontmatterSchema: z.ZodType<ArticleFrontmatter> = z.object(
     byline: z.string().nullable(),
     excerpt: z.string().nullable(),
     lang: z.string().nullable(),
+    image: z.string().nullable().default(null),
     wordCount: z.number().int().nonnegative(),
     readMinutes: z.number().int().positive(),
     savedAt: z.string(),
@@ -124,6 +126,7 @@ export async function saveArticle(
     byline: parsed.byline,
     excerpt: parsed.excerpt,
     lang: parsed.lang,
+    image: parsed.image,
     wordCount: parsed.wordCount,
     readMinutes: estimateReadMinutes(parsed.wordCount),
     savedAt: new Date().toISOString(),

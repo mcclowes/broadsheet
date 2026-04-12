@@ -11,6 +11,7 @@ export interface ParsedArticle {
   excerpt: string | null;
   siteName: string | null;
   lang: string | null;
+  image: string | null;
   markdown: string;
   wordCount: number;
 }
@@ -24,6 +25,43 @@ const turndown = new TurndownService({
 turndown.addRule("stripScripts", {
   filter: ["script", "style", "iframe", "noscript"],
   replacement: () => "",
+});
+
+// <pre> without a <code> child is not matched by Turndown's built-in fenced
+// code-block rule, so the text passes through as a plain paragraph and the
+// browser collapses its whitespace. Wrap it in a fenced block ourselves.
+turndown.addRule("preWithoutCode", {
+  filter(node) {
+    return node.nodeName === "PRE" && !node.querySelector("code");
+  },
+  replacement(_content, node) {
+    const text = (node as Element).textContent || "";
+    return "\n\n```\n" + text + "\n```\n\n";
+  },
+});
+
+// Turndown's default image rule drops <img> when `src` is falsy. Many sites
+// use `<img src="" data-src="…">` for lazy loading; Readability fixes some
+// but not all of these. Fall back to data-src / data-lazy-src.
+turndown.addRule("imgWithDataSrc", {
+  filter(node) {
+    if (node.nodeName !== "IMG") return false;
+    const src = node.getAttribute("src");
+    if (src) return false; // default rule handles it
+    const fallback =
+      node.getAttribute("data-src") || node.getAttribute("data-lazy-src");
+    return !!fallback;
+  },
+  replacement(_content, node) {
+    const src =
+      (node as Element).getAttribute("data-src") ||
+      (node as Element).getAttribute("data-lazy-src") ||
+      "";
+    const alt = (node as Element).getAttribute("alt") || "";
+    const title = (node as Element).getAttribute("title");
+    const titlePart = title ? ` "${title}"` : "";
+    return `![${alt}](${src}${titlePart})`;
+  },
 });
 
 // Convert <table> to GFM pipe tables. Tables without a heading row are
@@ -161,6 +199,38 @@ export async function readBoundedBody(res: Response): Promise<string> {
   return buf.toString("utf8");
 }
 
+/**
+ * Extract the article's hero image from Open Graph / Twitter Card meta tags.
+ * Returns an absolute URL or null.
+ */
+export function extractMetaImage(
+  doc: {
+    querySelector: (
+      sel: string,
+    ) => { getAttribute: (a: string) => string | null } | null;
+  },
+  baseUrl: string,
+): string | null {
+  const selectors = [
+    'meta[property="og:image"]',
+    'meta[name="twitter:image"]',
+    'meta[name="twitter:image:src"]',
+    'meta[property="twitter:image"]',
+  ];
+  for (const sel of selectors) {
+    const el = doc.querySelector(sel);
+    const raw = el?.getAttribute("content");
+    if (raw) {
+      try {
+        return new URL(raw, baseUrl).href;
+      } catch {
+        // malformed URL — try next selector
+      }
+    }
+  }
+  return null;
+}
+
 export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
   const dom = new JSDOM(html, { url });
   const reader = new Readability(dom.window.document);
@@ -172,7 +242,31 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
       "Could not extract a readable article from this page",
     );
   }
-  const markdown = turndown.turndown(article.content).trim();
+
+  // Extract the hero / og:image from <head> meta tags before we discard the
+  // full document. Preference: og:image > twitter:image > twitter:image:src.
+  const image = extractMetaImage(dom.window.document, url);
+
+  // Readability resolves most relative URLs and fixes most lazy-loaded images,
+  // but misses <img src="" data-src="…"> (attribute present but empty). Do a
+  // second pass so these survive Turndown's default image rule.
+  const contentDom = new JSDOM(article.content, { url });
+  for (const img of contentDom.window.document.querySelectorAll("img")) {
+    if (!img.getAttribute("src")) {
+      const fallback =
+        img.getAttribute("data-src") || img.getAttribute("data-lazy-src");
+      if (fallback) {
+        try {
+          img.setAttribute("src", new URL(fallback, url).href);
+        } catch {
+          img.setAttribute("src", fallback);
+        }
+      }
+    }
+  }
+  const fixedContent = contentDom.window.document.body.innerHTML;
+
+  const markdown = turndown.turndown(fixedContent).trim();
   if (!markdown) {
     throw new IngestError(
       "Parsed article was empty",
@@ -186,6 +280,7 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
     excerpt: article.excerpt?.trim() || null,
     siteName: article.siteName?.trim() || null,
     lang: article.lang ?? null,
+    image,
     markdown,
     wordCount: countWords(markdown),
   };
