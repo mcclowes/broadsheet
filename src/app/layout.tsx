@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Analytics } from "@vercel/analytics/next";
 import { ServiceWorkerRegister } from "./components/service-worker-register";
 import { OfflineSync } from "./components/offline-sync";
 import { OfflineIndicator } from "./components/offline-indicator";
@@ -36,6 +37,7 @@ export default function RootLayout({
           <ServiceWorkerRegister />
           <OfflineSync />
           <OfflineIndicator />
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>

@@ -19,6 +19,7 @@
   "dependencies": {
     "@clerk/nextjs": "^7.0.0",
     "@mozilla/readability": "^0.6.0",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.3.3",
     "diff": "^8.0.4",
     "dompurify": "^3.3.3",
