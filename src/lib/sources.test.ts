@@ -177,6 +177,60 @@ describe("removeSource", () => {
   it("returns false for a missing source", async () => {
     expect(await removeSource(USER, "a".repeat(32))).toBe(false);
   });
+
+  it("evicts the in-process feed cache entry for the removed source", async () => {
+    discoverFeedMock.mockResolvedValue(
+      makeFeed("https://evict.example/feed", "E", "https://evict.example/", []),
+    );
+    const { source } = await addSource(USER, "https://evict.example");
+    fetchFeedMock.mockResolvedValue({
+      feed: {
+        title: "E",
+        siteUrl: "https://evict.example/",
+        items: [
+          {
+            title: "Cached",
+            url: "https://evict.example/cached",
+            publishedAt: "2026-04-10T00:00:00.000Z",
+            excerpt: null,
+          },
+        ],
+      },
+      finalUrl: "https://evict.example/feed",
+    });
+    // Warm the cache.
+    const warm = await fetchSourceItems(USER, source);
+    expect(warm.fromCache).toBe(false);
+    const reuse = await fetchSourceItems(USER, source);
+    expect(reuse.fromCache).toBe(true);
+
+    await removeSource(USER, source.id);
+
+    // Re-add and re-fetch — if the cache entry had survived removal, this
+    // would return the stale entry rather than the fresh fetch.
+    discoverFeedMock.mockResolvedValue(
+      makeFeed("https://evict.example/feed", "E", "https://evict.example/", []),
+    );
+    const readded = await addSource(USER, "https://evict.example");
+    fetchFeedMock.mockResolvedValueOnce({
+      feed: {
+        title: "E",
+        siteUrl: "https://evict.example/",
+        items: [
+          {
+            title: "Fresh",
+            url: "https://evict.example/fresh",
+            publishedAt: "2026-04-11T00:00:00.000Z",
+            excerpt: null,
+          },
+        ],
+      },
+      finalUrl: "https://evict.example/feed",
+    });
+    const fresh = await fetchSourceItems(USER, readded.source);
+    expect(fresh.fromCache).toBe(false);
+    expect(fresh.items.map((i) => i.title)).toEqual(["Fresh"]);
+  });
 });
 
 describe("getSource", () => {

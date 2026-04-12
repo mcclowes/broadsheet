@@ -108,6 +108,13 @@ describe("parsePocketAnnotations", () => {
     ]);
     expect(parsePocketAnnotations(json)).toHaveLength(0);
   });
+
+  it("throws a sanitised error when the JSON is malformed", () => {
+    // The native SyntaxError message includes positional info that we don't
+    // want to leak through the import route's err.message passthrough.
+    expect(() => parsePocketAnnotations("{not-json")).toThrow(/not valid JSON/);
+    expect(() => parsePocketAnnotations("{not-json")).not.toThrow(/position/i);
+  });
 });
 
 describe("parsePocketExport", () => {

@@ -136,7 +136,15 @@ const pocketAnnotationSchema = z.object({
 });
 
 export function parsePocketAnnotations(json: string): PocketAnnotation[] {
-  const raw = JSON.parse(json);
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    // Swallow the native parser message — it can include positional context
+    // that isn't useful to the user and might expose internals if surfaced
+    // through an error handler that passes `err.message` back to the client.
+    throw new Error("Pocket annotations JSON is not valid JSON");
+  }
   if (!Array.isArray(raw)) {
     throw new Error("Pocket annotations JSON must be an array");
   }

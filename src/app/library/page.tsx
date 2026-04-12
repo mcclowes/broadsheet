@@ -12,6 +12,7 @@ import { authedUserId } from "@/lib/auth-types";
 import { SaveForm } from "./save-form";
 import { DigestToggle } from "./digest-toggle";
 import { CacheLibrary } from "./cache-library";
+import { SwipeableArticleLink } from "./swipeable-article-link";
 import { PaletteTrigger } from "@/app/components/palette-trigger";
 import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./library.module.scss";
@@ -232,9 +233,11 @@ export default async function LibraryPage({
         <ul className={styles.list}>
           {articles.map((a) => (
             <li key={a.id} className={styles.item}>
-              <Link
+              <SwipeableArticleLink
+                articleId={a.id}
                 href={`/read/${a.id}?from=${encodeURIComponent(filterLink(current, {}))}`}
-                className={styles.link}
+                initialRead={Boolean(a.readAt)}
+                linkClassName={styles.link}
               >
                 <h2 className={styles.title}>{a.title}</h2>
                 <div className={styles.meta}>
@@ -262,7 +265,7 @@ export default async function LibraryPage({
                     ))}
                   </div>
                 ) : null}
-              </Link>
+              </SwipeableArticleLink>
             </li>
           ))}
         </ul>
