@@ -37,6 +37,9 @@ describe("parseArticleFromHtml", () => {
     expect(parsed.markdown).toContain("## Subheading");
     expect(parsed.markdown).toMatch(/\[a link\]\(https:\/\/example\.com\/?\)/);
     expect(parsed.wordCount).toBeGreaterThan(20);
+    // Sanitised HTML should be present and contain no script tags
+    expect(parsed.sanitizedHtml).toContain("first paragraph");
+    expect(parsed.sanitizedHtml).not.toContain("<script");
   });
 
   it("converts tables with a header row to GFM pipe tables", () => {
@@ -158,6 +161,29 @@ const y = 2;</code></pre>
     const parsed = parseArticleFromHtml(lazyHtml, "https://example.com/lazy");
     expect(parsed.markdown).toContain(
       "![Lazy photo](https://example.com/images/lazy.jpg)",
+    );
+  });
+
+  it("preserves figure and figcaption in sanitised HTML", () => {
+    const figureHtml = `<!doctype html><html><head><title>Photo Essay</title></head>
+<body><article>
+  <h1>Photo Essay</h1>
+  <p>An introduction paragraph with enough words to make readability happy about the content length.</p>
+  <figure>
+    <img src="https://cdn.example.com/photo.jpg" alt="A landscape">
+    <figcaption>Photo credit: Jane Doe</figcaption>
+  </figure>
+  <p>Another paragraph with more content to keep readability satisfied with word count requirements.</p>
+</article></body></html>`;
+    const parsed = parseArticleFromHtml(
+      figureHtml,
+      "https://example.com/essay",
+    );
+    expect(parsed.sanitizedHtml).toContain("<figure>");
+    expect(parsed.sanitizedHtml).toContain("<figcaption>");
+    expect(parsed.sanitizedHtml).toContain("Photo credit: Jane Doe");
+    expect(parsed.sanitizedHtml).toContain(
+      'src="https://cdn.example.com/photo.jpg"',
     );
   });
 

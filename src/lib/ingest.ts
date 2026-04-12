@@ -4,6 +4,7 @@ import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
 import { tables } from "turndown-plugin-gfm";
+import { sanitizeHtml } from "./sanitize-html";
 
 export interface ParsedArticle {
   title: string;
@@ -13,6 +14,7 @@ export interface ParsedArticle {
   lang: string | null;
   image: string | null;
   markdown: string;
+  sanitizedHtml: string;
   wordCount: number;
 }
 
@@ -270,14 +272,16 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
   }
   const fixedContent = contentDom.window.document.body.innerHTML;
 
-  const markdown = createTurndown().turndown(fixedContent).trim();
-  if (!markdown) {
+  const sanitizedHtml = sanitizeHtml(fixedContent);
+  if (!sanitizedHtml.trim()) {
     throw new IngestError(
       "Parsed article was empty",
       undefined,
       "The extracted article was empty",
     );
   }
+
+  const markdown = createTurndown().turndown(fixedContent).trim();
   return {
     title: (article.title ?? "").trim() || "Untitled",
     byline: article.byline?.trim() || null,
@@ -286,6 +290,7 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
     lang: article.lang ?? null,
     image,
     markdown,
+    sanitizedHtml,
     wordCount: countWords(markdown),
   };
 }
