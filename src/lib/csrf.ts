@@ -45,13 +45,33 @@ export function checkOrigin(req: Request): Response | null {
 
   if (getAllowedOrigins().has(origin)) return null;
 
-  // Chrome extensions get a unique origin per extension ID. We allow any
-  // extension for now (the ID is stable per-extension, not per-user) but
-  // log the origin so we can audit and pin to our own extension ID later.
   if (origin.startsWith("chrome-extension://")) {
-    console.info("[csrf] allowed chrome-extension origin", { origin });
+    const id = origin.slice("chrome-extension://".length);
+    const allowlist = getExtensionAllowlist();
+    if (allowlist) {
+      if (allowlist.has(id)) return null;
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+    // No allowlist configured: allow in non-production only so local dev of
+    // the unpacked extension keeps working.
+    if (process.env.VERCEL_ENV === "production") {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+    console.info("[csrf] allowed chrome-extension origin (no allowlist)", {
+      origin,
+    });
     return null;
   }
 
   return Response.json({ error: "Forbidden" }, { status: 403 });
+}
+
+function getExtensionAllowlist(): Set<string> | null {
+  const raw = process.env.BROADSHEET_EXTENSION_IDS;
+  if (!raw) return null;
+  const ids = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return ids.length > 0 ? new Set(ids) : null;
 }
