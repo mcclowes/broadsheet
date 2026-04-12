@@ -5,6 +5,7 @@ import { getArticle } from "@/lib/articles";
 import { renderMarkdown } from "@/lib/markdown";
 import { ArticleActions } from "./article-actions";
 import { CacheArticle } from "./cache-article";
+import { ScrollNav } from "./scroll-nav";
 import styles from "./read.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -45,11 +46,13 @@ export default async function ReadPage({
         }}
       />
 
-      <nav className={styles.nav}>
-        <Link href="/library" className={styles.back}>
-          ← Library
-        </Link>
-      </nav>
+      <ScrollNav>
+        <nav className={styles.nav}>
+          <Link href="/library" className={styles.back}>
+            ← Library
+          </Link>
+        </nav>
+      </ScrollNav>
 
       <header className={styles.header}>
         <h1 className={styles.title}>{article.title}</h1>
