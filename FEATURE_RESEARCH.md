@@ -20,111 +20,111 @@ Survivors and new entrants: Readwise Reader ($8-13/mo, power users), Instapaper 
 
 ### 1. Saving and capture
 
-| Feature | Competitors | Demand | Broadsheet status |
-|---------|------------|--------|-------------------|
-| One-click browser extension | All major apps | Table stakes | Chrome extension shipped |
-| Mobile share sheet (iOS/Android) | Readwise, Matter, Instapaper | Critical | iOS share extension shipped |
-| Keyboard shortcut to save | Readwise, Instapaper | High | Shipped (Ctrl+Shift+S) |
-| Save from web UI (paste URL) | Most | Medium | Shipped (library save form) |
-| Newsletter ingestion (dedicated email) | Readwise Reader, Omnivore (was), Feedbin | Very high | Not built |
-| RSS feed subscriptions | Readwise Reader, Feedbin | High (power users) | Not built |
-| Save YouTube videos (transcript) | Readwise Reader, Matter | Growing | Not built |
-| Save PDFs | Readwise Reader | High (researchers) | Not built |
-| Bulk import from Pocket/Omnivore/Instapaper | All major apps post-2025 | Critical (given shutdowns) | Not built |
-| Firefox extension | Readwise, Instapaper | Medium | PRD mentions as v2 |
-| Android app | Readwise, Instapaper | High | PRD defers to post-iOS |
+| Feature                                     | Competitors                              | Demand                     | Broadsheet status           |
+| ------------------------------------------- | ---------------------------------------- | -------------------------- | --------------------------- |
+| One-click browser extension                 | All major apps                           | Table stakes               | Chrome extension shipped    |
+| Mobile share sheet (iOS/Android)            | Readwise, Matter, Instapaper             | Critical                   | iOS share extension shipped |
+| Keyboard shortcut to save                   | Readwise, Instapaper                     | High                       | Shipped (Ctrl+Shift+S)      |
+| Save from web UI (paste URL)                | Most                                     | Medium                     | Shipped (library save form) |
+| Newsletter ingestion (dedicated email)      | Readwise Reader, Omnivore (was), Feedbin | Very high                  | Not built                   |
+| RSS feed subscriptions                      | Readwise Reader, Feedbin                 | High (power users)         | Not built                   |
+| Save YouTube videos (transcript)            | Readwise Reader, Matter                  | Growing                    | Not built                   |
+| Save PDFs                                   | Readwise Reader                          | High (researchers)         | Not built                   |
+| Bulk import from Pocket/Omnivore/Instapaper | All major apps post-2025                 | Critical (given shutdowns) | Not built                   |
+| Firefox extension                           | Readwise, Instapaper                     | Medium                     | PRD mentions as v2          |
+| Android app                                 | Readwise, Instapaper                     | High                       | PRD defers to post-iOS      |
 
 **Insight:** Every additional tap between "I want to save this" and "it's saved" is a conversion killer. Broadsheet already handles the core save paths well. Newsletter ingestion (dedicated email address per user) is the highest-value save path not yet built.
 
 ### 2. Reading experience
 
-| Feature | Competitors | Demand | Broadsheet status |
-|---------|------------|--------|-------------------|
-| Clean distraction-free reader | All | Table stakes | Shipped |
-| Dark mode / multiple themes | Readwise, Instapaper, Matter | Table stakes | Not shipped |
-| Font customization (family, size, spacing, width) | Readwise, Instapaper | High | Not shipped |
-| Estimated read time | Instapaper, most apps | High | Shipped |
-| Reading progress indicator | Readwise, Instapaper | Moderate | Not shipped |
-| Text-to-speech / audio playback | Instapaper, Matter, Readwise (beta) | Very high | Not built |
-| Keyboard-driven navigation | Readwise Reader | High (power users) | Not built |
+| Feature                                           | Competitors                         | Demand             | Broadsheet status |
+| ------------------------------------------------- | ----------------------------------- | ------------------ | ----------------- |
+| Clean distraction-free reader                     | All                                 | Table stakes       | Shipped           |
+| Dark mode / multiple themes                       | Readwise, Instapaper, Matter        | Table stakes       | Not shipped       |
+| Font customization (family, size, spacing, width) | Readwise, Instapaper                | High               | Not shipped       |
+| Estimated read time                               | Instapaper, most apps               | High               | Shipped           |
+| Reading progress indicator                        | Readwise, Instapaper                | Moderate           | Not shipped       |
+| Text-to-speech / audio playback                   | Instapaper, Matter, Readwise (beta) | Very high          | Not built         |
+| Keyboard-driven navigation                        | Readwise Reader                     | High (power users) | Not built         |
 
 **Insight:** TTS is consistently one of the most-requested features across all forums and reviews. Users want to listen to saved articles during commutes, exercise, and chores. Matter's "HD voices" and Instapaper's long-standing TTS are cited as killer features. Dark mode and font controls are table-stakes UX that users expect from any reading app.
 
 ### 3. Highlighting and annotation
 
-| Feature | Competitors | Demand | Broadsheet status |
-|---------|------------|--------|-------------------|
-| Text highlighting (multi-color) | Readwise, Matter, Instapaper | Very high | Not built (PRD mentions) |
-| Inline notes on highlights | Readwise, Instapaper | High | Not built |
-| Export highlights to Obsidian/Notion/Logseq | Readwise (best-in-class) | Very high (knowledge workers) | Not built |
-| Spaced repetition / daily review | Readwise | High (unique differentiator) | Not built |
-| Highlight search | Readwise | Moderate | Not built |
+| Feature                                     | Competitors                  | Demand                        | Broadsheet status        |
+| ------------------------------------------- | ---------------------------- | ----------------------------- | ------------------------ |
+| Text highlighting (multi-color)             | Readwise, Matter, Instapaper | Very high                     | Not built (PRD mentions) |
+| Inline notes on highlights                  | Readwise, Instapaper         | High                          | Not built                |
+| Export highlights to Obsidian/Notion/Logseq | Readwise (best-in-class)     | Very high (knowledge workers) | Not built                |
+| Spaced repetition / daily review            | Readwise                     | High (unique differentiator)  | Not built                |
+| Highlight search                            | Readwise                     | Moderate                      | Not built                |
 
 **Insight:** The Readwise-to-Obsidian pipeline is frequently cited as the reason people pay $13/month. Highlight export to a PKM system is a power-user magnet. This is also where the highest willingness-to-pay lives.
 
 ### 4. Organization and search
 
-| Feature | Competitors | Demand | Broadsheet status |
-|---------|------------|--------|-------------------|
-| Tags / labels | All major apps | Table stakes | Shipped |
-| Filter by read/unread, source, archive | Most | High | Shipped |
-| Tag cloud / tag browsing | Some | Moderate | Shipped (top 12 tags) |
-| Full-text search | Readwise, Instapaper Premium, Wallabag | Very high | PRD planned, not built |
-| Smart filters / saved searches | Readwise, Omnivore (was) | High | Not built |
-| Folders / nested collections | Raindrop.io | Moderate | Not built |
-| Bulk actions (tag, archive, delete multiple) | Inconsistent across apps | High (commonly missing) | Not built |
-| AI auto-tagging / categorization | Karakeep, Slax Reader | Emerging, high interest | Not built |
-| Sort by read time / date / source | Instapaper, most | Moderate | Partial (filter, not sort) |
+| Feature                                      | Competitors                            | Demand                  | Broadsheet status          |
+| -------------------------------------------- | -------------------------------------- | ----------------------- | -------------------------- |
+| Tags / labels                                | All major apps                         | Table stakes            | Shipped                    |
+| Filter by read/unread, source, archive       | Most                                   | High                    | Shipped                    |
+| Tag cloud / tag browsing                     | Some                                   | Moderate                | Shipped (top 12 tags)      |
+| Full-text search                             | Readwise, Instapaper Premium, Wallabag | Very high               | PRD planned, not built     |
+| Smart filters / saved searches               | Readwise, Omnivore (was)               | High                    | Not built                  |
+| Folders / nested collections                 | Raindrop.io                            | Moderate                | Not built                  |
+| Bulk actions (tag, archive, delete multiple) | Inconsistent across apps               | High (commonly missing) | Not built                  |
+| AI auto-tagging / categorization             | Karakeep, Slax Reader                  | Emerging, high interest | Not built                  |
+| Sort by read time / date / source            | Instapaper, most                       | Moderate                | Partial (filter, not sort) |
 
 **Insight:** Full-text search is gated behind paid tiers in most apps but is one of the top-requested features. Bulk actions are a surprisingly common complaint. AI auto-categorization is the next frontier — Karakeep is gaining traction specifically because of this feature.
 
 ### 5. AI and smart features
 
-| Feature | Competitors | Demand | Broadsheet status |
-|---------|------------|--------|-------------------|
-| Article summarization | Readwise (Ghostreader), Karakeep, Readless | Very high | Not built |
-| Ask questions about a document (RAG) | Readwise Reader | High (researchers) | Not built |
-| AI auto-tagging | Karakeep, Stash | High | Not built |
-| AI-generated daily digests | Readless | Emerging | Not built |
-| Define words / simplify language | Readwise (Ghostreader) | Moderate | Not built |
-| Custom AI prompts on content | Readwise (Ghostreader) | Moderate (power users) | Not built |
+| Feature                              | Competitors                                | Demand                 | Broadsheet status |
+| ------------------------------------ | ------------------------------------------ | ---------------------- | ----------------- |
+| Article summarization                | Readwise (Ghostreader), Karakeep, Readless | Very high              | Not built         |
+| Ask questions about a document (RAG) | Readwise Reader                            | High (researchers)     | Not built         |
+| AI auto-tagging                      | Karakeep, Stash                            | High                   | Not built         |
+| AI-generated daily digests           | Readless                                   | Emerging               | Not built         |
+| Define words / simplify language     | Readwise (Ghostreader)                     | Moderate               | Not built         |
+| Custom AI prompts on content         | Readwise (Ghostreader)                     | Moderate (power users) | Not built         |
 
 **Insight:** AI is described as "the dividing line between tools that simply store links and tools that actually help you use what you save." However, a vocal segment on Hacker News explicitly says they do NOT want AI cluttering simple reading workflows. The winning approach: AI that's present but non-intrusive (opt-in, not default).
 
 ### 6. Content preservation and reliability
 
-| Feature | Competitors | Demand | Broadsheet status |
-|---------|------------|--------|-------------------|
-| Permanent article backup (survives link rot) | Instapaper, Pinboard, Raindrop Pro | Very high | Shipped (parse at save) |
-| Data export (JSON, HTML, EPUB, Markdown) | Wallabag, Readwise, Raindrop | Critical post-shutdowns | Not built |
-| Open source / self-hostable | Wallabag, Karakeep | High and growing | Not applicable yet |
-| Image caching for offline | Wallabag, GoodLinks | Moderate | Not built |
-| Offline reading (PWA / service worker) | Instapaper, GoodLinks, Wallabag | Very high | PRD planned, not built |
+| Feature                                      | Competitors                        | Demand                  | Broadsheet status       |
+| -------------------------------------------- | ---------------------------------- | ----------------------- | ----------------------- |
+| Permanent article backup (survives link rot) | Instapaper, Pinboard, Raindrop Pro | Very high               | Shipped (parse at save) |
+| Data export (JSON, HTML, EPUB, Markdown)     | Wallabag, Readwise, Raindrop       | Critical post-shutdowns | Not built               |
+| Open source / self-hostable                  | Wallabag, Karakeep                 | High and growing        | Not applicable yet      |
+| Image caching for offline                    | Wallabag, GoodLinks                | Moderate                | Not built               |
+| Offline reading (PWA / service worker)       | Instapaper, GoodLinks, Wallabag    | Very high               | PRD planned, not built  |
 
 **Insight:** Broadsheet's parse-at-ingest approach (converting to Markdown at save time) is a genuine differentiator for content preservation. The article exists independently of the original source. Data export is now a trust signal — users want insurance that their library is portable.
 
 ### 7. Cross-platform and sync
 
-| Feature | Competitors | Demand | Broadsheet status |
-|---------|------------|--------|-------------------|
-| Web app | All | Table stakes | Shipped |
-| iOS app with share sheet | Readwise, Instapaper, GoodLinks | High | Shipped |
-| Android app | Readwise, Instapaper, Wallabag | High | PRD defers |
-| PWA / installable web app | Some newer entrants | Moderate | PRD planned |
-| Send to Kindle / e-reader | Instapaper, Wallabag | High | Not built |
+| Feature                   | Competitors                     | Demand       | Broadsheet status |
+| ------------------------- | ------------------------------- | ------------ | ----------------- |
+| Web app                   | All                             | Table stakes | Shipped           |
+| iOS app with share sheet  | Readwise, Instapaper, GoodLinks | High         | Shipped           |
+| Android app               | Readwise, Instapaper, Wallabag  | High         | PRD defers        |
+| PWA / installable web app | Some newer entrants             | Moderate     | PRD planned       |
+| Send to Kindle / e-reader | Instapaper, Wallabag            | High         | Not built         |
 
 **Insight:** Send-to-Kindle is frequently requested. Kobo has native Instapaper integration; Kindle users rely on email-to-device workflows. E-ink is a strong use case for long-form reading.
 
 ### 8. Queue management and reading habits
 
-| Feature | Competitors | Demand | Broadsheet status |
-|---------|------------|--------|-------------------|
-| Snooze articles (resurface later) | Quiche Reader | High | Not built |
-| Reading stats (articles/week, time spent) | Limited across apps | Often requested, rarely implemented | Not built |
-| Reading streaks / gamification | Book trackers, some apps | Emerging | Not built |
-| "Inbox zero" queue management | Linkflare, Quiche Reader | Moderate | Not built |
-| Daily digest email of saved articles | Readless | Moderate | Not built |
-| Estimated read time filtering | Instapaper | Moderate | Partial (shown, not filterable) |
+| Feature                                   | Competitors              | Demand                              | Broadsheet status               |
+| ----------------------------------------- | ------------------------ | ----------------------------------- | ------------------------------- |
+| Snooze articles (resurface later)         | Quiche Reader            | High                                | Not built                       |
+| Reading stats (articles/week, time spent) | Limited across apps      | Often requested, rarely implemented | Not built                       |
+| Reading streaks / gamification            | Book trackers, some apps | Emerging                            | Not built                       |
+| "Inbox zero" queue management             | Linkflare, Quiche Reader | Moderate                            | Not built                       |
+| Daily digest email of saved articles      | Readless                 | Moderate                            | Not built                       |
+| Estimated read time filtering             | Instapaper               | Moderate                            | Partial (shown, not filterable) |
 
 **Insight:** The "infinite backlog" problem is the most common complaint about read-it-later apps. Users save 10x more than they read. Apps that help manage this (snooze, digest, forced queues) are praised but rare.
 
@@ -141,23 +141,23 @@ Survivors and new entrants: Readwise Reader ($8-13/mo, power users), Instapaper 
 
 ## What's already tracked in open issues
 
-| Issue | Feature area |
-|-------|-------------|
-| #5 Rate limiting | Security (pre-production blocker) |
-| #6 Store HTML instead of Markdown round-trip | Reading fidelity |
-| #7 IDOR protection | Security |
-| #8 DOMPurify config | Reading fidelity |
-| #9 Paginate /library | Performance |
-| #10 Pin marked version | Stability |
-| #11 CSRF origin allowlist | Security |
-| #12 CI pipeline | DevOps (shipped) |
-| #13 Test coverage | Quality |
-| #14 Async ingest (202 + queue) | Save reliability |
-| #15 Sentry / structured logging | Observability |
-| #16 GDPR user deletion webhook | Compliance |
-| #17 Ingest edge cases | Robustness |
-| #18 Shared Clerk auth | Platform |
-| #22 Preserve HTML tables | Reading fidelity |
+| Issue                                        | Feature area                      |
+| -------------------------------------------- | --------------------------------- |
+| #5 Rate limiting                             | Security (pre-production blocker) |
+| #6 Store HTML instead of Markdown round-trip | Reading fidelity                  |
+| #7 IDOR protection                           | Security                          |
+| #8 DOMPurify config                          | Reading fidelity                  |
+| #9 Paginate /library                         | Performance                       |
+| #10 Pin marked version                       | Stability                         |
+| #11 CSRF origin allowlist                    | Security                          |
+| #12 CI pipeline                              | DevOps (shipped)                  |
+| #13 Test coverage                            | Quality                           |
+| #14 Async ingest (202 + queue)               | Save reliability                  |
+| #15 Sentry / structured logging              | Observability                     |
+| #16 GDPR user deletion webhook               | Compliance                        |
+| #17 Ingest edge cases                        | Robustness                        |
+| #18 Shared Clerk auth                        | Platform                          |
+| #22 Preserve HTML tables                     | Reading fidelity                  |
 
 ---
 

@@ -20,7 +20,7 @@ export default async function ReadPage({
   const article = await getArticle(userId, id);
   if (!article) notFound();
 
-  const html = renderMarkdown(article.body);
+  const html = article.body ? renderMarkdown(article.body) : "";
 
   return (
     <main className={styles.main}>
@@ -53,10 +53,19 @@ export default async function ReadPage({
         />
       </header>
 
-      <article
-        className="reader-body"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+      {html ? (
+        <article
+          className="reader-body"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      ) : (
+        <p className={styles.importedPlaceholder}>
+          This article was imported without content.{" "}
+          <a href={article.url} target="_blank" rel="noreferrer noopener">
+            Read the original article →
+          </a>
+        </p>
+      )}
     </main>
   );
 }

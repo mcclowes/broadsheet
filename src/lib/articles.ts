@@ -218,3 +218,82 @@ export async function setTags(
   await userVolume(userId).patch(id, { frontmatter: { tags: clean } });
   return clean;
 }
+
+// ---------------------------------------------------------------------------
+// Bulk import
+// ---------------------------------------------------------------------------
+
+export interface ImportableArticle {
+  url: string;
+  title: string;
+  tags: string[];
+  savedAt: string;
+  isRead: boolean;
+  isArchived: boolean;
+}
+
+export interface ImportStats {
+  imported: number;
+  skipped: number;
+}
+
+/**
+ * Import articles from an external service (Pocket, Instapaper, Omnivore).
+ * Stores metadata only — no fetch/parse. Body is left empty so the reader
+ * falls back to showing a link to the original.
+ *
+ * Deduplicates on canonical URL: existing articles are counted as skipped.
+ */
+export async function importArticles(
+  userId: string,
+  articles: ImportableArticle[],
+): Promise<ImportStats> {
+  const volume = userVolume(userId);
+  let imported = 0;
+  let skipped = 0;
+
+  for (const item of articles) {
+    let canonicalUrl: string;
+    try {
+      canonicalUrl = canonicalizeUrl(item.url);
+    } catch {
+      skipped++;
+      continue;
+    }
+
+    const id = articleIdForUrl(canonicalUrl);
+    const existing = await volume.get(id);
+    if (existing) {
+      skipped++;
+      continue;
+    }
+
+    const tags = Array.from(
+      new Set(
+        item.tags
+          .map(normalizeTag)
+          .filter((t) => t.length > 0 && t.length <= 32),
+      ),
+    ).sort();
+
+    const frontmatter: ArticleFrontmatter = {
+      title: item.title.slice(0, 500),
+      url: canonicalUrl,
+      source: domainOf(canonicalUrl),
+      byline: null,
+      excerpt: null,
+      lang: null,
+      wordCount: 0,
+      readMinutes: 1,
+      savedAt: item.savedAt,
+      readAt: item.isRead ? item.savedAt : null,
+      archivedAt: item.isArchived ? item.savedAt : null,
+      tags,
+    };
+
+    await volume.set(id, { frontmatter, body: "" });
+    imported++;
+  }
+
+  return { imported, skipped };
+}

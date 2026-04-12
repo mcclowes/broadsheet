@@ -138,3 +138,13 @@
   color: #a11;
   font-size: 0.8125rem;
 }
+
+.importedPlaceholder {
+  color: var(--fg-muted);
+  font-style: italic;
+  padding: 2rem 0;
+
+  a {
+    color: var(--accent);
+  }
+}
