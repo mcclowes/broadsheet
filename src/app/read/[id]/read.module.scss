@@ -40,6 +40,18 @@
   }
 }
 
+.heroFigure {
+  margin: 0 0 2rem;
+}
+
+.heroImage {
+  display: block;
+  width: 100%;
+  max-height: 28rem;
+  object-fit: cover;
+  border-radius: 0.5rem;
+}
+
 .header {
   margin-bottom: 2.5rem;
   padding-bottom: 1.5rem;
