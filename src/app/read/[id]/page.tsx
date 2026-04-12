@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
 import { renderMarkdown } from "@/lib/markdown";
 import { ArticleActions } from "./article-actions";
+import { ReadTracker } from "./read-tracker";
 import { CacheArticle } from "./cache-article";
 import { ReadingProgress } from "./reading-progress";
 import { QuickActions } from "./quick-actions";
@@ -101,6 +102,11 @@ export default async function ReadPage({
           initialRead={article.readAt !== null}
         />
       </header>
+
+      <ReadTracker
+        articleId={article.id}
+        alreadyRead={article.readAt !== null}
+      />
 
       <article
         className="reader-body"
