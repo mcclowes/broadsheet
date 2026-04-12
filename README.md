@@ -77,9 +77,12 @@ npm run lint         # next lint
 npm run typecheck    # tsc --noEmit
 npm test             # vitest run
 npm run test:watch   # vitest watch
+npm run test:e2e     # playwright e2e
+npm run format       # prettier --write .
+npm run format:check # prettier --check .
 ```
 
-A husky pre-commit hook runs `typecheck` + `lint`. GitHub Actions (`.github/workflows/ci.yml`) additionally runs `test`, `build`, and `npm audit` on push and PR to `main`.
+A husky pre-commit hook runs `typecheck` + `lint` + `format:check`. GitHub Actions (`.github/workflows/ci.yml`) additionally runs `test`, `build`, and `npm audit` on push and PR to `main`.
 
 ### Stack
 
@@ -92,7 +95,7 @@ A husky pre-commit hook runs `typecheck` + `lint`. GitHub Actions (`.github/work
 - **Ingestion:** `@mozilla/readability` + `jsdom` + `turndown` (HTML → article → Markdown)
 - **Rendering:** `marked` + `isomorphic-dompurify` (Markdown → sanitised HTML)
 - **Styling:** SCSS modules
-- **Testing:** Vitest
+- **Testing:** Vitest (unit) + Playwright (e2e)
 - **Deploy:** Vercel
 
 ### Repo layout
