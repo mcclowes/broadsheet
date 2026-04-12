@@ -1,10 +1,19 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = "broadsheet-v1";
+// Bump CACHE_VERSION on any deploy that needs a full cache purge.
+// The activate handler deletes all caches whose name doesn't match.
+const CACHE_VERSION = 2;
+const CACHE_NAME = `broadsheet-v${CACHE_VERSION}`;
 
-// App shell: pages and assets needed for offline reading.
-// Next.js hashed assets are handled by the runtime cache strategy below.
-const PRECACHE_URLS = ["/library", "/offline"];
+// Maximum entries per cache bucket before LRU eviction kicks in.
+const MAX_CACHED_PAGES = 40;
+const MAX_CACHED_ASSETS = 150;
+
+// Only precache the offline shell. /library is auth-gated — precaching it
+// would store a redirect-to-sign-in or error page if the user isn't
+// authenticated at install time. The library page is cached at runtime
+// via navigationFetch the first time the user visits it while signed in.
+const PRECACHE_URLS = ["/offline"];
 
 // ── Install ────────────────────────────────────────────────────────────
 
@@ -39,7 +48,7 @@ self.addEventListener("activate", (event) => {
  * - Navigation requests: network-first, fall back to cache, then /offline
  * - Next.js static assets (/_next/static/): cache-first (immutable hashes)
  * - API requests: network-only (don't cache auth'd API responses)
- * - Everything else: network-first with cache fallback
+ * - Everything else: stale-while-revalidate with LRU eviction
  */
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
@@ -81,6 +90,7 @@ async function cacheFirst(request) {
   if (response.ok) {
     const cache = await caches.open(CACHE_NAME);
     cache.put(request, response.clone());
+    trimCache(cache, MAX_CACHED_ASSETS);
   }
   return response;
 }
@@ -88,9 +98,12 @@ async function cacheFirst(request) {
 async function navigationFetch(request) {
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    // Only cache clean 200s — skip redirected responses which may be
+    // auth redirects (e.g. /library → /sign-in).
+    if (response.ok && !response.redirected) {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, response.clone());
+      trimCache(cache, MAX_CACHED_PAGES);
     }
     return response;
   } catch {
@@ -111,6 +124,7 @@ async function staleWhileRevalidate(request) {
     .then((response) => {
       if (response.ok) {
         cache.put(request, response.clone());
+        trimCache(cache, MAX_CACHED_ASSETS);
       }
       return response;
     })
@@ -119,6 +133,23 @@ async function staleWhileRevalidate(request) {
   return (
     cached || (await fetchPromise) || new Response("Offline", { status: 503 })
   );
+}
+
+// ── Cache management ──────────────────────────────────────────────────
+
+/**
+ * Evict oldest entries when cache exceeds maxEntries.
+ * Cache.keys() returns requests in insertion order in all major browsers.
+ * Fire-and-forget — never blocks the response.
+ */
+function trimCache(cache, maxEntries) {
+  cache.keys().then((keys) => {
+    if (keys.length <= maxEntries) return;
+    const surplus = keys.length - maxEntries;
+    for (let i = 0; i < surplus; i++) {
+      cache.delete(keys[i]);
+    }
+  });
 }
 
 // ── Message handling ───────────────────────────────────────────────────
