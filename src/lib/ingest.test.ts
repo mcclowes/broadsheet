@@ -453,6 +453,21 @@ describe("isPrivateAddress", () => {
     "fc00::1",
     "fd12:3456::1",
     "fe80::1",
+    // fe80::/10 link-local full range
+    "fe90::1",
+    "fea0::1",
+    "febf::1",
+    // Deprecated site-local fec0::/10
+    "fec0::1",
+    // Documentation 2001:db8::/32
+    "2001:db8::1",
+    // NAT64 well-known prefix 64:ff9b::/96 embedding private v4
+    "64:ff9b::c0a8:101",
+    "64:ff9b::a00:1",
+    // NAT64 local-use 64:ff9b:1::/48
+    "64:ff9b:1::1",
+    // Deprecated IPv4-compatible ::a.b.c.d form with private v4
+    "::192.168.1.1",
     "::ffff:127.0.0.1",
   ])("flags %s as private", (ip) => {
     expect(isPrivateAddress(ip)).toBe(true);
@@ -484,6 +499,11 @@ describe("isPrivateAddress", () => {
 
   it("allows IPv4-mapped IPv6 public addresses", () => {
     expect(isPrivateAddress("::ffff:8.8.8.8")).toBe(false);
+  });
+
+  it("allows NAT64-embedded public v4", () => {
+    // 64:ff9b::8.8.8.8
+    expect(isPrivateAddress("64:ff9b::808:808")).toBe(false);
   });
 
   it("flags multicast IPv4 range (224+)", () => {

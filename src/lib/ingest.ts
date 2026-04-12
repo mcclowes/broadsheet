@@ -128,14 +128,81 @@ export function isPrivateIPv4(ip: string): boolean {
   return false;
 }
 
+/**
+ * Expand an IPv6 string (possibly containing "::" and/or trailing dotted v4)
+ * into 8 colon-separated hex groups. Returns null if malformed.
+ */
+function expandIPv6(ip: string): string[] | null {
+  // Pull off trailing dotted-quad (::a.b.c.d or ::ffff:a.b.c.d forms) and
+  // convert to two hex groups so we can reason in a uniform 8-group space.
+  let work = ip;
+  const dotMatch = work.match(
+    /(.*?)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/,
+  );
+  if (dotMatch) {
+    const [, prefix, a, b, c, d] = dotMatch;
+    const nums = [a, b, c, d].map((n) => Number(n));
+    if (nums.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
+    const g6 = ((nums[0] << 8) | nums[1]).toString(16);
+    const g7 = ((nums[2] << 8) | nums[3]).toString(16);
+    work = `${prefix}${g6}:${g7}`;
+  }
+  const halves = work.split("::");
+  if (halves.length > 2) return null;
+  const left = halves[0] ? halves[0].split(":") : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const total = left.length + right.length;
+  if (total > 8) return null;
+  if (halves.length === 1 && total !== 8) return null;
+  const fill = new Array(8 - total).fill("0");
+  const groups = [...left, ...fill, ...right];
+  for (const g of groups) {
+    if (!/^[0-9a-f]{1,4}$/.test(g)) return null;
+  }
+  return groups;
+}
+
+function embeddedV4FromGroups(groups: string[]): string | null {
+  const g6 = parseInt(groups[6], 16);
+  const g7 = parseInt(groups[7], 16);
+  if (!Number.isFinite(g6) || !Number.isFinite(g7)) return null;
+  return `${(g6 >> 8) & 0xff}.${g6 & 0xff}.${(g7 >> 8) & 0xff}.${g7 & 0xff}`;
+}
+
 export function isPrivateIPv6(ip: string): boolean {
   const lower = ip.toLowerCase().replace(/%.*$/, "");
   if (lower === "::" || lower === "::1") return true;
+  // ULA fc00::/7
   if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
-  if (lower.startsWith("fe80")) return true;
+  // Link-local fe80::/10 + deprecated site-local fec0::/10 (covers fe80-feff)
+  if (/^fe[89a-f]/.test(lower)) return true;
+  // Documentation 2001:db8::/32
+  if (/^2001:0*db8(:|$)/.test(lower)) return true;
+  // IPv4-mapped ::ffff:a.b.c.d
   if (lower.startsWith("::ffff:")) {
     const v4 = lower.slice(7);
     if (net.isIPv4(v4)) return isPrivateIPv4(v4);
+  }
+  const groups = expandIPv6(lower);
+  if (groups) {
+    // NAT64 well-known 64:ff9b::/96 and local-use 64:ff9b:1::/48
+    const isNat64Wellknown =
+      groups[0] === "64" &&
+      groups[1] === "ff9b" &&
+      groups.slice(2, 6).every((g) => g === "0");
+    const isNat64Local =
+      groups[0] === "64" && groups[1] === "ff9b" && groups[2] === "1";
+    if (isNat64Wellknown || isNat64Local) {
+      const v4 = embeddedV4FromGroups(groups);
+      return v4 ? isPrivateIPv4(v4) : true;
+    }
+    // Deprecated IPv4-compatible ::a.b.c.d (top 96 bits zero, not ::ffff form)
+    if (groups.slice(0, 6).every((g) => g === "0")) {
+      const v4 = embeddedV4FromGroups(groups);
+      if (v4 && v4 !== "0.0.0.0" && v4 !== "0.0.0.1") {
+        return isPrivateIPv4(v4);
+      }
+    }
   }
   return false;
 }
