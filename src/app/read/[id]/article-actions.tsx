@@ -116,6 +116,9 @@ export function ArticleActions({
   async function toggleRead() {
     const next = !read;
     setRead(next);
+    if (next) {
+      window.dispatchEvent(new CustomEvent("article-marked-read"));
+    }
     const result = await patch({ read: next });
     if (!result) setRead(!next);
     else startTransition(() => router.refresh());

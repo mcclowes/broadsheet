@@ -19,6 +19,12 @@ export function ReadTracker({ articleId, alreadyRead }: Props) {
 
     const controller = new AbortController();
 
+    function onExternalMark() {
+      fired.current = true;
+      controller.abort();
+    }
+    window.addEventListener("article-marked-read", onExternalMark);
+
     async function markRead() {
       if (fired.current || retries.current >= MAX_RETRIES) return;
       fired.current = true;
@@ -50,7 +56,10 @@ export function ReadTracker({ articleId, alreadyRead }: Props) {
       passive: true,
       signal: controller.signal,
     });
-    return () => controller.abort();
+    return () => {
+      window.removeEventListener("article-marked-read", onExternalMark);
+      controller.abort();
+    };
   }, [alreadyRead, articleId]);
 
   return null;
