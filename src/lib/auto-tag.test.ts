@@ -11,7 +11,6 @@ function make(overrides: Partial<ParsedArticle> = {}): ParsedArticle {
     lang: null,
     image: null,
     markdown: "",
-    sanitizedHtml: "",
     wordCount: 0,
     ...overrides,
   };

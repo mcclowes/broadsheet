@@ -4,7 +4,6 @@ import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
 import { tables } from "turndown-plugin-gfm";
-import { sanitizeHtml } from "./sanitize-html";
 
 export interface ParsedArticle {
   title: string;
@@ -14,7 +13,6 @@ export interface ParsedArticle {
   lang: string | null;
   image: string | null;
   markdown: string;
-  sanitizedHtml: string;
   wordCount: number;
 }
 
@@ -72,7 +70,133 @@ function createTurndown(): TurndownService {
   // plugin), which marked passes through and DOMPurify sanitises.
   td.use(tables);
 
+  // Preserve structural wrappers as raw HTML in the markdown so they survive
+  // round-tripping through marked at read time. Without this, Turndown
+  // flattens <figure>/<figcaption>/<picture>/<source> and we lose captions
+  // and responsive image sources.
+  td.keep(["figure", "figcaption", "picture", "source"]);
+
   return td;
+}
+
+// Matches markdown-style inline emphasis delimiters that some CMSes leave
+// as literal characters in the rendered HTML (common on literary / poetry
+// sites). Ordering matters: **strong** / __strong__ must be matched before
+// the single-delimiter cases.
+//
+// Each pattern requires the delimiter to sit on a non-word boundary on the
+// outside so we don't match things like snake_case or arithmetic 2 * 3 * 4.
+// Group 1 is the leading boundary char, group 2 is the emphasised content.
+const EMPHASIS_PATTERNS: Array<{ re: RegExp; tag: "em" | "strong" }> = [
+  {
+    re: /(^|[^\w*])\*\*([^\s*][^*]*?[^\s*]|[^\s*])\*\*(?=[^\w*]|$)/g,
+    tag: "strong",
+  },
+  {
+    re: /(^|[^\w_])__([^\s_][^_]*?[^\s_]|[^\s_])__(?=[^\w_]|$)/g,
+    tag: "strong",
+  },
+  {
+    re: /(^|[^\w*])\*([^\s*][^*]*?[^\s*]|[^\s*])\*(?=[^\w*]|$)/g,
+    tag: "em",
+  },
+  {
+    re: /(^|[^\w_])_([^\s_][^_]*?[^\s_]|[^\s_])_(?=[^\w_]|$)/g,
+    tag: "em",
+  },
+];
+
+/**
+ * Splits a text string into DOM nodes, promoting markdown-style emphasis
+ * delimiters (_foo_, *foo*, **foo**, __foo__) into <em>/<strong> elements.
+ * Returns null if no emphasis was found (caller can skip the replacement).
+ */
+function emphasiseText(text: string, doc: Document): Node[] | null {
+  let segments: Array<
+    | { kind: "text"; value: string }
+    | { kind: "tag"; tag: "em" | "strong"; inner: string }
+  > = [{ kind: "text", value: text }];
+  let matched = false;
+
+  for (const { re, tag } of EMPHASIS_PATTERNS) {
+    const next: typeof segments = [];
+    for (const seg of segments) {
+      if (seg.kind !== "text") {
+        next.push(seg);
+        continue;
+      }
+      re.lastIndex = 0;
+      let lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(seg.value)) !== null) {
+        matched = true;
+        const [full, lead, inner] = m;
+        const start = m.index;
+        // Anything before the match, plus the leading boundary char, stays as text.
+        next.push({
+          kind: "text",
+          value: seg.value.slice(lastIndex, start) + lead,
+        });
+        next.push({ kind: "tag", tag, inner });
+        lastIndex = start + full.length;
+      }
+      next.push({ kind: "text", value: seg.value.slice(lastIndex) });
+    }
+    segments = next;
+  }
+
+  if (!matched) return null;
+
+  return segments
+    .filter((s) => s.kind === "tag" || s.value.length > 0)
+    .map((s) => {
+      if (s.kind === "text") return doc.createTextNode(s.value);
+      const el = doc.createElement(s.tag);
+      el.textContent = s.inner;
+      return el;
+    });
+}
+
+/**
+ * Walks text nodes in `root` and converts markdown-style emphasis
+ * delimiters into <em>/<strong> elements in place. Skips text inside
+ * <code>, <pre>, and <a> so we don't mangle code samples or link text
+ * that happens to contain underscores / asterisks.
+ */
+function promoteMarkdownEmphasis(root: Element): void {
+  const doc = root.ownerDocument;
+  if (!doc) return;
+  const NodeFilter = doc.defaultView?.NodeFilter;
+  if (!NodeFilter) return;
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      let p: Node | null = node.parentNode;
+      while (p && p !== root) {
+        if (p.nodeType === 1) {
+          const tag = (p as Element).tagName.toLowerCase();
+          if (tag === "code" || tag === "pre" || tag === "a") {
+            return NodeFilter.FILTER_REJECT;
+          }
+        }
+        p = p.parentNode;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+
+  const textNodes: Text[] = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    textNodes.push(n as Text);
+  }
+
+  for (const text of textNodes) {
+    const replacements = emphasiseText(text.nodeValue ?? "", doc);
+    if (!replacements) continue;
+    const parent = text.parentNode;
+    if (!parent) continue;
+    for (const node of replacements) parent.insertBefore(node, text);
+    parent.removeChild(text);
+  }
 }
 
 export class IngestError extends Error {
@@ -407,18 +531,23 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
       }
     }
   }
+  // Some publishers (commonly literary / poetry sites with markdown-based
+  // CMSes) emit italics and bold as literal _text_ / *text* / **text** in
+  // the rendered HTML rather than wrapping them in <em>/<strong>. Promote
+  // those to real tags before Turndown runs, otherwise Turndown escapes
+  // the delimiters (`\_foo\_`) and the reader ends up with literal
+  // underscores instead of emphasis.
+  promoteMarkdownEmphasis(contentDom.window.document.body);
   const fixedContent = contentDom.window.document.body.innerHTML;
 
-  const sanitizedHtml = sanitizeHtml(fixedContent);
-  if (!sanitizedHtml.trim()) {
+  const markdown = createTurndown().turndown(fixedContent).trim();
+  if (!markdown) {
     throw new IngestError(
       "Parsed article was empty",
       undefined,
       "The extracted article was empty",
     );
   }
-
-  const markdown = createTurndown().turndown(fixedContent).trim();
   const wordCount = countWords(markdown);
 
   if (wordCount < LOW_WORD_COUNT_THRESHOLD) {
@@ -448,7 +577,6 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
     lang: article.lang ?? null,
     image,
     markdown,
-    sanitizedHtml,
     wordCount,
   };
 }

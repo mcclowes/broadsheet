@@ -41,7 +41,6 @@ function parsed(url: string): ParsedArticle {
     lang: null,
     image: null,
     markdown: "hello ".repeat(50),
-    sanitizedHtml: "<p>hello</p>",
     wordCount: 50,
   };
 }

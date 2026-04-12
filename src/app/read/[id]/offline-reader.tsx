@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getCachedArticle, type OfflineArticle } from "@/lib/offline-storage";
+import { renderMarkdownClient } from "@/lib/markdown-client";
 import styles from "./read.module.scss";
 
 /**
@@ -13,6 +14,10 @@ import styles from "./read.module.scss";
 export function OfflineReader({ articleId }: { articleId: string }) {
   const [article, setArticle] = useState<OfflineArticle | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const html = useMemo(
+    () => (article ? renderMarkdownClient(article.body) : ""),
+    [article],
+  );
 
   useEffect(() => {
     getCachedArticle(articleId).then((cached) => {
@@ -64,7 +69,7 @@ export function OfflineReader({ articleId }: { articleId: string }) {
 
       <article
         className="reader-body"
-        dangerouslySetInnerHTML={{ __html: article.body }}
+        dangerouslySetInnerHTML={{ __html: html }}
       />
     </main>
   );

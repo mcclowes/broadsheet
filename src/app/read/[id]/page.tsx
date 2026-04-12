@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
+import { renderMarkdown } from "@/lib/markdown";
 import { authedUserId } from "@/lib/auth-types";
 import { ArticleActions } from "./article-actions";
 import { ReadTracker } from "./read-tracker";
@@ -31,8 +32,9 @@ export default async function ReadPage({
   const article = await getArticle(userId, id);
   if (!article) notFound();
 
-  // Body is canonical sanitised HTML since issue #6 — render directly.
-  const html = article.body;
+  // Body stores the article as markdown (per the PRD); render via
+  // marked → DOMPurify at request time.
+  const html = renderMarkdown(article.body);
 
   return (
     <main className={styles.main}>
