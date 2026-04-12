@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
 import { renderMarkdown } from "@/lib/markdown";
 import { ArticleActions } from "./article-actions";
+import { NarrationPlayer } from "./narration-player";
 import styles from "./read.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export default async function ReadPage({
   if (!article) notFound();
 
   const html = renderMarkdown(article.body);
+  const narrationEnabled = Boolean(process.env.ELEVENLABS_API_KEY);
 
   return (
     <main className={styles.main}>
@@ -51,6 +53,7 @@ export default async function ReadPage({
           initialArchived={article.archivedAt !== null}
           initialRead={article.readAt !== null}
         />
+        {narrationEnabled ? <NarrationPlayer articleId={article.id} /> : null}
       </header>
 
       <article

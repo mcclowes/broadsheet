@@ -138,3 +138,41 @@
   color: #a11;
   font-size: 0.8125rem;
 }
+
+.narration {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.narrationButton {
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--accent);
+  background: transparent;
+  border-radius: 0.375rem;
+  color: var(--accent);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--accent);
+    color: white;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.narrationNote {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+.narrationError {
+  font-size: 0.75rem;
+  color: #a11;
+}
