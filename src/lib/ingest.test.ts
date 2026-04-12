@@ -7,6 +7,7 @@ import {
   IngestError,
   isPrivateAddress,
   isHtmlContentType,
+  charsetFromContentType,
 } from "./ingest";
 
 const sampleHtml = `<!doctype html>
@@ -192,6 +193,41 @@ const y = 2;</code></pre>
     expect(() => parseArticleFromHtml(empty, "https://example.com")).toThrow(
       IngestError,
     );
+  });
+
+  it("throws IngestError for paywall teasers (too few words)", () => {
+    const stubHtml = `<!doctype html><html><head><title>Premium Article</title></head>
+<body><article>
+  <h1>Premium Article</h1>
+  <p>Subscribe now to read this article.</p>
+</article></body></html>`;
+    expect(() =>
+      parseArticleFromHtml(stubHtml, "https://example.com/premium"),
+    ).toThrow(IngestError);
+    try {
+      parseArticleFromHtml(stubHtml, "https://example.com/premium");
+    } catch (err) {
+      expect((err as IngestError).publicMessage).toContain(
+        "paywall teaser or stub",
+      );
+    }
+  });
+
+  it("truncates overly long title", () => {
+    const longTitle = "A".repeat(600);
+    const bodyParagraphs = Array(20)
+      .fill(
+        "<p>This paragraph has enough words to pass the low word count threshold for ingestion.</p>",
+      )
+      .join("\n");
+    const html = `<!doctype html><html><head><title>${longTitle}</title></head>
+<body><article>
+  <h1>${longTitle}</h1>
+  ${bodyParagraphs}
+</article></body></html>`;
+    const parsed = parseArticleFromHtml(html, "https://example.com/long");
+    expect(parsed.title.length).toBeLessThanOrEqual(500);
+    expect(parsed.title.endsWith("…")).toBe(true);
   });
 });
 
@@ -433,5 +469,25 @@ describe("isHtmlContentType", () => {
     expect(isHtmlContentType("application/pdf")).toBe(false);
     expect(isHtmlContentType("application/json")).toBe(false);
     expect(isHtmlContentType("image/png")).toBe(false);
+  });
+});
+
+describe("charsetFromContentType", () => {
+  it("extracts charset from Content-Type header", () => {
+    expect(charsetFromContentType("text/html; charset=iso-8859-1")).toBe(
+      "iso-8859-1",
+    );
+    expect(charsetFromContentType("text/html; charset=shift_jis")).toBe(
+      "shift_jis",
+    );
+    expect(charsetFromContentType("text/html;charset=utf-8")).toBe("utf-8");
+    expect(charsetFromContentType('text/html; charset="windows-1252"')).toBe(
+      "windows-1252",
+    );
+  });
+
+  it("returns undefined when no charset specified", () => {
+    expect(charsetFromContentType("text/html")).toBeUndefined();
+    expect(charsetFromContentType(null)).toBeUndefined();
   });
 });

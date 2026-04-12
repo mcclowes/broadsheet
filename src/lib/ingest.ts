@@ -90,6 +90,20 @@ export const FETCH_TIMEOUT_MS = 15_000;
 export const MAX_BODY_BYTES = 5 * 1024 * 1024;
 export const MAX_REDIRECTS = 5;
 
+// Frontmatter length caps — truncates with "…" to keep stored data bounded.
+const MAX_TITLE = 500;
+const MAX_BYLINE = 200;
+const MAX_EXCERPT = 1000;
+const MAX_SOURCE = 200;
+
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1) + "…";
+}
+
+// Articles shorter than this are likely paywall teasers or stub pages.
+export const LOW_WORD_COUNT_THRESHOLD = 25;
+
 const HTML_CONTENT_TYPE = /^(?:text\/html|application\/xhtml\+xml)\b/i;
 
 export function isHtmlContentType(contentType: string | null): boolean {
@@ -172,7 +186,22 @@ export async function assertPublicHost(hostname: string): Promise<void> {
   }
 }
 
-export async function readBoundedBody(res: Response): Promise<string> {
+/**
+ * Extract charset from Content-Type header or fall back to utf-8.
+ * Handles forms like "text/html; charset=iso-8859-1".
+ */
+export function charsetFromContentType(
+  contentType: string | null,
+): string | undefined {
+  if (!contentType) return undefined;
+  const match = contentType.match(/charset\s*=\s*"?([^";,\s]+)/i);
+  return match?.[1];
+}
+
+export async function readBoundedBody(
+  res: Response,
+  contentType?: string | null | undefined,
+): Promise<string> {
   if (!res.body) {
     throw new IngestError(
       "Response had no body",
@@ -202,7 +231,14 @@ export async function readBoundedBody(res: Response): Promise<string> {
     reader.cancel().catch(() => {});
   }
   const buf = Buffer.concat(chunks.map((c) => Buffer.from(c)));
-  return buf.toString("utf8");
+  const charset = charsetFromContentType(contentType ?? null) ?? "utf-8";
+  try {
+    const decoder = new TextDecoder(charset, { fatal: false });
+    return decoder.decode(buf);
+  } catch {
+    // Unknown charset — fall back to utf-8
+    return buf.toString("utf8");
+  }
 }
 
 /**
@@ -282,16 +318,37 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
   }
 
   const markdown = createTurndown().turndown(fixedContent).trim();
+  const wordCount = countWords(markdown);
+
+  if (wordCount < LOW_WORD_COUNT_THRESHOLD) {
+    throw new IngestError(
+      `Article has only ${wordCount} words — likely a paywall teaser or stub`,
+      undefined,
+      "This article appears to be a paywall teaser or stub page (too short to save)",
+    );
+  }
+
+  const title = truncate((article.title ?? "").trim() || "Untitled", MAX_TITLE);
+  const byline = article.byline?.trim()
+    ? truncate(article.byline.trim(), MAX_BYLINE)
+    : null;
+  const excerpt = article.excerpt?.trim()
+    ? truncate(article.excerpt.trim(), MAX_EXCERPT)
+    : null;
+  const siteName = article.siteName?.trim()
+    ? truncate(article.siteName.trim(), MAX_SOURCE)
+    : null;
+
   return {
-    title: (article.title ?? "").trim() || "Untitled",
-    byline: article.byline?.trim() || null,
-    excerpt: article.excerpt?.trim() || null,
-    siteName: article.siteName?.trim() || null,
+    title,
+    byline,
+    excerpt,
+    siteName,
     lang: article.lang ?? null,
     image,
     markdown,
     sanitizedHtml,
-    wordCount: countWords(markdown),
+    wordCount,
   };
 }
 
@@ -396,7 +453,7 @@ export async function fetchPublicResource(
       );
     }
 
-    const body = await readBoundedBody(res);
+    const body = await readBoundedBody(res, contentType);
     return { body, finalUrl: current.toString(), contentType };
   }
 

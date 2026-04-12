@@ -122,6 +122,33 @@ describe("saveArticle", () => {
     const bobList = await listArticles(OTHER);
     expect(bobList).toHaveLength(0);
   });
+
+  it("handles concurrent saves of the same URL via dedup", async () => {
+    const [a, b] = await Promise.all([
+      saveArticle(
+        USER,
+        "https://example.com/concurrent",
+        makeParsed({ title: "First" }),
+      ),
+      saveArticle(
+        USER,
+        "https://example.com/concurrent",
+        makeParsed({ title: "Second" }),
+      ),
+    ]);
+    // Both should resolve to the same article ID
+    expect(a.id).toBe(b.id);
+    // Only one article should exist
+    const list = await listArticles(USER);
+    expect(list.filter((art) => art.id === a.id)).toHaveLength(1);
+  });
+});
+
+describe("getArticle", () => {
+  it("returns null for malformed article id", async () => {
+    const article = await getArticle(USER, "not-a-valid-hex-id");
+    expect(article).toBeNull();
+  });
 });
 
 describe("listArticles", () => {
