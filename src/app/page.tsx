@@ -43,7 +43,9 @@ export default async function HomePage() {
             <span className={styles.landingCorner}>Est. 2025</span>
             <h1 className={styles.landingTitle}>Broadsheet</h1>
             <div className={styles.auth}>
-              <SignInButton mode="modal" />
+              <SignInButton mode="modal">
+                <button className={styles.authButton}>Sign in</button>
+              </SignInButton>
             </div>
           </div>
           <p className={styles.landingMotto}>
