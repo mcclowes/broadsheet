@@ -15,11 +15,38 @@ const saveSchema = z.object({
   html: z.string().min(1).max(MAX_BODY_BYTES).optional(),
 });
 
-export async function GET() {
+export async function GET(req: Request) {
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const articles = await listArticles(userId);
-  return Response.json({ articles });
+
+  const url = new URL(req.url);
+  const view = url.searchParams.get("view") ?? undefined;
+  const state = url.searchParams.get("state") ?? undefined;
+  const tag = url.searchParams.get("tag") ?? undefined;
+  const source = url.searchParams.get("source") ?? undefined;
+  const limitParam = url.searchParams.get("limit");
+  const limit = limitParam ? Math.max(1, parseInt(limitParam, 10)) : undefined;
+
+  const articles = await listArticles(userId, {
+    view:
+      view === "archive" ? "archive" : view === "inbox" ? "inbox" : undefined,
+    state:
+      state === "read"
+        ? "read"
+        : state === "unread"
+          ? "unread"
+          : state === "all"
+            ? "all"
+            : undefined,
+    tag,
+    source,
+    limit: Number.isFinite(limit) ? limit : undefined,
+  });
+
+  return Response.json(
+    { articles },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }
 
 export async function POST(req: Request) {

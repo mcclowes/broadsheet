@@ -41,6 +41,7 @@ describe("buildDigestHtml", () => {
       articles: [make("1", { title: "Lead story" })],
       date: new Date("2026-04-12T07:00:00.000Z"),
       baseUrl: BASE,
+      userId: "test-user",
     });
     expect(html).toContain("<!DOCTYPE html>");
     expect(html).toContain("Broadsheet");
@@ -53,6 +54,7 @@ describe("buildDigestHtml", () => {
       articles: [],
       date: new Date("2026-04-12T07:00:00.000Z"),
       baseUrl: BASE,
+      userId: "test-user",
     });
     expect(html).toContain("No unread stories");
     expect(html).toContain(`${BASE}/library`);
@@ -62,7 +64,12 @@ describe("buildDigestHtml", () => {
     const articles = Array.from({ length: 10 }, (_, i) =>
       make(`${i}`, { title: `Story ${i}`, source: `src${i}.com` }),
     );
-    const html = buildDigestHtml({ articles, date: new Date(), baseUrl: BASE });
+    const html = buildDigestHtml({
+      articles,
+      date: new Date(),
+      baseUrl: BASE,
+      userId: "test-user",
+    });
 
     // Lead
     expect(html).toContain("Story 0");
@@ -79,6 +86,7 @@ describe("buildDigestHtml", () => {
     const html = buildDigestHtml({
       articles: [make("xss", { title: '<script>alert("xss")</script>' })],
       baseUrl: BASE,
+      userId: "test-user",
     });
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
@@ -88,6 +96,7 @@ describe("buildDigestHtml", () => {
     const html = buildDigestHtml({
       articles: [make("a"), make("b"), make("c")],
       baseUrl: BASE,
+      userId: "test-user",
     });
     expect(html).toContain("3 stories");
   });
@@ -96,6 +105,7 @@ describe("buildDigestHtml", () => {
     const html = buildDigestHtml({
       articles: [make("only")],
       baseUrl: BASE,
+      userId: "test-user",
     });
     expect(html).toContain("1 story");
   });
@@ -110,6 +120,7 @@ describe("buildDigestHtml", () => {
         }),
       ],
       baseUrl: BASE,
+      userId: "test-user",
     });
     expect(html).toContain("Jane Doe");
     expect(html).toContain("A fascinating piece about testing.");
@@ -119,6 +130,7 @@ describe("buildDigestHtml", () => {
     const html = buildDigestHtml({
       articles: [make("a")],
       baseUrl: BASE,
+      userId: "test-user",
     });
     expect(html).toContain("Unsubscribe");
     expect(html).toContain("daily digest");

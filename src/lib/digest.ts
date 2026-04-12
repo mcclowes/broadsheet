@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { z } from "zod";
 import type { Volume } from "folio-db-next";
 import { getFolio, DIGEST_REGISTRY_VOLUME } from "./folio";
@@ -11,14 +11,22 @@ export interface DigestPreferences {
   enabledAt: string | null;
 }
 
-const digestFrontmatterSchema = z.object({
+type DigestFrontmatter = {
+  enabled: boolean;
+  email: string;
+  enabledAt: string | null;
+  userId: string;
+  lastDigestSentAt: string | null;
+  [key: string]: unknown;
+};
+
+const digestFrontmatterSchema: z.ZodType<DigestFrontmatter> = z.object({
   enabled: z.boolean(),
   email: z.string().email(),
   enabledAt: z.string().nullable(),
   userId: z.string(),
-});
-
-type DigestFrontmatter = z.infer<typeof digestFrontmatterSchema>;
+  lastDigestSentAt: z.string().nullable().default(null),
+}) as unknown as z.ZodType<DigestFrontmatter>;
 
 function registryVolume(): Volume<DigestFrontmatter> {
   return getFolio().volume<DigestFrontmatter>(DIGEST_REGISTRY_VOLUME, {
@@ -71,6 +79,7 @@ export async function setDigestPreferences(
     email: opts.email,
     enabledAt,
     userId,
+    lastDigestSentAt: existing?.frontmatter.lastDigestSentAt ?? null,
   };
   await vol.set(slug, { frontmatter, body: "" });
   return { enabled: true, email: opts.email, enabledAt };
@@ -81,6 +90,31 @@ export async function setDigestPreferences(
 export interface DigestSubscriber {
   userId: string;
   email: string;
+  lastDigestSentAt: string | null;
+}
+
+// ── Unsubscribe tokens ─────────────────────────────────────────────
+
+function unsubscribeSecret(): string {
+  return process.env.CRON_SECRET ?? "broadsheet-unsubscribe-fallback";
+}
+
+export function generateUnsubscribeToken(userId: string): string {
+  return createHmac("sha256", unsubscribeSecret())
+    .update(userId)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+export function verifyUnsubscribeToken(userId: string, token: string): boolean {
+  const expected = generateUnsubscribeToken(userId);
+  if (expected.length !== token.length) return false;
+  // Constant-time comparison
+  let mismatch = 0;
+  for (let i = 0; i < expected.length; i++) {
+    mismatch |= expected.charCodeAt(i) ^ token.charCodeAt(i);
+  }
+  return mismatch === 0;
 }
 
 export async function listDigestSubscribers(): Promise<DigestSubscriber[]> {
@@ -90,5 +124,13 @@ export async function listDigestSubscribers(): Promise<DigestSubscriber[]> {
     .map((p) => ({
       userId: p.frontmatter.userId,
       email: p.frontmatter.email,
+      lastDigestSentAt: p.frontmatter.lastDigestSentAt ?? null,
     }));
+}
+
+export async function markDigestSent(userId: string): Promise<void> {
+  const slug = slugForUser(userId);
+  await registryVolume().patch(slug, {
+    frontmatter: { lastDigestSentAt: new Date().toISOString() },
+  });
 }

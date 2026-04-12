@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { diffLines } from "diff";
 import { getArticle } from "@/lib/articles";
 import { fetchAndParse, IngestError } from "@/lib/ingest";
+import { diffLimiter } from "@/lib/rate-limit";
 
 export interface DiffChange {
   added: boolean;
@@ -17,6 +18,23 @@ export async function GET(
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  if (!/^[a-f0-9]{32}$/.test(id)) {
+    return Response.json({ error: "Invalid article id" }, { status: 400 });
+  }
+
+  const limit = diffLimiter.consume(userId);
+  if (!limit.allowed) {
+    return Response.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((limit.retryAfterMs ?? 1000) / 1000)),
+        },
+      },
+    );
+  }
+
   const article = await getArticle(userId, id);
   if (!article) return Response.json({ error: "Not found" }, { status: 404 });
 

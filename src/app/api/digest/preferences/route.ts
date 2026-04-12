@@ -8,7 +8,10 @@ export async function GET() {
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const prefs = await getDigestPreferences(userId);
-  return Response.json({ preferences: prefs });
+  return Response.json(
+    { preferences: prefs },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }
 
 const patchSchema = z.object({

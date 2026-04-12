@@ -42,6 +42,13 @@ export function getFolio(): Folio {
 // uppercase and other characters, so we hash them into a stable, slug-safe
 // volume name. An optional suffix (e.g. "sources") keeps related per-user
 // volumes alongside the main article store.
+//
+// Hash truncation policy:
+// - Volume names: 24 hex chars (96 bits) — collision at ~2^48 users, fine
+//   for a consumer app.
+// - Article IDs (articleIdForUrl): 32 hex chars (128 bits) — tighter budget
+//   because one user may store thousands of URLs.
+// Both use SHA-256 so the full hash is always available if we need to widen.
 export function volumeNameForUser(userId: string, suffix?: string): string {
   const hex = createHash("sha256").update(userId).digest("hex").slice(0, 24);
   const base = `user-${hex}`;

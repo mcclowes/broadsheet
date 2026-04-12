@@ -16,58 +16,62 @@ export interface ParsedArticle {
   wordCount: number;
 }
 
-const turndown = new TurndownService({
-  headingStyle: "atx",
-  codeBlockStyle: "fenced",
-  bulletListMarker: "-",
-});
+function createTurndown(): TurndownService {
+  const td = new TurndownService({
+    headingStyle: "atx",
+    codeBlockStyle: "fenced",
+    bulletListMarker: "-",
+  });
 
-turndown.addRule("stripScripts", {
-  filter: ["script", "style", "iframe", "noscript"],
-  replacement: () => "",
-});
+  td.addRule("stripScripts", {
+    filter: ["script", "style", "iframe", "noscript"],
+    replacement: () => "",
+  });
 
-// <pre> without a <code> child is not matched by Turndown's built-in fenced
-// code-block rule, so the text passes through as a plain paragraph and the
-// browser collapses its whitespace. Wrap it in a fenced block ourselves.
-turndown.addRule("preWithoutCode", {
-  filter(node) {
-    return node.nodeName === "PRE" && !node.querySelector("code");
-  },
-  replacement(_content, node) {
-    const text = (node as Element).textContent || "";
-    return "\n\n```\n" + text + "\n```\n\n";
-  },
-});
+  // <pre> without a <code> child is not matched by Turndown's built-in fenced
+  // code-block rule, so the text passes through as a plain paragraph and the
+  // browser collapses its whitespace. Wrap it in a fenced block ourselves.
+  td.addRule("preWithoutCode", {
+    filter(node) {
+      return node.nodeName === "PRE" && !node.querySelector("code");
+    },
+    replacement(_content, node) {
+      const text = (node as Element).textContent || "";
+      return "\n\n```\n" + text + "\n```\n\n";
+    },
+  });
 
-// Turndown's default image rule drops <img> when `src` is falsy. Many sites
-// use `<img src="" data-src="…">` for lazy loading; Readability fixes some
-// but not all of these. Fall back to data-src / data-lazy-src.
-turndown.addRule("imgWithDataSrc", {
-  filter(node) {
-    if (node.nodeName !== "IMG") return false;
-    const src = node.getAttribute("src");
-    if (src) return false; // default rule handles it
-    const fallback =
-      node.getAttribute("data-src") || node.getAttribute("data-lazy-src");
-    return !!fallback;
-  },
-  replacement(_content, node) {
-    const src =
-      (node as Element).getAttribute("data-src") ||
-      (node as Element).getAttribute("data-lazy-src") ||
-      "";
-    const alt = (node as Element).getAttribute("alt") || "";
-    const title = (node as Element).getAttribute("title");
-    const titlePart = title ? ` "${title}"` : "";
-    return `![${alt}](${src}${titlePart})`;
-  },
-});
+  // Turndown's default image rule drops <img> when `src` is falsy. Many sites
+  // use `<img src="" data-src="…">` for lazy loading; Readability fixes some
+  // but not all of these. Fall back to data-src / data-lazy-src.
+  td.addRule("imgWithDataSrc", {
+    filter(node) {
+      if (node.nodeName !== "IMG") return false;
+      const src = node.getAttribute("src");
+      if (src) return false; // default rule handles it
+      const fallback =
+        node.getAttribute("data-src") || node.getAttribute("data-lazy-src");
+      return !!fallback;
+    },
+    replacement(_content, node) {
+      const src =
+        (node as Element).getAttribute("data-src") ||
+        (node as Element).getAttribute("data-lazy-src") ||
+        "";
+      const alt = (node as Element).getAttribute("alt") || "";
+      const title = (node as Element).getAttribute("title");
+      const titlePart = title ? ` "${title}"` : "";
+      return `![${alt}](${src}${titlePart})`;
+    },
+  });
 
-// Convert <table> to GFM pipe tables. Tables without a heading row are
-// preserved as raw HTML via Turndown's `keep` fallback (registered by the
-// plugin), which marked passes through and DOMPurify sanitises.
-turndown.use(tables);
+  // Convert <table> to GFM pipe tables. Tables without a heading row are
+  // preserved as raw HTML via Turndown's `keep` fallback (registered by the
+  // plugin), which marked passes through and DOMPurify sanitises.
+  td.use(tables);
+
+  return td;
+}
 
 export class IngestError extends Error {
   constructor(
@@ -266,7 +270,7 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
   }
   const fixedContent = contentDom.window.document.body.innerHTML;
 
-  const markdown = turndown.turndown(fixedContent).trim();
+  const markdown = createTurndown().turndown(fixedContent).trim();
   if (!markdown) {
     throw new IngestError(
       "Parsed article was empty",
@@ -407,8 +411,39 @@ export async function fetchAndParse(url: string): Promise<ParsedArticle> {
   return parseArticleFromHtml(body, finalUrl);
 }
 
+function stripMarkdownSyntax(markdown: string): string {
+  return (
+    markdown
+      // Images: ![alt](url) → alt
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+      // Links: [text](url) → text
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      // Reference links: [text][ref] → text
+      .replace(/\[([^\]]*)\]\[[^\]]*\]/g, "$1")
+      // Inline code: `code` → code
+      .replace(/`+([^`]*)`+/g, "$1")
+      // Fenced code block markers
+      .replace(/^```\w*$/gm, "")
+      // Headings: ## text → text
+      .replace(/^#{1,6}\s+/gm, "")
+      // Bold/italic markers
+      .replace(/(\*{1,3}|_{1,3})/g, "")
+      // Horizontal rules
+      .replace(/^[-*_]{3,}$/gm, "")
+      // Table pipes and alignment
+      .replace(/\|/g, " ")
+      .replace(/^[\s:|-]+$/gm, "")
+      // Blockquote markers
+      .replace(/^>\s?/gm, "")
+      // List markers
+      .replace(/^[\s]*[-*+]\s+/gm, "")
+      .replace(/^[\s]*\d+\.\s+/gm, "")
+  );
+}
+
 function countWords(markdown: string): number {
-  return markdown.split(/\s+/).filter(Boolean).length;
+  const text = stripMarkdownSyntax(markdown);
+  return text.split(/\s+/).filter(Boolean).length;
 }
 
 export function estimateReadMinutes(wordCount: number): number {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { addSource, listSources } from "@/lib/sources";
 import { IngestError } from "@/lib/ingest";
 import { checkOrigin } from "@/lib/csrf";
+import { sourceAddLimiter } from "@/lib/rate-limit";
 
 const addSchema = z.object({
   url: z.string().url(),
@@ -12,7 +13,10 @@ export async function GET() {
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const sources = await listSources(userId);
-  return Response.json({ sources });
+  return Response.json(
+    { sources },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }
 
 export async function POST(req: Request) {
@@ -21,6 +25,19 @@ export async function POST(req: Request) {
 
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const limit = sourceAddLimiter.consume(userId);
+  if (!limit.allowed) {
+    return Response.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((limit.retryAfterMs ?? 1000) / 1000)),
+        },
+      },
+    );
+  }
 
   let body: unknown;
   try {

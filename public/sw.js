@@ -73,6 +73,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Auth-gated routes — network-only, never cache user-specific content.
+  // If offline, fall back to IndexedDB-based offline reader, not stale HTML.
+  if (
+    url.pathname.startsWith("/library") ||
+    url.pathname.startsWith("/read/")
+  ) {
+    if (event.request.mode === "navigate") {
+      event.respondWith(
+        fetch(event.request).catch(async () => {
+          const offlinePage = await caches.match("/offline");
+          return offlinePage || new Response("Offline", { status: 503 });
+        }),
+      );
+    }
+    return;
+  }
+
   // Navigation — network-first with offline fallback
   if (event.request.mode === "navigate") {
     event.respondWith(navigationFetch(event.request));

@@ -107,6 +107,12 @@ function domainOf(url: string): string | null {
   }
 }
 
+// NOTE: This function has a check-then-act race condition. Two concurrent
+// saves for the same URL can both see `existing === null` and proceed to
+// write. With Folio's unconditional upsert, the second write wins silently.
+// This is acceptable for now (both writes produce equivalent content from
+// the same URL), but a proper fix requires a `setIfAbsent` primitive in
+// Folio — logged in FOLIO-TRACKER.md.
 export async function saveArticle(
   userId: string,
   url: string,
@@ -146,6 +152,7 @@ export interface ListFilters {
   state?: ReadState;
   tag?: string;
   source?: string;
+  limit?: number;
 }
 
 export function filterArticles(
@@ -173,7 +180,8 @@ export async function listArticles(
   const all = pages
     .map((p) => ({ id: p.slug, ...p.frontmatter }))
     .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
-  return filterArticles(all, filters);
+  const filtered = filterArticles(all, filters);
+  return filters.limit ? filtered.slice(0, filters.limit) : filtered;
 }
 
 export async function getArticle(
@@ -183,6 +191,33 @@ export async function getArticle(
   const page = await userVolume(userId).get(id);
   if (!page) return null;
   return { id: page.slug, body: page.body, ...page.frontmatter };
+}
+
+export interface ArticlePatch {
+  read?: boolean;
+  archived?: boolean;
+  tags?: string[];
+}
+
+export async function patchArticle(
+  userId: string,
+  id: string,
+  patch: ArticlePatch,
+): Promise<{ tags?: string[] }> {
+  const frontmatter: Partial<ArticleFrontmatter> = {};
+  if (patch.read !== undefined) {
+    frontmatter.readAt = patch.read ? new Date().toISOString() : null;
+  }
+  if (patch.archived !== undefined) {
+    frontmatter.archivedAt = patch.archived ? new Date().toISOString() : null;
+  }
+  let tags: string[] | undefined;
+  if (patch.tags !== undefined) {
+    tags = cleanTags(patch.tags);
+    frontmatter.tags = tags;
+  }
+  await userVolume(userId).patch(id, { frontmatter });
+  return { tags };
 }
 
 export async function markRead(
@@ -209,16 +244,24 @@ function normalizeTag(raw: string): string {
   return raw.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
+const MAX_TAGS = 20;
+
+export function cleanTags(tags: string[]): string[] {
+  return Array.from(
+    new Set(
+      tags.map(normalizeTag).filter((t) => t.length > 0 && t.length <= 32),
+    ),
+  )
+    .sort()
+    .slice(0, MAX_TAGS);
+}
+
 export async function setTags(
   userId: string,
   id: string,
   tags: string[],
 ): Promise<string[]> {
-  const clean = Array.from(
-    new Set(
-      tags.map(normalizeTag).filter((t) => t.length > 0 && t.length <= 32),
-    ),
-  ).sort();
+  const clean = cleanTags(tags);
   await userVolume(userId).patch(id, { frontmatter: { tags: clean } });
   return clean;
 }

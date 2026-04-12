@@ -1,7 +1,11 @@
 import { Resend } from "resend";
 import { listArticles } from "@/lib/articles";
-import { listDigestSubscribers } from "@/lib/digest";
-import { buildDigestHtml, buildDigestSubject } from "@/lib/digest-email";
+import { listDigestSubscribers, markDigestSent } from "@/lib/digest";
+import {
+  buildDigestHtml,
+  buildDigestSubject,
+  unsubscribeUrl,
+} from "@/lib/digest-email";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -32,53 +36,79 @@ export async function POST(req: Request) {
   }
 
   const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
   const subject = buildDigestSubject(now);
   let sent = 0;
+  let skipped = 0;
   const errors: string[] = [];
 
-  for (const sub of subscribers) {
-    try {
-      const articles = await listArticles(sub.userId, {
-        view: "inbox",
-        state: "unread",
-      });
+  // Idempotency: skip subscribers who already received today's digest
+  const eligible = subscribers.filter((sub) => {
+    if (sub.lastDigestSentAt?.startsWith(todayStr)) {
+      skipped++;
+      return false;
+    }
+    return true;
+  });
 
-      if (articles.length === 0) continue;
-
-      const html = buildDigestHtml({
-        articles,
-        date: now,
-        baseUrl: BASE_URL,
-      });
-
-      const result = await resend.emails.send({
-        from: DIGEST_FROM,
-        to: sub.email,
-        subject,
-        html,
-      });
-
-      if (result.error) {
-        console.error("[digest/send] resend error", {
-          userId: sub.userId,
-          error: result.error,
+  // Process in batches of 5 for concurrency without overwhelming Resend
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < eligible.length; i += BATCH_SIZE) {
+    const batch = eligible.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async (sub) => {
+        const articles = await listArticles(sub.userId, {
+          view: "inbox",
+          state: "unread",
         });
-        errors.push(sub.userId);
-      } else {
+
+        if (articles.length === 0) {
+          skipped++;
+          return;
+        }
+
+        const html = buildDigestHtml({
+          articles,
+          date: now,
+          baseUrl: BASE_URL,
+          userId: sub.userId,
+        });
+
+        const unsub = unsubscribeUrl(BASE_URL, sub.userId);
+        const result = await resend.emails.send({
+          from: DIGEST_FROM,
+          to: sub.email,
+          subject,
+          html,
+          headers: {
+            "List-Unsubscribe": `<${unsub}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
+        });
+
+        if (result.error) {
+          console.error("[digest/send] resend error", {
+            userId: sub.userId,
+            error: result.error,
+          });
+          throw new Error("Resend error");
+        }
+
+        await markDigestSent(sub.userId);
         sent++;
+      }),
+    );
+
+    for (let j = 0; j < results.length; j++) {
+      if (results[j].status === "rejected") {
+        errors.push(batch[j].userId);
       }
-    } catch (err) {
-      console.error("[digest/send] failed for subscriber", {
-        userId: sub.userId,
-        error: err,
-      });
-      errors.push(sub.userId);
     }
   }
 
   return Response.json({
     sent,
-    skipped: subscribers.length - sent - errors.length,
+    skipped,
     errors: errors.length,
   });
 }

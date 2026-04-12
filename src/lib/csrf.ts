@@ -1,7 +1,14 @@
 const PRODUCTION_ORIGIN = "https://broadsheet.marginalutility.dev";
 const DEV_ORIGIN = "http://localhost:3000";
 
-function buildAllowlist(): Set<string> {
+// Built lazily on first request (not at module load time) so that env vars
+// added after deployment are picked up on the next cold start without
+// relying on module evaluation order.
+let _allowedOrigins: Set<string> | null = null;
+
+function getAllowedOrigins(): Set<string> {
+  if (_allowedOrigins) return _allowedOrigins;
+
   const origins = new Set([PRODUCTION_ORIGIN, DEV_ORIGIN]);
 
   // Vercel sets VERCEL_URL for preview deployments (no protocol prefix)
@@ -16,10 +23,9 @@ function buildAllowlist(): Set<string> {
     origins.add(`https://${branchUrl}`);
   }
 
+  _allowedOrigins = origins;
   return origins;
 }
-
-const allowedOrigins = buildAllowlist();
 
 /**
  * Returns null if the origin is allowed, or a 403 Response if it should be
@@ -37,10 +43,15 @@ export function checkOrigin(req: Request): Response | null {
   // No Origin header → same-origin request (browsers omit it for same-origin)
   if (!origin) return null;
 
-  if (allowedOrigins.has(origin)) return null;
+  if (getAllowedOrigins().has(origin)) return null;
 
-  // Chrome extensions get a unique origin per install
-  if (origin.startsWith("chrome-extension://")) return null;
+  // Chrome extensions get a unique origin per extension ID. We allow any
+  // extension for now (the ID is stable per-extension, not per-user) but
+  // log the origin so we can audit and pin to our own extension ID later.
+  if (origin.startsWith("chrome-extension://")) {
+    console.info("[csrf] allowed chrome-extension origin", { origin });
+    return null;
+  }
 
   return Response.json({ error: "Forbidden" }, { status: 403 });
 }

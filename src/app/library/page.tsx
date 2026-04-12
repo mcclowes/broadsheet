@@ -2,7 +2,12 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
-import { listArticles, type LibraryView, type ReadState } from "@/lib/articles";
+import {
+  listArticles,
+  filterArticles,
+  type LibraryView,
+  type ReadState,
+} from "@/lib/articles";
 import { SaveForm } from "./save-form";
 import { DigestToggle } from "./digest-toggle";
 import { CacheLibrary } from "./cache-library";
@@ -75,10 +80,9 @@ export default async function LibraryPage({
   const source = sp.source?.trim() || undefined;
   const current = { view, state, tag, source };
 
-  const [articles, allArticles] = await Promise.all([
-    listArticles(userId, current),
-    listArticles(userId, {}),
-  ]);
+  // Single fetch — filter in-memory to avoid duplicate Blob scans
+  const allArticles = await listArticles(userId, {});
+  const articles = filterArticles(allArticles, current);
 
   const tagCounts = new Map<string, number>();
   for (const a of allArticles) {

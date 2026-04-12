@@ -4,7 +4,10 @@ import { SignInButton, UserButton } from "@clerk/nextjs";
 import { listArticles, type ArticleSummary } from "@/lib/articles";
 import styles from "./page.module.scss";
 
-export const dynamic = "force-dynamic";
+// No force-dynamic needed — auth() already makes this page dynamic.
+// The unauthenticated landing is static HTML but is fast enough as a
+// dynamic render. If TTFB becomes an issue, split the landing into a
+// separate static route.
 
 function formatEditionDate(d: Date): string {
   return d.toLocaleDateString("en-GB", {
@@ -47,7 +50,7 @@ export default async function HomePage() {
     );
   }
 
-  const articles = await listArticles(userId, { view: "inbox" });
+  const articles = await listArticles(userId, { view: "inbox", limit: 17 });
   const lead = articles[0];
   const secondary = articles.slice(1, 5);
   const wire = articles.slice(5, 17);

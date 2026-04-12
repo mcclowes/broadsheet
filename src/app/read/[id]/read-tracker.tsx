@@ -17,6 +17,8 @@ export function ReadTracker({ articleId, alreadyRead }: Props) {
   useEffect(() => {
     if (alreadyRead || fired.current) return;
 
+    const controller = new AbortController();
+
     async function markRead() {
       if (fired.current || retries.current >= MAX_RETRIES) return;
       fired.current = true;
@@ -29,6 +31,8 @@ export function ReadTracker({ articleId, alreadyRead }: Props) {
 
       if (res.ok) {
         window.dispatchEvent(new CustomEvent("article-marked-read"));
+        // Remove listener once successfully marked — no need to keep firing
+        controller.abort();
       } else {
         retries.current += 1;
         fired.current = false;
@@ -36,13 +40,17 @@ export function ReadTracker({ articleId, alreadyRead }: Props) {
     }
 
     function handleScroll() {
+      if (fired.current) return;
       if (window.scrollY > SCROLL_THRESHOLD) {
         markRead();
       }
     }
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, {
+      passive: true,
+      signal: controller.signal,
+    });
+    return () => controller.abort();
   }, [alreadyRead, articleId]);
 
   return null;

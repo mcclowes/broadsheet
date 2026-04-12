@@ -116,3 +116,23 @@ export const articleIngestLimiter = new RateLimiter({
   capacity: 10,
   refillRate: 1,
 });
+
+/**
+ * Singleton limiter for POST /api/sources.
+ * Feed discovery can trigger 10+ outbound fetches per call, so keep
+ * this tighter than article ingestion.
+ */
+export const sourceAddLimiter = new RateLimiter({
+  capacity: 5,
+  refillRate: 0.2, // 1 every 5 seconds ≈ 12/minute sustained
+});
+
+/**
+ * Singleton limiter for GET /api/articles/[id]/diff.
+ * Each call re-fetches the original article URL — rate-limit to prevent
+ * abuse as an HTTP proxy.
+ */
+export const diffLimiter = new RateLimiter({
+  capacity: 5,
+  refillRate: 0.1, // 1 every 10 seconds ≈ 6/minute sustained
+});

@@ -1,4 +1,5 @@
 import type { ArticleSummary } from "./articles";
+import { generateUnsubscribeToken } from "./digest";
 
 // ── Design tokens (mirroring globals.scss / page.module.scss) ───────
 
@@ -143,7 +144,8 @@ function wireHtml(articles: ArticleSummary[], baseUrl: string): string {
     </table>`;
 }
 
-function footerHtml(baseUrl: string): string {
+function footerHtml(baseUrl: string, userId: string): string {
+  const unsub = unsubscribeUrl(baseUrl, userId);
   return `
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:48px;padding-top:24px;border-top:1px solid ${C.rule};">
       <tr><td style="text-align:center;font-family:${FONT_SANS};font-size:12px;color:${C.fgMuted};line-height:1.6;">
@@ -153,7 +155,7 @@ function footerHtml(baseUrl: string): string {
         <br>
         You&rsquo;re receiving this because you enabled the daily digest.
         <br>
-        <a href="${esc(baseUrl)}/library" style="color:${C.fgMuted};text-decoration:underline;">Unsubscribe</a>
+        <a href="${esc(unsub)}" style="color:${C.fgMuted};text-decoration:underline;">Unsubscribe</a>
       </td></tr>
     </table>`;
 }
@@ -174,10 +176,16 @@ export interface DigestEmailOptions {
   articles: ArticleSummary[];
   date?: Date;
   baseUrl: string;
+  userId: string;
+}
+
+export function unsubscribeUrl(baseUrl: string, userId: string): string {
+  const token = generateUnsubscribeToken(userId);
+  return `${baseUrl}/api/digest/unsubscribe?uid=${encodeURIComponent(userId)}&token=${token}`;
 }
 
 export function buildDigestHtml(opts: DigestEmailOptions): string {
-  const { articles, baseUrl } = opts;
+  const { articles, baseUrl, userId } = opts;
   const date = opts.date ?? new Date();
   const lead = articles[0] as ArticleSummary | undefined;
   const secondary = articles.slice(1, 5);
@@ -210,7 +218,7 @@ export function buildDigestHtml(opts: DigestEmailOptions): string {
         <tr><td>
           ${mastheadHtml(date, storyCount, baseUrl)}
           ${body}
-          ${footerHtml(baseUrl)}
+          ${footerHtml(baseUrl, userId)}
         </td></tr>
       </table>
     </td></tr>

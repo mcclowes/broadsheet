@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { NotFoundError } from "folio-db-next";
-import { getArticle, markRead, setArchived, setTags } from "@/lib/articles";
+import { getArticle, patchArticle } from "@/lib/articles";
 import { checkOrigin } from "@/lib/csrf";
 
 export async function GET(
@@ -12,10 +12,16 @@ export async function GET(
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  if (!/^[a-f0-9]{32}$/.test(id)) {
+    return Response.json({ error: "Invalid article id" }, { status: 400 });
+  }
   try {
     const article = await getArticle(userId, id);
     if (!article) return Response.json({ error: "Not found" }, { status: 404 });
-    return Response.json({ article });
+    return Response.json(
+      { article },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (err) {
     if (err instanceof NotFoundError) {
       return Response.json({ error: "Not found" }, { status: 404 });
@@ -48,6 +54,9 @@ export async function PATCH(
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  if (!/^[a-f0-9]{32}$/.test(id)) {
+    return Response.json({ error: "Invalid article id" }, { status: 400 });
+  }
 
   let body: unknown;
   try {
@@ -70,14 +79,12 @@ export async function PATCH(
     if (!existing)
       return Response.json({ error: "Not found" }, { status: 404 });
 
-    if (updates.read !== undefined) await markRead(userId, id, updates.read);
-    if (updates.archived !== undefined)
-      await setArchived(userId, id, updates.archived);
-    let tags = existing.tags;
-    if (updates.tags !== undefined)
-      tags = await setTags(userId, id, updates.tags);
+    const result = await patchArticle(userId, id, updates);
 
-    return Response.json({ ok: true, tags });
+    return Response.json({
+      ok: true,
+      tags: result.tags ?? existing.tags,
+    });
   } catch (err) {
     if (err instanceof NotFoundError) {
       return Response.json({ error: "Not found" }, { status: 404 });
