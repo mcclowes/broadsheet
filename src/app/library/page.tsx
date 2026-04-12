@@ -13,6 +13,7 @@ import { SaveForm } from "./save-form";
 import { DigestToggle } from "./digest-toggle";
 import { CacheLibrary } from "./cache-library";
 import { SwipeableArticleLink } from "./swipeable-article-link";
+import { LibrarySearch } from "./library-search";
 import { PaletteTrigger } from "@/app/components/palette-trigger";
 import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./library.module.scss";
@@ -230,45 +231,61 @@ export default async function LibraryPage({
             : "No articles match these filters."}
         </p>
       ) : (
-        <ul className={styles.list}>
-          {articles.map((a) => (
-            <li key={a.id} className={styles.item}>
-              <SwipeableArticleLink
-                articleId={a.id}
-                href={`/read/${a.id}?from=${encodeURIComponent(filterLink(current, {}))}`}
-                initialRead={Boolean(a.readAt)}
-                linkClassName={styles.link}
+        <>
+          <LibrarySearch listId="library-list" />
+          <ul id="library-list" className={styles.list}>
+            {articles.map((a) => (
+              <li
+                key={a.id}
+                className={styles.item}
+                data-search={[
+                  a.title,
+                  a.source ?? "",
+                  a.byline ?? "",
+                  ...a.tags,
+                ]
+                  .join(" ")
+                  .toLowerCase()}
               >
-                <h2 className={styles.title}>{a.title}</h2>
-                <div className={styles.meta}>
-                  {a.source ? (
-                    <span className={styles.source}>
-                      <PublicationIcon url={a.url} />
-                      {a.source}
-                    </span>
-                  ) : null}
-                  <span>{a.readMinutes} min read</span>
-                  {a.readAt ? <span className={styles.read}>Read</span> : null}
-                  {a.archivedAt ? (
-                    <span className={styles.archived}>Archived</span>
-                  ) : null}
-                </div>
-                {a.excerpt ? (
-                  <p className={styles.excerpt}>{a.excerpt}</p>
-                ) : null}
-                {a.tags.length > 0 ? (
-                  <div className={styles.itemTags}>
-                    {a.tags.map((t) => (
-                      <span key={t} className={styles.itemTag}>
-                        #{t}
+                <SwipeableArticleLink
+                  articleId={a.id}
+                  href={`/read/${a.id}?from=${encodeURIComponent(filterLink(current, {}))}`}
+                  initialRead={Boolean(a.readAt)}
+                  linkClassName={styles.link}
+                >
+                  <h2 className={styles.title}>{a.title}</h2>
+                  <div className={styles.meta}>
+                    {a.source ? (
+                      <span className={styles.source}>
+                        <PublicationIcon url={a.url} />
+                        {a.source}
                       </span>
-                    ))}
+                    ) : null}
+                    <span>{a.readMinutes} min read</span>
+                    {a.readAt ? (
+                      <span className={styles.read}>Read</span>
+                    ) : null}
+                    {a.archivedAt ? (
+                      <span className={styles.archived}>Archived</span>
+                    ) : null}
                   </div>
-                ) : null}
-              </SwipeableArticleLink>
-            </li>
-          ))}
-        </ul>
+                  {a.excerpt ? (
+                    <p className={styles.excerpt}>{a.excerpt}</p>
+                  ) : null}
+                  {a.tags.length > 0 ? (
+                    <div className={styles.itemTags}>
+                      {a.tags.map((t) => (
+                        <span key={t} className={styles.itemTag}>
+                          #{t}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </SwipeableArticleLink>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </main>
   );
