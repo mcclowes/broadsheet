@@ -1,20 +1,14 @@
 import { auth } from "@clerk/nextjs/server";
-import { z } from "zod";
+import { fetchAndParse, IngestError, parseArticleFromHtml } from "@/lib/ingest";
 import {
-  fetchAndParse,
-  IngestError,
-  MAX_BODY_BYTES,
-  parseArticleFromHtml,
-} from "@/lib/ingest";
-import { listArticles, parseListFilters, saveArticle } from "@/lib/articles";
+  listArticles,
+  parseListFilters,
+  saveArticle,
+  saveArticleRequestSchema,
+} from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
 import { checkOrigin } from "@/lib/csrf";
 import { articleIngestLimiter } from "@/lib/rate-limit";
-
-const saveSchema = z.object({
-  url: z.string().url(),
-  html: z.string().min(1).max(MAX_BODY_BYTES).optional(),
-});
 
 export async function GET(req: Request) {
   const { userId: rawUserId } = await auth();
@@ -61,7 +55,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const parsed = saveSchema.safeParse(body);
+  const parsed = saveArticleRequestSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json(
       { error: "Expected { url: string, html?: string }" },

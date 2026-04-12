@@ -88,6 +88,10 @@ export class IngestError extends Error {
 
 export const FETCH_TIMEOUT_MS = 15_000;
 export const MAX_BODY_BYTES = 5 * 1024 * 1024;
+// User-supplied HTML (extension snapshot) is parsed synchronously with JSDOM,
+// which is a CPU DoS primitive if the cap matches remote-fetch size. Keep
+// this an order of magnitude lower.
+export const MAX_USER_HTML_BYTES = 512 * 1024;
 export const MAX_REDIRECTS = 5;
 
 // Frontmatter length caps — truncates with "…" to keep stored data bounded.

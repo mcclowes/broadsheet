@@ -266,3 +266,39 @@ describe("parseListFilters", () => {
     expect(from("limit=999999999").limit).toBe(LIST_LIMIT_MAX);
   });
 });
+
+import { saveArticleRequestSchema } from "./articles";
+import { MAX_USER_HTML_BYTES } from "./ingest";
+
+describe("saveArticleRequestSchema", () => {
+  it("accepts a request without html", () => {
+    const r = saveArticleRequestSchema.safeParse({
+      url: "https://example.com/a",
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("accepts html up to MAX_USER_HTML_BYTES", () => {
+    const r = saveArticleRequestSchema.safeParse({
+      url: "https://example.com/a",
+      html: "a".repeat(MAX_USER_HTML_BYTES),
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects html larger than MAX_USER_HTML_BYTES", () => {
+    const r = saveArticleRequestSchema.safeParse({
+      url: "https://example.com/a",
+      html: "a".repeat(MAX_USER_HTML_BYTES + 1),
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects empty html string", () => {
+    const r = saveArticleRequestSchema.safeParse({
+      url: "https://example.com/a",
+      html: "",
+    });
+    expect(r.success).toBe(false);
+  });
+});
