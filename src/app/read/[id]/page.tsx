@@ -93,16 +93,10 @@ export default async function ReadPage({
           <span>{article.readMinutes} min read</span>
         </div>
         <div className={styles.links}>
-          <a
-            href={article.url}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
+          <a href={article.url} target="_blank" rel="noreferrer noopener">
             Original
           </a>
-          <Link href={`/read/${id}/diff`}>
-            Check for changes
-          </Link>
+          <Link href={`/read/${id}/diff`}>Check for changes</Link>
         </div>
         <ArticleActions
           articleId={article.id}
