@@ -227,3 +227,42 @@ describe("articleIdForUrl", () => {
     expect(articleIdForUrl("https://example.com/x")).toMatch(/^[a-f0-9]{32}$/);
   });
 });
+
+import { parseListFilters, LIST_LIMIT_MAX } from "./articles";
+
+describe("parseListFilters", () => {
+  const from = (qs: string) => parseListFilters(new URLSearchParams(qs));
+
+  it("returns empty filters for no params", () => {
+    expect(from("")).toEqual({
+      view: undefined,
+      state: undefined,
+      tag: undefined,
+      source: undefined,
+      limit: undefined,
+    });
+  });
+
+  it("parses recognized view and state", () => {
+    expect(from("view=archive&state=unread").view).toBe("archive");
+    expect(from("view=archive&state=unread").state).toBe("unread");
+  });
+
+  it("ignores unknown view and state", () => {
+    expect(from("view=junk&state=bogus").view).toBeUndefined();
+    expect(from("view=junk&state=bogus").state).toBeUndefined();
+  });
+
+  it("rejects non-numeric limit", () => {
+    expect(from("limit=abc").limit).toBeUndefined();
+    expect(from("limit=10abc").limit).toBeUndefined();
+    expect(from("limit=-5").limit).toBeUndefined();
+    expect(from("limit=0").limit).toBeUndefined();
+    expect(from("limit=1.5").limit).toBeUndefined();
+  });
+
+  it("clamps limit to LIST_LIMIT_MAX", () => {
+    expect(from("limit=50").limit).toBe(50);
+    expect(from("limit=999999999").limit).toBe(LIST_LIMIT_MAX);
+  });
+});

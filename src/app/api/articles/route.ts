@@ -6,7 +6,7 @@ import {
   MAX_BODY_BYTES,
   parseArticleFromHtml,
 } from "@/lib/ingest";
-import { listArticles, saveArticle } from "@/lib/articles";
+import { listArticles, parseListFilters, saveArticle } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
 import { checkOrigin } from "@/lib/csrf";
 import { articleIngestLimiter } from "@/lib/rate-limit";
@@ -23,28 +23,8 @@ export async function GET(req: Request) {
   const userId = authedUserId(rawUserId);
 
   const url = new URL(req.url);
-  const view = url.searchParams.get("view") ?? undefined;
-  const state = url.searchParams.get("state") ?? undefined;
-  const tag = url.searchParams.get("tag") ?? undefined;
-  const source = url.searchParams.get("source") ?? undefined;
-  const limitParam = url.searchParams.get("limit");
-  const limit = limitParam ? Math.max(1, parseInt(limitParam, 10)) : undefined;
-
-  const articles = await listArticles(userId, {
-    view:
-      view === "archive" ? "archive" : view === "inbox" ? "inbox" : undefined,
-    state:
-      state === "read"
-        ? "read"
-        : state === "unread"
-          ? "unread"
-          : state === "all"
-            ? "all"
-            : undefined,
-    tag,
-    source,
-    limit: Number.isFinite(limit) ? limit : undefined,
-  });
+  const filters = parseListFilters(url.searchParams);
+  const articles = await listArticles(userId, filters);
 
   return Response.json(
     { articles },
