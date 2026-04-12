@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import { listArticles, type LibraryView, type ReadState } from "@/lib/articles";
 import { SaveForm } from "./save-form";
+import { CacheLibrary } from "./cache-library";
 import styles from "./library.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -87,8 +88,26 @@ export default async function LibraryPage({
     .slice(0, 12)
     .map(([name]) => name);
 
+  const summariesForCache = allArticles.map((a) => ({
+    id: a.id,
+    title: a.title,
+    url: a.url,
+    source: a.source,
+    byline: a.byline,
+    excerpt: a.excerpt,
+    lang: a.lang,
+    wordCount: a.wordCount,
+    readMinutes: a.readMinutes,
+    savedAt: a.savedAt,
+    readAt: a.readAt,
+    archivedAt: a.archivedAt,
+    tags: a.tags,
+  }));
+
   return (
     <main className={styles.main}>
+      <CacheLibrary articles={summariesForCache} />
+
       <header className={styles.header}>
         <Link href="/" className={styles.brand}>
           Broadsheet

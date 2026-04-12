@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import {
+  updateCachedArticleMeta,
+  patchCachedArticleMeta,
+} from "@/lib/offline-storage";
 import styles from "./read.module.scss";
 
 interface Props {
@@ -27,6 +31,20 @@ export function ArticleActions({
 
   async function patch(body: Record<string, unknown>) {
     setError(null);
+
+    // If offline, queue the change for later sync
+    if (!navigator.onLine) {
+      await updateCachedArticleMeta(
+        articleId,
+        body as {
+          read?: boolean;
+          archived?: boolean;
+          tags?: string[];
+        },
+      );
+      return body;
+    }
+
     const res = await fetch(`/api/articles/${articleId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -37,6 +55,17 @@ export function ArticleActions({
       setError(payload.error ?? `Request failed (${res.status})`);
       return null;
     }
+
+    // Update the local cache (no sync entry needed — server already has it)
+    patchCachedArticleMeta(
+      articleId,
+      body as {
+        read?: boolean;
+        archived?: boolean;
+        tags?: string[];
+      },
+    ).catch(() => {});
+
     return res.json();
   }
 
