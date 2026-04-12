@@ -67,7 +67,11 @@ export function DigestToggle() {
       {prefs.enabled && prefs.email ? (
         <span className={styles.digestEmail}>{prefs.email}</span>
       ) : null}
-      {error ? <span className={styles.digestError}>{error}</span> : null}
+      {error ? (
+        <span className={styles.digestError} role="alert">
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }

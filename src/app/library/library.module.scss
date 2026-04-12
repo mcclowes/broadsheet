@@ -188,7 +188,8 @@
   gap: 0.375rem;
 }
 
-.tagChip {
+.tagChip,
+.tagChipActive {
   font-size: 0.75rem;
   padding: 0.1875rem 0.5rem;
   border: 1px solid var(--rule);
@@ -199,6 +200,16 @@
   &:hover {
     color: var(--fg);
     border-color: var(--fg);
+  }
+}
+
+.tagChipActive {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: white;
+
+  &:hover {
+    color: white;
   }
 }
 
