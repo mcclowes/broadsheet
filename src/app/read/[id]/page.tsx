@@ -44,6 +44,9 @@ export default async function ReadPage({
           >
             Original
           </a>
+          <Link href={`/read/${id}/diff`} className={styles.originalLink}>
+            Check for changes
+          </Link>
         </div>
         <ArticleActions
           articleId={article.id}
