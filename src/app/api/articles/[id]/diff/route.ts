@@ -53,14 +53,13 @@ export async function GET(
     return Response.json({ error: message }, { status: 502 });
   }
 
-  const changes: DiffChange[] = diffLines(
-    article.markdown,
-    currentMarkdown,
-  ).map((c) => ({
-    added: !!c.added,
-    removed: !!c.removed,
-    value: c.value,
-  }));
+  const changes: DiffChange[] = diffLines(article.body, currentMarkdown).map(
+    (c) => ({
+      added: !!c.added,
+      removed: !!c.removed,
+      value: c.value,
+    }),
+  );
 
   const hasChanges = changes.some((c) => c.added || c.removed);
 

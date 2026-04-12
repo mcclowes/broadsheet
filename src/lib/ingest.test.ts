@@ -42,9 +42,7 @@ describe("parseArticleFromHtml", () => {
     expect(parsed.markdown).toContain("## Subheading");
     expect(parsed.markdown).toMatch(/\[a link\]\(https:\/\/example\.com\/?\)/);
     expect(parsed.wordCount).toBeGreaterThan(20);
-    // Sanitised HTML should be present and contain no script tags
-    expect(parsed.sanitizedHtml).toContain("first paragraph");
-    expect(parsed.sanitizedHtml).not.toContain("<script");
+    expect(parsed.markdown).not.toContain("<script");
   });
 
   it("converts tables with a header row to GFM pipe tables", () => {
@@ -187,7 +185,7 @@ const y = 2;</code></pre>
     );
   });
 
-  it("preserves figure and figcaption in sanitised HTML", () => {
+  it("preserves <figure> and <figcaption> as raw HTML in the markdown", () => {
     const figureHtml = `<!doctype html><html><head><title>Photo Essay</title></head>
 <body><article>
   <h1>Photo Essay</h1>
@@ -202,19 +200,21 @@ const y = 2;</code></pre>
       figureHtml,
       "https://example.com/essay",
     );
-    expect(parsed.sanitizedHtml).toContain("<figure>");
-    expect(parsed.sanitizedHtml).toContain("<figcaption>");
-    expect(parsed.sanitizedHtml).toContain("Photo credit: Jane Doe");
-    expect(parsed.sanitizedHtml).toContain(
+    // Turndown keeps figure/figcaption as raw HTML; marked passes them
+    // through unchanged at render time and DOMPurify allows both tags.
+    expect(parsed.markdown).toContain("<figure>");
+    expect(parsed.markdown).toContain("<figcaption>");
+    expect(parsed.markdown).toContain("Photo credit: Jane Doe");
+    expect(parsed.markdown).toContain(
       'src="https://cdn.example.com/photo.jpg"',
     );
   });
 
-  it("renders markdown-style emphasis in source HTML as <em>/<strong>", () => {
+  it("promotes markdown-style emphasis in source HTML to real emphasis", () => {
     // Some publishers (commonly literary / poetry sites generated from a
     // markdown-based CMS) emit italics as literal _text_ / *text* in the
-    // rendered HTML rather than wrapping them in <em>. The canonical body
-    // should still render these as emphasis.
+    // rendered HTML. Without pre-promotion, Turndown escapes the delimiters
+    // (`\_foo\_`) and the reader ends up with literal underscores.
     const emphasisHtml = `<!doctype html><html><head><title>Poets on Translation</title></head>
 <body><article>
   <h1>Poets on Translation</h1>
@@ -226,14 +226,13 @@ const y = 2;</code></pre>
       emphasisHtml,
       "https://example.com/poets-on-translation",
     );
-    expect(parsed.sanitizedHtml).toContain("<em>");
-    expect(parsed.sanitizedHtml).toContain(
-      "<strong>fully domesticated</strong>",
-    );
-    // The raw underscore characters should not survive into the rendered body
-    // (apart from inside words like snake_case, which isn't present here).
-    expect(parsed.sanitizedHtml).not.toContain("_Poets on Translation");
-    expect(parsed.sanitizedHtml).not.toContain("_shirt_");
+    // The markdown uses unescaped emphasis delimiters (turndown's _em_ and
+    // **strong** output), which marked renders as <em>/<strong>.
+    expect(parsed.markdown).toMatch(/_Poets on Translation[^_]*_/);
+    expect(parsed.markdown).toMatch(/_shirt_/);
+    expect(parsed.markdown).toMatch(/\*\*fully domesticated\*\*/);
+    // No backslash-escaped delimiters should remain.
+    expect(parsed.markdown).not.toContain("\\_");
   });
 
   it("does not promote emphasis inside code, pre, or identifier-like text", () => {
@@ -251,14 +250,13 @@ const y = 2;</code></pre>
       codeAndIdentifiersHtml,
       "https://example.com/code-emphasis",
     );
-    // snake_case identifiers survive unchanged
-    expect(parsed.sanitizedHtml).toContain("user_id");
-    expect(parsed.sanitizedHtml).toContain("my_var_name");
-    // Code block contents are untouched
-    expect(parsed.sanitizedHtml).toContain("def foo(user_id)");
-    expect(parsed.sanitizedHtml).toContain("user_id * 2");
-    // Sanity: no stray <em> has been introduced around identifiers
-    expect(parsed.sanitizedHtml).not.toMatch(/<em>[^<]*user[^<]*<\/em>/);
+    // snake_case identifiers survive in the markdown (as escaped literal
+    // text, since turndown escapes underscores in plain text).
+    expect(parsed.markdown).toMatch(/user\\?_id/);
+    expect(parsed.markdown).toMatch(/my\\?_var\\?_name/);
+    // Code block contents are preserved verbatim, unescaped.
+    expect(parsed.markdown).toContain("def foo(user_id)");
+    expect(parsed.markdown).toContain("user_id * 2");
   });
 
   it("throws IngestError when no readable content is found", () => {

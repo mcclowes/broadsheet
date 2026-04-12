@@ -68,8 +68,6 @@ export type ArticleFrontmatter = {
   readAt: string | null;
   archivedAt: string | null;
   tags: string[];
-  /** Original markdown for diff/export. Body is canonical sanitised HTML. */
-  markdown: string;
   [key: string]: unknown;
 };
 
@@ -88,7 +86,6 @@ export const articleFrontmatterSchema: z.ZodType<ArticleFrontmatter> = z.object(
     readAt: z.string().nullable(),
     archivedAt: z.string().nullable().default(null),
     tags: z.array(z.string()).default([]),
-    markdown: z.string().default(""),
   },
 ) as unknown as z.ZodType<ArticleFrontmatter>;
 
@@ -147,9 +144,8 @@ export async function saveArticle(
     readAt: null,
     archivedAt: null,
     tags: generateTags(parsed),
-    markdown: parsed.markdown,
   };
-  await volume.set(id, { frontmatter, body: parsed.sanitizedHtml });
+  await volume.set(id, { frontmatter, body: parsed.markdown });
   return { id, ...frontmatter };
 }
 

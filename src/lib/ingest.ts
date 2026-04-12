@@ -4,8 +4,6 @@ import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
 import { tables } from "turndown-plugin-gfm";
-import createDOMPurify from "dompurify";
-import { SANITIZE_CONFIG } from "./sanitize-config";
 
 export interface ParsedArticle {
   title: string;
@@ -15,7 +13,6 @@ export interface ParsedArticle {
   lang: string | null;
   image: string | null;
   markdown: string;
-  sanitizedHtml: string;
   wordCount: number;
 }
 
@@ -73,24 +70,13 @@ function createTurndown(): TurndownService {
   // plugin), which marked passes through and DOMPurify sanitises.
   td.use(tables);
 
+  // Preserve structural wrappers as raw HTML in the markdown so they survive
+  // round-tripping through marked at read time. Without this, Turndown
+  // flattens <figure>/<figcaption>/<picture>/<source> and we lose captions
+  // and responsive image sources.
+  td.keep(["figure", "figcaption", "picture", "source"]);
+
   return td;
-}
-
-// Shared DOMPurify for sanitising canonical body HTML at ingest time.
-const sanitizeWindow = new JSDOM("").window;
-const sanitizeDompurify = createDOMPurify(sanitizeWindow);
-sanitizeDompurify.addHook("afterSanitizeAttributes", (node) => {
-  if (node.tagName === "A") {
-    const href = node.getAttribute("href") ?? "";
-    if (href.startsWith("http://") || href.startsWith("https://")) {
-      node.setAttribute("target", "_blank");
-      node.setAttribute("rel", "noreferrer noopener");
-    }
-  }
-});
-
-function sanitizeHtml(html: string): string {
-  return sanitizeDompurify.sanitize(html, SANITIZE_CONFIG);
 }
 
 // Matches markdown-style inline emphasis delimiters that some CMSes leave
@@ -548,21 +534,20 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
   // Some publishers (commonly literary / poetry sites with markdown-based
   // CMSes) emit italics and bold as literal _text_ / *text* / **text** in
   // the rendered HTML rather than wrapping them in <em>/<strong>. Promote
-  // those to real tags before Turndown and sanitisation run, so both
-  // canonical body HTML and the markdown field pick up the emphasis.
+  // those to real tags before Turndown runs, otherwise Turndown escapes
+  // the delimiters (`\_foo\_`) and the reader ends up with literal
+  // underscores instead of emphasis.
   promoteMarkdownEmphasis(contentDom.window.document.body);
   const fixedContent = contentDom.window.document.body.innerHTML;
 
-  const sanitizedHtml = sanitizeHtml(fixedContent);
-  if (!sanitizedHtml.trim()) {
+  const markdown = createTurndown().turndown(fixedContent).trim();
+  if (!markdown) {
     throw new IngestError(
       "Parsed article was empty",
       undefined,
       "The extracted article was empty",
     );
   }
-
-  const markdown = createTurndown().turndown(fixedContent).trim();
   const wordCount = countWords(markdown);
 
   if (wordCount < LOW_WORD_COUNT_THRESHOLD) {
@@ -592,7 +577,6 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
     lang: article.lang ?? null,
     image,
     markdown,
-    sanitizedHtml,
     wordCount,
   };
 }
