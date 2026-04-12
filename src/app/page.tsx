@@ -152,7 +152,11 @@ export default async function HomePage() {
   }
 
   const userId = authedUserId(rawUserId);
-  const articles = await listArticles(userId, { view: "inbox", limit: 17 });
+  const articles = await listArticles(userId, {
+    view: "inbox",
+    state: "unread",
+    limit: 17,
+  });
   const lead = articles[0];
   const secondary = articles.slice(1, 5);
   const wire = articles.slice(5, 17);

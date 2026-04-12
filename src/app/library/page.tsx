@@ -24,7 +24,15 @@ type SearchParams = Promise<{
   state?: string;
   tag?: string;
   source?: string;
+  page?: string;
 }>;
+
+const PAGE_SIZE = 50;
+
+function parsePage(raw: string | undefined): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : 1;
+}
 
 function parseView(raw: string | undefined): LibraryView {
   return raw === "archive" ? "archive" : "inbox";
@@ -41,12 +49,14 @@ function filterLink(
     state: ReadState;
     tag?: string;
     source?: string;
+    page: number;
   },
   overrides: Partial<{
     view: LibraryView;
     state: ReadState;
     tag: string | null;
     source: string | null;
+    page: number;
   }>,
 ): string {
   const params = new URLSearchParams();
@@ -58,11 +68,19 @@ function filterLink(
     overrides.source === null
       ? undefined
       : (overrides.source ?? current.source);
+  // Any filter change (besides explicit page override) resets pagination.
+  const filtersChanged =
+    overrides.view !== undefined ||
+    overrides.state !== undefined ||
+    overrides.tag !== undefined ||
+    overrides.source !== undefined;
+  const page = overrides.page ?? (filtersChanged ? 1 : current.page);
 
   if (view !== "inbox") params.set("view", view);
   if (state !== "unread") params.set("state", state);
   if (tag) params.set("tag", tag);
   if (source) params.set("source", source);
+  if (page > 1) params.set("page", String(page));
 
   const q = params.toString();
   return q ? `/library?${q}` : "/library";
@@ -82,11 +100,19 @@ export default async function LibraryPage({
   const state = parseState(sp.state);
   const tag = sp.tag?.trim() || undefined;
   const source = sp.source?.trim() || undefined;
-  const current = { view, state, tag, source };
+  const page = parsePage(sp.page);
+  const current = { view, state, tag, source, page };
 
   // Single fetch — filter in-memory to avoid duplicate Blob scans
   const allArticles = await listArticles(userId, {});
-  const articles = filterArticles(allArticles, current);
+  const filteredArticles = filterArticles(allArticles, current);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredArticles.length / PAGE_SIZE),
+  );
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const articles = filteredArticles.slice(pageStart, pageStart + PAGE_SIZE);
 
   const tagCounts = new Map<string, number>();
   for (const a of allArticles) {
@@ -270,6 +296,36 @@ export default async function LibraryPage({
           ))}
         </ul>
       )}
+
+      {totalPages > 1 ? (
+        <nav className={styles.pagination} aria-label="Pagination">
+          {safePage > 1 ? (
+            <Link
+              href={filterLink(current, { page: safePage - 1 })}
+              className={styles.paginationLink}
+              rel="prev"
+            >
+              ← Previous
+            </Link>
+          ) : (
+            <span className={styles.paginationDisabled}>← Previous</span>
+          )}
+          <span className={styles.paginationStatus}>
+            Page {safePage} of {totalPages}
+          </span>
+          {safePage < totalPages ? (
+            <Link
+              href={filterLink(current, { page: safePage + 1 })}
+              className={styles.paginationLink}
+              rel="next"
+            >
+              Next →
+            </Link>
+          ) : (
+            <span className={styles.paginationDisabled}>Next →</span>
+          )}
+        </nav>
+      ) : null}
     </main>
   );
 }

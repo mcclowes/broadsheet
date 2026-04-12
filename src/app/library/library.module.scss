@@ -359,3 +359,33 @@
   font-size: 0.75rem;
   color: #a11;
 }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.875rem;
+}
+
+.paginationLink {
+  color: var(--fg);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+
+  &:hover {
+    border-bottom-color: var(--fg);
+  }
+}
+
+.paginationDisabled {
+  color: var(--muted);
+}
+
+.paginationStatus {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
