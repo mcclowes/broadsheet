@@ -112,7 +112,10 @@ export default async function LibraryPage({
         <Link href="/" className={styles.brand}>
           Broadsheet
         </Link>
-        <UserButton />
+        <div className={styles.headerActions}>
+          <SaveForm />
+          <UserButton />
+        </div>
       </header>
 
       <nav className={styles.topTabs} aria-label="Primary">
@@ -123,8 +126,6 @@ export default async function LibraryPage({
           Sources
         </Link>
       </nav>
-
-      <SaveForm />
 
       <nav className={styles.filters} aria-label="Library filters">
         <div className={styles.filterGroup}>
@@ -199,7 +200,7 @@ export default async function LibraryPage({
       {articles.length === 0 ? (
         <p className={styles.empty}>
           {allArticles.length === 0
-            ? "Nothing saved yet. Paste a URL above to save your first article."
+            ? "Nothing saved yet. Tap the + button to save your first article."
             : "No articles match these filters."}
         </p>
       ) : (
