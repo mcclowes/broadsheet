@@ -13,6 +13,9 @@ interface ImportResult {
   annotationsMatched: number;
   annotationsOrphaned: number;
   highlightsCreated: number;
+  contentFetched: number;
+  contentFailed: number;
+  contentPending: number;
 }
 
 export function PocketImportForm() {
@@ -106,6 +109,18 @@ export function PocketImportForm() {
             {result.articlesFailed > 0 ? (
               <li>
                 Failed: <strong>{result.articlesFailed}</strong>
+              </li>
+            ) : null}
+            {result.articlesCreated > 0 ? (
+              <li>
+                Content fetched:{" "}
+                <strong>{result.contentFetched}</strong>
+                {result.contentFailed > 0
+                  ? ` (${result.contentFailed} failed)`
+                  : null}
+                {result.contentPending > 0
+                  ? `, ${result.contentPending} will fetch on open`
+                  : null}
               </li>
             ) : null}
             {result.annotationsTotal > 0 ? (
