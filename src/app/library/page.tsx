@@ -21,8 +21,8 @@ function parseView(raw: string | undefined): LibraryView {
 }
 
 function parseState(raw: string | undefined): ReadState {
-  if (raw === "read" || raw === "unread") return raw;
-  return "all";
+  if (raw === "read" || raw === "all") return raw;
+  return "unread";
 }
 
 function filterLink(
@@ -50,7 +50,7 @@ function filterLink(
       : (overrides.source ?? current.source);
 
   if (view !== "inbox") params.set("view", view);
-  if (state !== "all") params.set("state", state);
+  if (state !== "unread") params.set("state", state);
   if (tag) params.set("tag", tag);
   if (source) params.set("source", source);
 
