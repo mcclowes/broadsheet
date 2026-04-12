@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { NotFoundError } from "folio-db-next";
 import { getArticle, markRead, setArchived, setTags } from "@/lib/articles";
+import { checkOrigin } from "@/lib/csrf";
 
 export async function GET(
   _req: Request,
@@ -40,6 +41,9 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const originError = checkOrigin(req);
+  if (originError) return originError;
+
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -1,6 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { getDigestPreferences, setDigestPreferences } from "@/lib/digest";
+import { checkOrigin } from "@/lib/csrf";
 
 export async function GET() {
   const { userId } = await auth();
@@ -16,6 +17,9 @@ const patchSchema = z.object({
 });
 
 export async function PATCH(req: Request) {
+  const originError = checkOrigin(req);
+  if (originError) return originError;
+
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -7,6 +7,7 @@ import {
   parseArticleFromHtml,
 } from "@/lib/ingest";
 import { listArticles, saveArticle } from "@/lib/articles";
+import { checkOrigin } from "@/lib/csrf";
 
 const saveSchema = z.object({
   url: z.string().url(),
@@ -21,6 +22,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const originError = checkOrigin(req);
+  if (originError) return originError;
+
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
