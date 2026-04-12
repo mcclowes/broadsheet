@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Volume } from "folio-db-next";
 import { getFolio, volumeNameForUser } from "./folio";
 import { estimateReadMinutes, type ParsedArticle } from "./ingest";
+import { generateTags } from "./auto-tag";
 
 const TRACKING_PARAM_PATTERNS = [
   /^utm_/i,
@@ -128,7 +129,7 @@ export async function saveArticle(
     savedAt: new Date().toISOString(),
     readAt: null,
     archivedAt: null,
-    tags: [],
+    tags: generateTags(parsed),
   };
   await volume.set(id, { frontmatter, body: parsed.markdown });
   return { id, ...frontmatter };

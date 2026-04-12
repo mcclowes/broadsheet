@@ -8,9 +8,9 @@ The primary reason this app exists is the **share sheet**: the friction-free sav
 
 Two Xcode targets inside one project:
 
-| Target | Bundle ID | Role |
-| --- | --- | --- |
-| `Broadsheet` | `com.broadsheet.ios` | Main iOS app — sign-in, library, reader, settings. |
+| Target           | Bundle ID                  | Role                                                                                            |
+| ---------------- | -------------------------- | ----------------------------------------------------------------------------------------------- |
+| `Broadsheet`     | `com.broadsheet.ios`       | Main iOS app — sign-in, library, reader, settings.                                              |
 | `ShareExtension` | `com.broadsheet.ios.share` | App extension point `com.apple.share-services` — captures a shared URL and hands it to the API. |
 
 The two targets communicate via:
