@@ -33,7 +33,6 @@ validateClerkEnv();
 
 const config: NextConfig = {
   reactStrictMode: true,
-  serverExternalPackages: ["jsdom"],
 };
 
 export default config;
