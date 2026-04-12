@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { JSDOM } from "jsdom";
 import {
@@ -135,6 +137,24 @@ const y = 2;</code></pre>
     expect(parsed.markdown).toContain("```\nconst x = 1;\nconst y = 2;\n```");
   });
 
+  it("flattens Docusaurus/Prism highlighted code blocks into fenced markdown with line breaks", () => {
+    const highlighted = `<!doctype html>
+<html><head><title>Poem</title></head>
+<body><article>
+<h1>Poem</h1>
+<p>A paragraph before the poem with enough content to satisfy the readability heuristic for article extraction of this page.</p>
+<pre class="prism-code language-text"><code class="language-text"><div class="token-line"><span class="token plain">line one____________</span><br></div><div class="token-line"><span class="token plain">line two____________</span><br></div><div class="token-line"><span class="token plain">line three</span></div></code></pre>
+<p>A paragraph after the poem with more content to keep the readability algorithm happy about extraction of this page.</p>
+</article></body></html>`;
+    const parsed = parseArticleFromHtml(
+      highlighted,
+      "https://example.com/highlighted",
+    );
+    expect(parsed.markdown).toContain(
+      "```\nline one____________\nline two____________\nline three\n```",
+    );
+  });
+
   it("preserves images with absolute src", () => {
     const imgHtml = `<!doctype html>
 <html><head><title>Images</title></head>
@@ -210,6 +230,58 @@ const y = 2;</code></pre>
       expect((err as IngestError).publicMessage).toContain(
         "paywall teaser or stub",
       );
+    }
+  });
+
+  describe("real-world article fixtures", () => {
+    const fixtureDir = join(__dirname, "__fixtures__", "articles");
+    const cases: Array<{
+      file: string;
+      url: string;
+      titleIncludes: string;
+      markdownIncludes: string[];
+      minWordCount: number;
+    }> = [
+      {
+        file: "mcclowes-rat.html",
+        url: "https://mcclowes.com/blog/2026/04/09/rat",
+        titleIncludes: "Rat",
+        markdownIncludes: ["```\nplay in car park", "with ultrasonic laughter"],
+        minWordCount: 20,
+      },
+      {
+        file: "wikipedia-read-it-later.html",
+        url: "https://en.wikipedia.org/wiki/Read_it_later",
+        titleIncludes: "Read it later",
+        markdownIncludes: ["Read it later"],
+        minWordCount: 100,
+      },
+      {
+        file: "overreacted-chain-reaction.html",
+        url: "https://overreacted.io/a-chain-reaction/",
+        titleIncludes: "Chain Reaction",
+        markdownIncludes: ["chain reaction"],
+        minWordCount: 300,
+      },
+      {
+        file: "paulgraham-greatwork.html",
+        url: "https://paulgraham.com/greatwork.html",
+        titleIncludes: "Great Work",
+        markdownIncludes: ["curiosity"],
+        minWordCount: 1000,
+      },
+    ];
+
+    for (const c of cases) {
+      it(`extracts ${c.file}`, () => {
+        const html = readFileSync(join(fixtureDir, c.file), "utf8");
+        const parsed = parseArticleFromHtml(html, c.url);
+        expect(parsed.title).toContain(c.titleIncludes);
+        expect(parsed.wordCount).toBeGreaterThanOrEqual(c.minWordCount);
+        for (const snippet of c.markdownIncludes) {
+          expect(parsed.markdown).toContain(snippet);
+        }
+      });
     }
   });
 

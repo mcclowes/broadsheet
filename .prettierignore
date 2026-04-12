@@ -8,3 +8,4 @@ apps/extension/dist
 *.tsbuildinfo
 default.profraw
 package-lock.json
+src/lib/__fixtures__
