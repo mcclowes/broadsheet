@@ -8,6 +8,28 @@
   margin-bottom: 2rem;
 }
 
+.stickyNav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  padding: 0.75rem 0;
+  border-bottom: 1px solid transparent;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.stickyNavVisible {
+  transform: translateY(0);
+  border-bottom-color: var(--rule);
+}
+
+.stickyNavHidden {
+  transform: translateY(-100%);
+  border-bottom-color: transparent;
+}
+
 .back {
   font-size: 0.875rem;
   color: var(--fg-muted);
@@ -16,6 +38,18 @@
   &:hover {
     color: var(--accent);
   }
+}
+
+.heroFigure {
+  margin: 0 0 2rem;
+}
+
+.heroImage {
+  display: block;
+  width: 100%;
+  max-height: 28rem;
+  object-fit: cover;
+  border-radius: 0.5rem;
 }
 
 .header {
@@ -45,6 +79,12 @@
     content: "·";
     margin-right: 0.75rem;
   }
+}
+
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .originalLink {

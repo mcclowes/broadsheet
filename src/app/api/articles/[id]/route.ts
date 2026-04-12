@@ -55,12 +55,17 @@ export async function PATCH(
   }
 
   const updates = parsed.data;
-  if (updates.read !== undefined) await markRead(userId, id, updates.read);
-  if (updates.archived !== undefined)
-    await setArchived(userId, id, updates.archived);
-  let tags = existing.tags;
-  if (updates.tags !== undefined)
-    tags = await setTags(userId, id, updates.tags);
+  try {
+    if (updates.read !== undefined) await markRead(userId, id, updates.read);
+    if (updates.archived !== undefined)
+      await setArchived(userId, id, updates.archived);
+    let tags = existing.tags;
+    if (updates.tags !== undefined)
+      tags = await setTags(userId, id, updates.tags);
 
-  return Response.json({ ok: true, tags });
+    return Response.json({ ok: true, tags });
+  } catch (err) {
+    console.error("[api/articles/PATCH] update failed", { id, err });
+    return Response.json({ error: "Internal error" }, { status: 500 });
+  }
 }

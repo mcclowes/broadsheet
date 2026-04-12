@@ -8,6 +8,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem 0;
   padding-bottom: 1.25rem;
   border-bottom: 1px solid var(--rule);
 }
@@ -19,6 +21,32 @@
   color: var(--fg);
   text-decoration: none;
   letter-spacing: -0.01em;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  background: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--fg-muted);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--fg);
+    border-color: var(--fg);
+  }
 }
 
 .topTabs {
@@ -54,8 +82,9 @@
 .saveForm {
   display: flex;
   gap: 0.5rem;
-  margin: 1rem 0 2.5rem;
+  margin: 1rem 0 0;
   flex-wrap: wrap;
+  flex-basis: 100%;
 }
 
 .saveInput {
@@ -239,6 +268,12 @@
     content: "·";
     margin-right: 0.75rem;
   }
+}
+
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .read {
