@@ -117,6 +117,8 @@ export default async function LibraryPage({
     <main className={styles.main}>
       <CacheLibrary articles={summariesForCache} />
 
+      <h1 className="srOnly">Library</h1>
+
       <header className={styles.header}>
         <Link href="/" className={styles.brand}>
           Broadsheet
@@ -144,12 +146,14 @@ export default async function LibraryPage({
           <Link
             href={filterLink(current, { view: "inbox" })}
             className={view === "inbox" ? styles.filterActive : styles.filter}
+            {...(view === "inbox" && { "aria-current": "page" as const })}
           >
             Inbox
           </Link>
           <Link
             href={filterLink(current, { view: "archive" })}
             className={view === "archive" ? styles.filterActive : styles.filter}
+            {...(view === "archive" && { "aria-current": "page" as const })}
           >
             Archive
           </Link>
@@ -158,18 +162,21 @@ export default async function LibraryPage({
           <Link
             href={filterLink(current, { state: "all" })}
             className={state === "all" ? styles.filterActive : styles.filter}
+            {...(state === "all" && { "aria-current": "page" as const })}
           >
             All
           </Link>
           <Link
             href={filterLink(current, { state: "unread" })}
             className={state === "unread" ? styles.filterActive : styles.filter}
+            {...(state === "unread" && { "aria-current": "page" as const })}
           >
             Unread
           </Link>
           <Link
             href={filterLink(current, { state: "read" })}
             className={state === "read" ? styles.filterActive : styles.filter}
+            {...(state === "read" && { "aria-current": "page" as const })}
           >
             Read
           </Link>
@@ -194,13 +201,14 @@ export default async function LibraryPage({
             ) : null}
           </div>
         )}
-        {popularTags.length > 0 && !tag ? (
+        {popularTags.length > 0 ? (
           <div className={styles.tagList}>
             {popularTags.map((t) => (
               <Link
                 key={t}
-                href={filterLink(current, { tag: t })}
-                className={styles.tagChip}
+                href={filterLink(current, { tag: tag === t ? null : t })}
+                className={tag === t ? styles.tagChipActive : styles.tagChip}
+                {...(tag === t && { "aria-current": "true" as const })}
               >
                 #{t}
               </Link>
@@ -219,7 +227,10 @@ export default async function LibraryPage({
         <ul className={styles.list}>
           {articles.map((a) => (
             <li key={a.id} className={styles.item}>
-              <Link href={`/read/${a.id}`} className={styles.link}>
+              <Link
+                href={`/read/${a.id}?from=${encodeURIComponent(filterLink(current, {}))}`}
+                className={styles.link}
+              >
                 <h2 className={styles.title}>{a.title}</h2>
                 <div className={styles.meta}>
                   {a.source ? (

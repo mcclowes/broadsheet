@@ -79,7 +79,11 @@ export function SaveForm() {
       >
         {pending ? "Saving…" : "Save"}
       </button>
-      {error ? <p className={styles.saveError}>{error}</p> : null}
+      {error ? (
+        <p className={styles.saveError} role="alert">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }

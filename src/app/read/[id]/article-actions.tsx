@@ -169,7 +169,11 @@ export function ArticleActions({
         </form>
       </div>
 
-      {error ? <p className={styles.actionError}>{error}</p> : null}
+      {error ? (
+        <p className={styles.actionError} role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
