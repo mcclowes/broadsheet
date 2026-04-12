@@ -7,22 +7,72 @@ import {
   parseArticleFromHtml,
 } from "@/lib/ingest";
 import { listArticles, saveArticle } from "@/lib/articles";
+import { authedUserId } from "@/lib/auth-types";
+import { checkOrigin } from "@/lib/csrf";
+import { articleIngestLimiter } from "@/lib/rate-limit";
 
 const saveSchema = z.object({
   url: z.string().url(),
   html: z.string().min(1).max(MAX_BODY_BYTES).optional(),
 });
 
-export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const articles = await listArticles(userId);
-  return Response.json({ articles });
+export async function GET(req: Request) {
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId)
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = authedUserId(rawUserId);
+
+  const url = new URL(req.url);
+  const view = url.searchParams.get("view") ?? undefined;
+  const state = url.searchParams.get("state") ?? undefined;
+  const tag = url.searchParams.get("tag") ?? undefined;
+  const source = url.searchParams.get("source") ?? undefined;
+  const limitParam = url.searchParams.get("limit");
+  const limit = limitParam ? Math.max(1, parseInt(limitParam, 10)) : undefined;
+
+  const articles = await listArticles(userId, {
+    view:
+      view === "archive" ? "archive" : view === "inbox" ? "inbox" : undefined,
+    state:
+      state === "read"
+        ? "read"
+        : state === "unread"
+          ? "unread"
+          : state === "all"
+            ? "all"
+            : undefined,
+    tag,
+    source,
+    limit: Number.isFinite(limit) ? limit : undefined,
+  });
+
+  return Response.json(
+    { articles },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const originError = checkOrigin(req);
+  if (originError) return originError;
+
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId)
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = authedUserId(rawUserId);
+
+  const limit = articleIngestLimiter.consume(userId);
+  if (!limit.allowed) {
+    return Response.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((limit.retryAfterMs ?? 1000) / 1000)),
+        },
+      },
+    );
+  }
 
   let body: unknown;
   try {

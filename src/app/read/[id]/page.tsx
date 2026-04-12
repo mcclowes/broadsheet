@@ -2,10 +2,14 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
-import { renderMarkdown } from "@/lib/markdown";
+import { authedUserId } from "@/lib/auth-types";
 import { ArticleActions } from "./article-actions";
+import { ReadTracker } from "./read-tracker";
 import { CacheArticle } from "./cache-article";
+import { ReadingProgress } from "./reading-progress";
+import { QuickActions } from "./quick-actions";
 import { ScrollNav } from "./scroll-nav";
+import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./read.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -15,17 +19,20 @@ export default async function ReadPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId) redirect("/sign-in");
+  const userId = authedUserId(rawUserId);
 
   const { id } = await params;
   const article = await getArticle(userId, id);
   if (!article) notFound();
 
-  const html = renderMarkdown(article.body);
+  // Body is canonical sanitised HTML since issue #6 — render directly.
+  const html = article.body;
 
   return (
     <main className={styles.main}>
+      <ReadingProgress />
       <CacheArticle
         article={{
           id: article.id,
@@ -35,6 +42,7 @@ export default async function ReadPage({
           byline: article.byline,
           excerpt: article.excerpt,
           lang: article.lang,
+          image: article.image ?? null,
           wordCount: article.wordCount,
           readMinutes: article.readMinutes,
           savedAt: article.savedAt,
@@ -54,11 +62,28 @@ export default async function ReadPage({
         </nav>
       </ScrollNav>
 
+      {article.image ? (
+        <figure className={styles.heroFigure}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={article.image}
+            alt=""
+            className={styles.heroImage}
+            loading="eager"
+          />
+        </figure>
+      ) : null}
+
       <header className={styles.header}>
         <h1 className={styles.title}>{article.title}</h1>
         <div className={styles.meta}>
           {article.byline ? <span>{article.byline}</span> : null}
-          {article.source ? <span>{article.source}</span> : null}
+          {article.source ? (
+            <span className={styles.source}>
+              <PublicationIcon url={article.url} size={18} />
+              {article.source}
+            </span>
+          ) : null}
           <span>{article.readMinutes} min read</span>
         </div>
         <div className={styles.links}>
@@ -81,9 +106,21 @@ export default async function ReadPage({
         />
       </header>
 
+      <ReadTracker
+        articleId={article.id}
+        alreadyRead={article.readAt !== null}
+      />
+
       <article
         className="reader-body"
         dangerouslySetInnerHTML={{ __html: html }}
+      />
+
+      <QuickActions
+        articleId={article.id}
+        articleUrl={article.url}
+        initialArchived={article.archivedAt !== null}
+        initialRead={article.readAt !== null}
       />
     </main>
   );

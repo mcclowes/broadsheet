@@ -28,8 +28,10 @@ import {
 const discoverFeedMock = vi.mocked(discoverFeed);
 const fetchFeedMock = vi.mocked(fetchFeed);
 
-const USER = "user_test_alice";
-const OTHER = "user_test_bob";
+import { authedUserId } from "./auth-types";
+
+const USER = authedUserId("user_test_alice");
+const OTHER = authedUserId("user_test_bob");
 
 function makeFeed(
   feedUrl: string,
@@ -177,6 +179,32 @@ describe("removeSource", () => {
   });
 });
 
+describe("getSource", () => {
+  it("returns a source by id", async () => {
+    discoverFeedMock.mockResolvedValue(
+      makeFeed("https://g.example/feed", "G", "https://g.example/", []),
+    );
+    const { source } = await addSource(USER, "https://g.example");
+    const fetched = await getSource(USER, source.id);
+    expect(fetched).not.toBeNull();
+    expect(fetched!.id).toBe(source.id);
+    expect(fetched!.title).toBe("G");
+    expect(fetched!.feedUrl).toContain("g.example");
+  });
+
+  it("returns null for a nonexistent source", async () => {
+    expect(await getSource(USER, "a".repeat(32))).toBeNull();
+  });
+
+  it("does not return another user's source", async () => {
+    discoverFeedMock.mockResolvedValue(
+      makeFeed("https://iso.example/feed", "Iso", "https://iso.example/", []),
+    );
+    const { source } = await addSource(USER, "https://iso.example");
+    expect(await getSource(OTHER, source.id)).toBeNull();
+  });
+});
+
 describe("fetchSourceItems", () => {
   it("caches fetched items and serves them on the next call", async () => {
     discoverFeedMock.mockResolvedValue(
@@ -244,6 +272,65 @@ describe("fetchSourceItems", () => {
 
     const { items } = await fetchSourceItems(USER, source);
     expect(items.map((i) => i.title)).toEqual(["New", "Old"]);
+  });
+
+  it("bypasses cache when force is true", async () => {
+    discoverFeedMock.mockResolvedValue(
+      makeFeed(
+        "https://force.example/feed",
+        "Force",
+        "https://force.example/",
+        [],
+      ),
+    );
+    const { source } = await addSource(USER, "https://force.example");
+
+    fetchFeedMock.mockResolvedValueOnce({
+      feed: {
+        title: "Force",
+        siteUrl: "https://force.example/",
+        items: [
+          {
+            title: "V1",
+            url: "https://force.example/1",
+            publishedAt: "2026-04-10T12:00:00.000Z",
+            excerpt: null,
+          },
+        ],
+      },
+      finalUrl: "https://force.example/feed",
+    });
+
+    const first = await fetchSourceItems(USER, source);
+    expect(first.fromCache).toBe(false);
+    expect(first.items).toHaveLength(1);
+
+    fetchFeedMock.mockResolvedValueOnce({
+      feed: {
+        title: "Force",
+        siteUrl: "https://force.example/",
+        items: [
+          {
+            title: "V1",
+            url: "https://force.example/1",
+            publishedAt: "2026-04-10T12:00:00.000Z",
+            excerpt: null,
+          },
+          {
+            title: "V2",
+            url: "https://force.example/2",
+            publishedAt: "2026-04-11T12:00:00.000Z",
+            excerpt: null,
+          },
+        ],
+      },
+      finalUrl: "https://force.example/feed",
+    });
+
+    const second = await fetchSourceItems(USER, source, { force: true });
+    expect(second.fromCache).toBe(false);
+    expect(second.items).toHaveLength(2);
+    expect(fetchFeedMock).toHaveBeenCalledTimes(2);
   });
 
   it("reports errors without throwing", async () => {
@@ -318,6 +405,38 @@ describe("fetchUnifiedFeed", () => {
     expect(items.map((i) => i.title)).toEqual(["A2", "B1", "A1"]);
     expect(items[0].sourceId).toBe(a.id);
     expect(items[1].sourceId).toBe(b.id);
+  });
+
+  it("returns empty when user has no sources", async () => {
+    const { items, errors } = await fetchUnifiedFeed(USER);
+    expect(items).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  it("respects the limit parameter", async () => {
+    discoverFeedMock.mockResolvedValueOnce(
+      makeFeed("https://lim.example/feed", "Lim", "https://lim.example/", []),
+    );
+    await addSource(USER, "https://lim.example");
+
+    fetchFeedMock.mockResolvedValueOnce({
+      feed: {
+        title: "Lim",
+        siteUrl: "https://lim.example/",
+        items: Array.from({ length: 10 }, (_, i) => ({
+          title: `Item ${i}`,
+          url: `https://lim.example/${i}`,
+          publishedAt: `2026-04-${String(i + 1).padStart(2, "0")}T00:00:00.000Z`,
+          excerpt: null,
+        })),
+      },
+      finalUrl: "https://lim.example/feed",
+    });
+
+    const { items } = await fetchUnifiedFeed(USER, 3);
+    expect(items).toHaveLength(3);
+    // Should be newest first
+    expect(items[0].title).toBe("Item 9");
   });
 
   it("collects errors from failing sources", async () => {

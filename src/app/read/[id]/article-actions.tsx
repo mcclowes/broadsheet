@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   updateCachedArticleMeta,
@@ -28,6 +28,14 @@ export function ArticleActions({
   const [draft, setDraft] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    function onAutoRead() {
+      setRead(true);
+    }
+    window.addEventListener("article-marked-read", onAutoRead);
+    return () => window.removeEventListener("article-marked-read", onAutoRead);
+  }, []);
 
   async function patch(body: Record<string, unknown>) {
     setError(null);

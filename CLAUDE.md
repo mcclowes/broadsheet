@@ -14,7 +14,7 @@ Read-it-later app. Next.js 16 App Router + Clerk auth + Folio (`folio-db-next`) 
 - Styling: **SCSS modules** (`*.module.scss`) — no Tailwind, no CSS-in-JS
 - Testing: **Vitest** (`*.test.ts` alongside implementation)
 - Auth: Clerk (`@clerk/nextjs`)
-- Storage: `folio-db-next` with `VercelBlobAdapter` (prod) / `FsAdapter` (dev) / `MemoryAdapter` (tests)
+- Storage: **Folio** (`folio-db-next`) — our own experimental file-based DB. Uses `VercelBlobAdapter` (prod) / `FsAdapter` (dev) / `MemoryAdapter` (tests). If you hit bugs, missing features, or API roughness in Folio itself, don't try to fix or work around them inline — log them in `FOLIO-TRACKER.md` at the repo root and they'll be actioned upstream later
 - Ingestion: `@mozilla/readability` + `jsdom` + `turndown`
 - Rendering: `marked` → `isomorphic-dompurify`
 - Deploy: Vercel (git auto-deploys disabled — see `77243e9`; deploy via `vercel deploy` or the dashboard)
@@ -35,7 +35,7 @@ Read-it-later app. Next.js 16 App Router + Clerk auth + Folio (`folio-db-next`) 
 - **GitHub issues for all non-trivial work.** Before implementing a feature or non-obvious fix, check existing issues and link the PR with "Fixes #N". New ideas → new issue, not a TODO comment.
 - **Sentence case** in UI copy, commits, docs. Rarely title case.
 - **Challenge the ask.** If a request seems over-engineered or the simpler path is cleaner, say so before implementing.
-- **No new top-level docs** unless explicitly requested. This file and `README.md` are the only ones that should grow.
+- **No new top-level docs** unless explicitly requested. This file, `README.md`, and `FOLIO-TRACKER.md` are the only ones that should grow.
 
 ## What NOT to do
 

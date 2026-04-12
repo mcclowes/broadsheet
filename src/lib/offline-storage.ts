@@ -21,6 +21,7 @@ export interface OfflineArticle {
   byline: string | null;
   excerpt: string | null;
   lang: string | null;
+  image: string | null;
   wordCount: number;
   readMinutes: number;
   savedAt: string;
@@ -166,7 +167,13 @@ export async function clearSyncQueue(): Promise<void> {
 
 // ── Local metadata updates ─────────────────────────────────────────────
 
-type MetaPatch = { read?: boolean; archived?: boolean; tags?: string[] };
+type MetaPatch = {
+  read?: boolean;
+  archived?: boolean;
+  tags?: string[];
+  /** Client-side timestamp for when the action was taken (offline support) */
+  clientTimestamp?: string;
+};
 
 /**
  * Update metadata on the locally cached copy of an article.
@@ -201,11 +208,12 @@ export async function updateCachedArticleMeta(
   id: string,
   patch: MetaPatch,
 ): Promise<void> {
+  const now = new Date().toISOString();
   await patchCachedArticleMeta(id, patch);
   await enqueueSync({
     articleId: id,
     action: "patch",
-    payload: patch,
-    createdAt: new Date().toISOString(),
+    payload: { ...patch, clientTimestamp: now },
+    createdAt: now,
   });
 }

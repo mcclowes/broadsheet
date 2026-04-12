@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Volume } from "folio-db-next";
+import type { AuthedUserId } from "./auth-types";
 import { getFolio, volumeNameForUser } from "./folio";
 import { estimateReadMinutes, type ParsedArticle } from "./ingest";
 import { generateTags } from "./auto-tag";
@@ -56,12 +57,15 @@ export type ArticleFrontmatter = {
   byline: string | null;
   excerpt: string | null;
   lang: string | null;
+  image: string | null;
   wordCount: number;
   readMinutes: number;
   savedAt: string;
   readAt: string | null;
   archivedAt: string | null;
   tags: string[];
+  /** Original markdown for diff/export. Body is canonical sanitised HTML. */
+  markdown: string;
   [key: string]: unknown;
 };
 
@@ -73,12 +77,14 @@ export const articleFrontmatterSchema: z.ZodType<ArticleFrontmatter> = z.object(
     byline: z.string().nullable(),
     excerpt: z.string().nullable(),
     lang: z.string().nullable(),
+    image: z.string().nullable().default(null),
     wordCount: z.number().int().nonnegative(),
     readMinutes: z.number().int().positive(),
     savedAt: z.string(),
     readAt: z.string().nullable(),
     archivedAt: z.string().nullable().default(null),
     tags: z.array(z.string()).default([]),
+    markdown: z.string().default(""),
   },
 ) as unknown as z.ZodType<ArticleFrontmatter>;
 
@@ -91,7 +97,7 @@ export interface ArticleSummary extends ArticleFrontmatter {
   id: string;
 }
 
-function userVolume(userId: string): Volume<ArticleFrontmatter> {
+function userVolume(userId: AuthedUserId): Volume<ArticleFrontmatter> {
   return getFolio().volume<ArticleFrontmatter>(volumeNameForUser(userId), {
     schema: articleFrontmatterSchema,
   });
@@ -105,8 +111,14 @@ function domainOf(url: string): string | null {
   }
 }
 
+// NOTE: This function has a check-then-act race condition. Two concurrent
+// saves for the same URL can both see `existing === null` and proceed to
+// write. With Folio's unconditional upsert, the second write wins silently.
+// This is acceptable for now (both writes produce equivalent content from
+// the same URL), but a proper fix requires a `setIfAbsent` primitive in
+// Folio — logged in FOLIO-TRACKER.md.
 export async function saveArticle(
-  userId: string,
+  userId: AuthedUserId,
   url: string,
   parsed: ParsedArticle,
 ): Promise<ArticleSummary> {
@@ -124,14 +136,16 @@ export async function saveArticle(
     byline: parsed.byline,
     excerpt: parsed.excerpt,
     lang: parsed.lang,
+    image: parsed.image,
     wordCount: parsed.wordCount,
     readMinutes: estimateReadMinutes(parsed.wordCount),
     savedAt: new Date().toISOString(),
     readAt: null,
     archivedAt: null,
     tags: generateTags(parsed),
+    markdown: parsed.markdown,
   };
-  await volume.set(id, { frontmatter, body: parsed.markdown });
+  await volume.set(id, { frontmatter, body: parsed.sanitizedHtml });
   return { id, ...frontmatter };
 }
 
@@ -143,6 +157,7 @@ export interface ListFilters {
   state?: ReadState;
   tag?: string;
   source?: string;
+  limit?: number;
 }
 
 export function filterArticles(
@@ -163,18 +178,19 @@ export function filterArticles(
 }
 
 export async function listArticles(
-  userId: string,
+  userId: AuthedUserId,
   filters: ListFilters = {},
 ): Promise<ArticleSummary[]> {
   const pages = await userVolume(userId).list();
   const all = pages
     .map((p) => ({ id: p.slug, ...p.frontmatter }))
     .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
-  return filterArticles(all, filters);
+  const filtered = filterArticles(all, filters);
+  return filters.limit ? filtered.slice(0, filters.limit) : filtered;
 }
 
 export async function getArticle(
-  userId: string,
+  userId: AuthedUserId,
   id: string,
 ): Promise<Article | null> {
   const page = await userVolume(userId).get(id);
@@ -182,8 +198,35 @@ export async function getArticle(
   return { id: page.slug, body: page.body, ...page.frontmatter };
 }
 
+export interface ArticlePatch {
+  read?: boolean;
+  archived?: boolean;
+  tags?: string[];
+}
+
+export async function patchArticle(
+  userId: AuthedUserId,
+  id: string,
+  patch: ArticlePatch,
+): Promise<{ tags?: string[] }> {
+  const frontmatter: Partial<ArticleFrontmatter> = {};
+  if (patch.read !== undefined) {
+    frontmatter.readAt = patch.read ? new Date().toISOString() : null;
+  }
+  if (patch.archived !== undefined) {
+    frontmatter.archivedAt = patch.archived ? new Date().toISOString() : null;
+  }
+  let tags: string[] | undefined;
+  if (patch.tags !== undefined) {
+    tags = cleanTags(patch.tags);
+    frontmatter.tags = tags;
+  }
+  await userVolume(userId).patch(id, { frontmatter });
+  return { tags };
+}
+
 export async function markRead(
-  userId: string,
+  userId: AuthedUserId,
   id: string,
   read: boolean,
 ): Promise<void> {
@@ -193,7 +236,7 @@ export async function markRead(
 }
 
 export async function setArchived(
-  userId: string,
+  userId: AuthedUserId,
   id: string,
   archived: boolean,
 ): Promise<void> {
@@ -206,16 +249,24 @@ function normalizeTag(raw: string): string {
   return raw.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
-export async function setTags(
-  userId: string,
-  id: string,
-  tags: string[],
-): Promise<string[]> {
-  const clean = Array.from(
+const MAX_TAGS = 20;
+
+export function cleanTags(tags: string[]): string[] {
+  return Array.from(
     new Set(
       tags.map(normalizeTag).filter((t) => t.length > 0 && t.length <= 32),
     ),
-  ).sort();
+  )
+    .sort()
+    .slice(0, MAX_TAGS);
+}
+
+export async function setTags(
+  userId: AuthedUserId,
+  id: string,
+  tags: string[],
+): Promise<string[]> {
+  const clean = cleanTags(tags);
   await userVolume(userId).patch(id, { frontmatter: { tags: clean } });
   return clean;
 }

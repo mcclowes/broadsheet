@@ -11,6 +11,10 @@ async function getActiveTab() {
   return tab ?? null;
 }
 
+// Privacy note: the captured HTML may contain sensitive page content (e.g.
+// PII, inline auth tokens). It is sent to the server for parsing but never
+// stored raw — only the extracted article markdown is persisted. The server
+// error handler logs URL and error messages only, never the HTML body.
 async function extractPageHtml(tabId) {
   if (typeof tabId !== "number") return null;
   try {

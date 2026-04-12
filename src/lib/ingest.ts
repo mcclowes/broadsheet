@@ -4,6 +4,7 @@ import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
 import { tables } from "turndown-plugin-gfm";
+import { sanitizeHtml } from "./sanitize-html";
 
 export interface ParsedArticle {
   title: string;
@@ -11,25 +12,68 @@ export interface ParsedArticle {
   excerpt: string | null;
   siteName: string | null;
   lang: string | null;
+  image: string | null;
   markdown: string;
+  sanitizedHtml: string;
   wordCount: number;
 }
 
-const turndown = new TurndownService({
-  headingStyle: "atx",
-  codeBlockStyle: "fenced",
-  bulletListMarker: "-",
-});
+function createTurndown(): TurndownService {
+  const td = new TurndownService({
+    headingStyle: "atx",
+    codeBlockStyle: "fenced",
+    bulletListMarker: "-",
+  });
 
-turndown.addRule("stripScripts", {
-  filter: ["script", "style", "iframe", "noscript"],
-  replacement: () => "",
-});
+  td.addRule("stripScripts", {
+    filter: ["script", "style", "iframe", "noscript"],
+    replacement: () => "",
+  });
 
-// Convert <table> to GFM pipe tables. Tables without a heading row are
-// preserved as raw HTML via Turndown's `keep` fallback (registered by the
-// plugin), which marked passes through and DOMPurify sanitises.
-turndown.use(tables);
+  // <pre> without a <code> child is not matched by Turndown's built-in fenced
+  // code-block rule, so the text passes through as a plain paragraph and the
+  // browser collapses its whitespace. Wrap it in a fenced block ourselves.
+  td.addRule("preWithoutCode", {
+    filter(node) {
+      return node.nodeName === "PRE" && !node.querySelector("code");
+    },
+    replacement(_content, node) {
+      const text = (node as Element).textContent || "";
+      return "\n\n```\n" + text + "\n```\n\n";
+    },
+  });
+
+  // Turndown's default image rule drops <img> when `src` is falsy. Many sites
+  // use `<img src="" data-src="…">` for lazy loading; Readability fixes some
+  // but not all of these. Fall back to data-src / data-lazy-src.
+  td.addRule("imgWithDataSrc", {
+    filter(node) {
+      if (node.nodeName !== "IMG") return false;
+      const src = node.getAttribute("src");
+      if (src) return false; // default rule handles it
+      const fallback =
+        node.getAttribute("data-src") || node.getAttribute("data-lazy-src");
+      return !!fallback;
+    },
+    replacement(_content, node) {
+      const src =
+        (node as Element).getAttribute("data-src") ||
+        (node as Element).getAttribute("data-lazy-src") ||
+        "";
+      const alt = (node as Element).getAttribute("alt") || "";
+      const title = (node as Element).getAttribute("title");
+      const titlePart = title ? ` "${title}"` : "";
+      return `![${alt}](${src}${titlePart})`;
+    },
+  });
+
+  // Convert <table> to GFM pipe tables. Tables without a heading row are
+  // preserved as raw HTML via Turndown's `keep` fallback (registered by the
+  // plugin), which marked passes through and DOMPurify sanitises.
+  td.use(tables);
+
+  return td;
+}
 
 export class IngestError extends Error {
   constructor(
@@ -45,6 +89,20 @@ export class IngestError extends Error {
 export const FETCH_TIMEOUT_MS = 15_000;
 export const MAX_BODY_BYTES = 5 * 1024 * 1024;
 export const MAX_REDIRECTS = 5;
+
+// Frontmatter length caps — truncates with "…" to keep stored data bounded.
+const MAX_TITLE = 500;
+const MAX_BYLINE = 200;
+const MAX_EXCERPT = 1000;
+const MAX_SOURCE = 200;
+
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1) + "…";
+}
+
+// Articles shorter than this are likely paywall teasers or stub pages.
+export const LOW_WORD_COUNT_THRESHOLD = 25;
 
 const HTML_CONTENT_TYPE = /^(?:text\/html|application\/xhtml\+xml)\b/i;
 
@@ -128,7 +186,22 @@ export async function assertPublicHost(hostname: string): Promise<void> {
   }
 }
 
-export async function readBoundedBody(res: Response): Promise<string> {
+/**
+ * Extract charset from Content-Type header or fall back to utf-8.
+ * Handles forms like "text/html; charset=iso-8859-1".
+ */
+export function charsetFromContentType(
+  contentType: string | null,
+): string | undefined {
+  if (!contentType) return undefined;
+  const match = contentType.match(/charset\s*=\s*"?([^";,\s]+)/i);
+  return match?.[1];
+}
+
+export async function readBoundedBody(
+  res: Response,
+  contentType?: string | null | undefined,
+): Promise<string> {
   if (!res.body) {
     throw new IngestError(
       "Response had no body",
@@ -158,7 +231,46 @@ export async function readBoundedBody(res: Response): Promise<string> {
     reader.cancel().catch(() => {});
   }
   const buf = Buffer.concat(chunks.map((c) => Buffer.from(c)));
-  return buf.toString("utf8");
+  const charset = charsetFromContentType(contentType ?? null) ?? "utf-8";
+  try {
+    const decoder = new TextDecoder(charset, { fatal: false });
+    return decoder.decode(buf);
+  } catch {
+    // Unknown charset — fall back to utf-8
+    return buf.toString("utf8");
+  }
+}
+
+/**
+ * Extract the article's hero image from Open Graph / Twitter Card meta tags.
+ * Returns an absolute URL or null.
+ */
+export function extractMetaImage(
+  doc: {
+    querySelector: (
+      sel: string,
+    ) => { getAttribute: (a: string) => string | null } | null;
+  },
+  baseUrl: string,
+): string | null {
+  const selectors = [
+    'meta[property="og:image"]',
+    'meta[name="twitter:image"]',
+    'meta[name="twitter:image:src"]',
+    'meta[property="twitter:image"]',
+  ];
+  for (const sel of selectors) {
+    const el = doc.querySelector(sel);
+    const raw = el?.getAttribute("content");
+    if (raw) {
+      try {
+        return new URL(raw, baseUrl).href;
+      } catch {
+        // malformed URL — try next selector
+      }
+    }
+  }
+  return null;
 }
 
 export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
@@ -172,22 +284,71 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
       "Could not extract a readable article from this page",
     );
   }
-  const markdown = turndown.turndown(article.content).trim();
-  if (!markdown) {
+
+  // Extract the hero / og:image from <head> meta tags before we discard the
+  // full document. Preference: og:image > twitter:image > twitter:image:src.
+  const image = extractMetaImage(dom.window.document, url);
+
+  // Readability resolves most relative URLs and fixes most lazy-loaded images,
+  // but misses <img src="" data-src="…"> (attribute present but empty). Do a
+  // second pass so these survive Turndown's default image rule.
+  const contentDom = new JSDOM(article.content, { url });
+  for (const img of contentDom.window.document.querySelectorAll("img")) {
+    if (!img.getAttribute("src")) {
+      const fallback =
+        img.getAttribute("data-src") || img.getAttribute("data-lazy-src");
+      if (fallback) {
+        try {
+          img.setAttribute("src", new URL(fallback, url).href);
+        } catch {
+          img.setAttribute("src", fallback);
+        }
+      }
+    }
+  }
+  const fixedContent = contentDom.window.document.body.innerHTML;
+
+  const sanitizedHtml = sanitizeHtml(fixedContent);
+  if (!sanitizedHtml.trim()) {
     throw new IngestError(
       "Parsed article was empty",
       undefined,
       "The extracted article was empty",
     );
   }
+
+  const markdown = createTurndown().turndown(fixedContent).trim();
+  const wordCount = countWords(markdown);
+
+  if (wordCount < LOW_WORD_COUNT_THRESHOLD) {
+    throw new IngestError(
+      `Article has only ${wordCount} words — likely a paywall teaser or stub`,
+      undefined,
+      "This article appears to be a paywall teaser or stub page (too short to save)",
+    );
+  }
+
+  const title = truncate((article.title ?? "").trim() || "Untitled", MAX_TITLE);
+  const byline = article.byline?.trim()
+    ? truncate(article.byline.trim(), MAX_BYLINE)
+    : null;
+  const excerpt = article.excerpt?.trim()
+    ? truncate(article.excerpt.trim(), MAX_EXCERPT)
+    : null;
+  const siteName = article.siteName?.trim()
+    ? truncate(article.siteName.trim(), MAX_SOURCE)
+    : null;
+
   return {
-    title: (article.title ?? "").trim() || "Untitled",
-    byline: article.byline?.trim() || null,
-    excerpt: article.excerpt?.trim() || null,
-    siteName: article.siteName?.trim() || null,
+    title,
+    byline,
+    excerpt,
+    siteName,
     lang: article.lang ?? null,
+    image,
     markdown,
-    wordCount: countWords(markdown),
+    sanitizedHtml,
+    wordCount,
   };
 }
 
@@ -292,7 +453,7 @@ export async function fetchPublicResource(
       );
     }
 
-    const body = await readBoundedBody(res);
+    const body = await readBoundedBody(res, contentType);
     return { body, finalUrl: current.toString(), contentType };
   }
 
@@ -312,8 +473,39 @@ export async function fetchAndParse(url: string): Promise<ParsedArticle> {
   return parseArticleFromHtml(body, finalUrl);
 }
 
+function stripMarkdownSyntax(markdown: string): string {
+  return (
+    markdown
+      // Images: ![alt](url) → alt
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+      // Links: [text](url) → text
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      // Reference links: [text][ref] → text
+      .replace(/\[([^\]]*)\]\[[^\]]*\]/g, "$1")
+      // Inline code: `code` → code
+      .replace(/`+([^`]*)`+/g, "$1")
+      // Fenced code block markers
+      .replace(/^```\w*$/gm, "")
+      // Headings: ## text → text
+      .replace(/^#{1,6}\s+/gm, "")
+      // Bold/italic markers
+      .replace(/(\*{1,3}|_{1,3})/g, "")
+      // Horizontal rules
+      .replace(/^[-*_]{3,}$/gm, "")
+      // Table pipes and alignment
+      .replace(/\|/g, " ")
+      .replace(/^[\s:|-]+$/gm, "")
+      // Blockquote markers
+      .replace(/^>\s?/gm, "")
+      // List markers
+      .replace(/^[\s]*[-*+]\s+/gm, "")
+      .replace(/^[\s]*\d+\.\s+/gm, "")
+  );
+}
+
 function countWords(markdown: string): number {
-  return markdown.split(/\s+/).filter(Boolean).length;
+  const text = stripMarkdownSyntax(markdown);
+  return text.split(/\s+/).filter(Boolean).length;
 }
 
 export function estimateReadMinutes(wordCount: number): number {

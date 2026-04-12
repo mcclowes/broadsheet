@@ -18,12 +18,14 @@ function make(
     byline: null,
     excerpt: null,
     lang: null,
+    image: null,
     wordCount: 500,
     readMinutes: 2,
     savedAt: "2026-04-10T00:00:00.000Z",
     readAt: null,
     archivedAt: null,
     tags: [],
+    markdown: "",
     ...overrides,
   };
 }
@@ -82,6 +84,37 @@ describe("filterArticles", () => {
     });
     expect(result.map((a) => a.id)).toEqual(["a"]);
   });
+
+  it("state 'all' returns both read and unread in inbox", () => {
+    const result = filterArticles(articles, { state: "all" });
+    expect(result.map((a) => a.id)).toEqual(["a", "b", "d"]);
+  });
+
+  it("returns empty array when no articles match", () => {
+    const result = filterArticles(articles, { tag: "nonexistent" });
+    expect(result).toEqual([]);
+  });
+
+  it("handles empty article list", () => {
+    const result = filterArticles([], {});
+    expect(result).toEqual([]);
+  });
+
+  it("archive view with source filter", () => {
+    const result = filterArticles(articles, {
+      view: "archive",
+      source: "example.com",
+    });
+    expect(result.map((a) => a.id)).toEqual(["c"]);
+  });
+
+  it("archive view with tag filter", () => {
+    const result = filterArticles(articles, {
+      view: "archive",
+      tag: "food",
+    });
+    expect(result.map((a) => a.id)).toEqual(["c"]);
+  });
 });
 
 describe("canonicalizeUrl", () => {
@@ -126,6 +159,53 @@ describe("canonicalizeUrl", () => {
     );
     expect(canonicalizeUrl("http://example.com:80/x")).toBe(
       "http://example.com/x",
+    );
+  });
+});
+
+describe("canonicalizeUrl – additional tracking params", () => {
+  it.each([
+    [
+      "mc_eid",
+      "https://example.com/x?mc_eid=abc&id=1",
+      "https://example.com/x?id=1",
+    ],
+    ["mc_cid", "https://example.com/x?mc_cid=abc", "https://example.com/x"],
+    ["_hsenc", "https://example.com/x?_hsenc=abc", "https://example.com/x"],
+    ["_hsmi", "https://example.com/x?_hsmi=abc", "https://example.com/x"],
+    ["icid", "https://example.com/x?icid=nav", "https://example.com/x"],
+    ["ref", "https://example.com/x?ref=home", "https://example.com/x"],
+    ["ref_src", "https://example.com/x?ref_src=twsrc", "https://example.com/x"],
+    ["yclid", "https://example.com/x?yclid=123", "https://example.com/x"],
+    ["msclkid", "https://example.com/x?msclkid=abc", "https://example.com/x"],
+    ["gclid", "https://example.com/x?gclid=abc", "https://example.com/x"],
+  ])("strips %s param", (_name, input, expected) => {
+    expect(canonicalizeUrl(input)).toBe(expected);
+  });
+
+  it("preserves non-tracking params alongside stripped ones", () => {
+    expect(
+      canonicalizeUrl(
+        "https://example.com/x?page=2&utm_campaign=spring&sort=date&fbclid=x",
+      ),
+    ).toBe("https://example.com/x?page=2&sort=date");
+  });
+
+  it("handles URLs with no query params", () => {
+    expect(canonicalizeUrl("https://example.com/article")).toBe(
+      "https://example.com/article",
+    );
+  });
+
+  it("handles http scheme", () => {
+    expect(canonicalizeUrl("http://example.com/x")).toBe(
+      "http://example.com/x",
+    );
+  });
+
+  it("handles non-default port", () => {
+    expect(canonicalizeUrl("https://example.com:8443/x")).toBe(
+      "https://example.com:8443/x",
     );
   });
 });

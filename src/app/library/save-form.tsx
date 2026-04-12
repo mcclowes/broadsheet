@@ -1,14 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./library.module.scss";
 
 export function SaveForm() {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -29,17 +35,39 @@ export function SaveForm() {
     }
 
     setUrl("");
+    setError(null);
+    setOpen(false);
     startTransition(() => router.refresh());
+  }
+
+  if (!open) {
+    return (
+      <button
+        className={styles.addButton}
+        onClick={() => setOpen(true)}
+        aria-label="Add article"
+      >
+        +
+      </button>
+    );
   }
 
   return (
     <form className={styles.saveForm} onSubmit={handleSubmit}>
       <input
+        ref={inputRef}
         className={styles.saveInput}
         type="url"
         placeholder="https://…"
         value={url}
         onChange={(e) => setUrl(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            setOpen(false);
+            setUrl("");
+            setError(null);
+          }
+        }}
         required
         disabled={pending}
         aria-label="Article URL"

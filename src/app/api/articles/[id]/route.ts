@@ -1,19 +1,37 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { getArticle, markRead, setArchived, setTags } from "@/lib/articles";
+import { NotFoundError } from "folio-db-next";
+import { getArticle, patchArticle } from "@/lib/articles";
+import { authedUserId } from "@/lib/auth-types";
+import { checkOrigin } from "@/lib/csrf";
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { userId } = await auth();
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId)
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = authedUserId(rawUserId);
 
   const { id } = await params;
-  const article = await getArticle(userId, id);
-  if (!article) return Response.json({ error: "Not found" }, { status: 404 });
-
-  return Response.json({ article });
+  if (!/^[a-f0-9]{32}$/.test(id)) {
+    return Response.json({ error: "Invalid article id" }, { status: 400 });
+  }
+  try {
+    const article = await getArticle(userId, id);
+    if (!article) return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json(
+      { article },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+    console.error("[api/articles/GET] read failed", { id, err });
+    return Response.json({ error: "Internal error" }, { status: 500 });
+  }
 }
 
 const patchSchema = z
@@ -32,12 +50,18 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { userId } = await auth();
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const originError = checkOrigin(req);
+  if (originError) return originError;
+
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId)
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = authedUserId(rawUserId);
 
   const { id } = await params;
-  const existing = await getArticle(userId, id);
-  if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
+  if (!/^[a-f0-9]{32}$/.test(id)) {
+    return Response.json({ error: "Invalid article id" }, { status: 400 });
+  }
 
   let body: unknown;
   try {
@@ -56,15 +80,20 @@ export async function PATCH(
 
   const updates = parsed.data;
   try {
-    if (updates.read !== undefined) await markRead(userId, id, updates.read);
-    if (updates.archived !== undefined)
-      await setArchived(userId, id, updates.archived);
-    let tags = existing.tags;
-    if (updates.tags !== undefined)
-      tags = await setTags(userId, id, updates.tags);
+    const existing = await getArticle(userId, id);
+    if (!existing)
+      return Response.json({ error: "Not found" }, { status: 404 });
 
-    return Response.json({ ok: true, tags });
+    const result = await patchArticle(userId, id, updates);
+
+    return Response.json({
+      ok: true,
+      tags: result.tags ?? existing.tags,
+    });
   } catch (err) {
+    if (err instanceof NotFoundError) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
     console.error("[api/articles/PATCH] update failed", { id, err });
     return Response.json({ error: "Internal error" }, { status: 500 });
   }

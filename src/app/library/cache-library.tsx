@@ -15,6 +15,7 @@ interface ArticleSummaryForCache {
   byline: string | null;
   excerpt: string | null;
   lang: string | null;
+  image: string | null;
   wordCount: number;
   readMinutes: number;
   savedAt: string;
