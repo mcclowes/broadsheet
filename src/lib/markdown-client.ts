@@ -59,10 +59,13 @@ const SANITIZE_CONFIG = {
 };
 
 export function renderMarkdownClient(md: string): string {
-  const html = marked.parse(md, { async: false }) as string;
+  const html = marked.parse(md, { async: false });
+  if (typeof html !== "string") {
+    throw new Error("marked.parse returned a non-string (async mode leak)");
+  }
   return DOMPurify.sanitize(html, {
     ...SANITIZE_CONFIG,
     RETURN_DOM: false,
     RETURN_DOM_FRAGMENT: false,
-  }) as string;
+  });
 }

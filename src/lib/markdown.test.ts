@@ -106,6 +106,11 @@ describe("renderMarkdown", () => {
     expect(html).toBe("");
   });
 
+  it("always returns a string", () => {
+    const result = renderMarkdown("hello");
+    expect(typeof result).toBe("string");
+  });
+
   it("strips <form> tags", () => {
     const html = renderMarkdown(
       '<form action="/submit"><input type="text" /></form>',
