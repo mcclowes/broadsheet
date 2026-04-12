@@ -105,7 +105,6 @@ export interface ArticleSummary extends ArticleFrontmatter {
 function userVolume(userId: AuthedUserId): Volume<ArticleFrontmatter> {
   return getFolio().volume<ArticleFrontmatter>(volumeNameForUser(userId), {
     schema: articleFrontmatterSchema,
-    listCache: getListCache(),
   });
 }
 
