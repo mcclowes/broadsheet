@@ -16,14 +16,18 @@ export const dynamic = "force-dynamic";
 
 export default async function ReadPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { userId: rawUserId } = await auth();
   if (!rawUserId) redirect("/sign-in");
   const userId = authedUserId(rawUserId);
 
   const { id } = await params;
+  const { from } = await searchParams;
+  const backHref = from?.startsWith("/library") ? from : "/library";
   const article = await getArticle(userId, id);
   if (!article) notFound();
 
@@ -56,7 +60,7 @@ export default async function ReadPage({
 
       <ScrollNav>
         <nav className={styles.nav}>
-          <Link href="/library" className={styles.back}>
+          <Link href={backHref} className={styles.back}>
             ← Library
           </Link>
         </nav>
