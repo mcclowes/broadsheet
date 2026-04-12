@@ -22,9 +22,23 @@ export const highlightSchema = z.object({
 
 export type Highlight = z.infer<typeof highlightSchema>;
 
+export const unanchoredHighlightSchema = z.object({
+  id: z.string().min(1).max(64),
+  text: z.string().min(1).max(4000),
+  note: z.string().max(4000).nullable().default(null),
+  createdAt: z.string(),
+  source: z.enum(["pocket"]).optional(),
+});
+
+export type UnanchoredHighlight = z.infer<typeof unanchoredHighlightSchema>;
+
 export const annotationsFrontmatterSchema = z.object({
   updatedAt: z.string(),
   highlights: z.array(highlightSchema).default([]),
+  unanchoredHighlights: z
+    .array(unanchoredHighlightSchema)
+    .optional()
+    .default([]),
 });
 
 export type AnnotationsFrontmatter = z.infer<
@@ -93,10 +107,67 @@ async function mutate(
     const frontmatter: AnnotationsFrontmatter = {
       updatedAt: new Date().toISOString(),
       highlights: next,
+      unanchoredHighlights: page?.frontmatter.unanchoredHighlights ?? [],
     };
     await volume.set(articleId, { frontmatter, body: "" });
     return next;
   });
+}
+
+export async function listUnanchoredHighlights(
+  userId: AuthedUserId,
+  articleId: string,
+): Promise<UnanchoredHighlight[]> {
+  const page = await userVolume(userId).get(articleId);
+  if (!page) return [];
+  return page.frontmatter.unanchoredHighlights ?? [];
+}
+
+export interface UnanchoredHighlightInput {
+  text: string;
+  createdAt: string;
+  source?: "pocket";
+  note?: string | null;
+}
+
+export async function addUnanchoredHighlights(
+  userId: AuthedUserId,
+  articleId: string,
+  inputs: UnanchoredHighlightInput[],
+): Promise<number> {
+  if (inputs.length === 0) return 0;
+  let added = 0;
+  await retryOnConflict(async () => {
+    const volume = userVolume(userId);
+    const page = await volume.get(articleId);
+    const existing = page?.frontmatter.unanchoredHighlights ?? [];
+    const seen = new Set(existing.map((h) => `${h.text}\u0000${h.createdAt}`));
+    const merged: UnanchoredHighlight[] = [...existing];
+    added = 0;
+    for (const input of inputs) {
+      const text = input.text.trim();
+      if (!text) continue;
+      const key = `${text}\u0000${input.createdAt}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push({
+        id: randomUUID(),
+        text: text.slice(0, 4000),
+        note: input.note ?? null,
+        createdAt: input.createdAt,
+        source: input.source,
+      });
+      added++;
+    }
+    if (added === 0) return;
+    const frontmatter: AnnotationsFrontmatter = {
+      updatedAt: new Date().toISOString(),
+      highlights: page?.frontmatter.highlights ?? [],
+      unanchoredHighlights: merged,
+    };
+    await volume.set(articleId, { frontmatter, body: "" });
+  });
+  return added;
 }
 
 export async function addHighlight(

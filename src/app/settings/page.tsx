@@ -39,6 +39,18 @@ export default async function SettingsPage() {
 
       <h1 className={styles.pageTitle}>Settings</h1>
 
+      <section className={styles.section} aria-labelledby="import-heading">
+        <h2 id="import-heading" className={styles.sectionTitle}>
+          Import
+        </h2>
+        <p className={styles.sectionIntro}>
+          Bring your saved articles in from other read-it-later services.
+        </p>
+        <Link href="/import/pocket" className={styles.digestButton}>
+          Import from Pocket
+        </Link>
+      </section>
+
       <section className={styles.section} aria-labelledby="digest-heading">
         <h2 id="digest-heading" className={styles.sectionTitle}>
           Daily digest

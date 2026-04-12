@@ -136,3 +136,12 @@ export const diffLimiter = new RateLimiter({
   capacity: 5,
   refillRate: 0.1, // 1 every 10 seconds ≈ 6/minute sustained
 });
+
+/**
+ * Singleton limiter for POST /api/import/pocket.
+ * Each call can create thousands of article stubs — strict cap.
+ */
+export const pocketImportLimiter = new RateLimiter({
+  capacity: 2,
+  refillRate: 1 / 300, // ~1 every 5 minutes
+});

@@ -22,6 +22,9 @@ coverage
 *.tsbuildinfo
 .broadsheet-data
 
+# personal pocket export used for import testing
+/pocket
+
 # editor
 .vscode
 .idea

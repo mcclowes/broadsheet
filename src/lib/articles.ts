@@ -68,6 +68,8 @@ export type ArticleFrontmatter = {
   readAt: string | null;
   archivedAt: string | null;
   tags: string[];
+  pendingIngest?: boolean;
+  importedFrom?: "pocket" | null;
   [key: string]: unknown;
 };
 
@@ -86,6 +88,8 @@ export const articleFrontmatterSchema: z.ZodType<ArticleFrontmatter> = z.object(
     readAt: z.string().nullable(),
     archivedAt: z.string().nullable().default(null),
     tags: z.array(z.string()).default([]),
+    pendingIngest: z.boolean().optional(),
+    importedFrom: z.enum(["pocket"]).nullable().optional(),
   },
 ) as unknown as z.ZodType<ArticleFrontmatter>;
 
@@ -147,6 +151,76 @@ export async function saveArticle(
   };
   await volume.set(id, { frontmatter, body: parsed.markdown });
   return { id, ...frontmatter };
+}
+
+export interface ArticleStubInput {
+  url: string;
+  title: string;
+  savedAt: string;
+  tags: string[];
+  archived: boolean;
+  importedFrom: "pocket";
+}
+
+export async function saveArticleStub(
+  userId: AuthedUserId,
+  input: ArticleStubInput,
+): Promise<{ id: string; created: boolean }> {
+  const canonicalUrl = canonicalizeUrl(input.url);
+  const id = articleIdForUrl(canonicalUrl);
+  const volume = userVolume(userId);
+  const existing = await volume.get(id);
+  if (existing) return { id, created: false };
+  const frontmatter: ArticleFrontmatter = {
+    title: input.title,
+    url: canonicalUrl,
+    source: domainOf(canonicalUrl),
+    byline: null,
+    excerpt: null,
+    lang: null,
+    image: null,
+    wordCount: 0,
+    readMinutes: 1,
+    savedAt: input.savedAt,
+    readAt: null,
+    archivedAt: input.archived ? input.savedAt : null,
+    tags: cleanTags(input.tags),
+    pendingIngest: true,
+    importedFrom: input.importedFrom,
+  };
+  await volume.set(id, { frontmatter, body: "" });
+  return { id, created: true };
+}
+
+export async function rehydrateArticle(
+  userId: AuthedUserId,
+  id: string,
+  parsed: ParsedArticle,
+): Promise<void> {
+  const volume = userVolume(userId);
+  const existing = await volume.get(id);
+  if (!existing) return;
+  const current = existing.frontmatter;
+  const frontmatter: ArticleFrontmatter = {
+    ...current,
+    title:
+      current.title && current.title !== current.url
+        ? current.title
+        : parsed.title,
+    byline: parsed.byline,
+    excerpt: parsed.excerpt,
+    lang: parsed.lang,
+    image: parsed.image,
+    source: parsed.siteName ?? current.source,
+    wordCount: parsed.wordCount,
+    readMinutes: estimateReadMinutes(parsed.wordCount),
+    pendingIngest: false,
+    tags:
+      current.tags && current.tags.length > 0
+        ? current.tags
+        : generateTags(parsed),
+  };
+  await volume.set(id, { frontmatter, body: parsed.markdown });
 }
 
 export type LibraryView = "inbox" | "archive";
