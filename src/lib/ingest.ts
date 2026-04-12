@@ -561,13 +561,18 @@ export async function fetchPublicResource(
   );
 }
 
-export async function fetchAndParse(url: string): Promise<ParsedArticle> {
+export interface FetchAndParseResult {
+  parsed: ParsedArticle;
+  finalUrl: string;
+}
+
+export async function fetchAndParse(url: string): Promise<FetchAndParseResult> {
   const { body, finalUrl } = await fetchPublicResource(url, {
     accept: "text/html,application/xhtml+xml",
     validateContentType: isHtmlContentType,
     contentTypeError: "Upstream did not return HTML",
   });
-  return parseArticleFromHtml(body, finalUrl);
+  return { parsed: parseArticleFromHtml(body, finalUrl), finalUrl };
 }
 
 function stripMarkdownSyntax(markdown: string): string {

@@ -43,7 +43,7 @@ export async function GET(
 
   let currentMarkdown: string;
   try {
-    const parsed = await fetchAndParse(article.url);
+    const { parsed } = await fetchAndParse(article.url);
     currentMarkdown = parsed.markdown;
   } catch (err) {
     const message =

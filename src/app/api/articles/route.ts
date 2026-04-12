@@ -90,10 +90,16 @@ export async function POST(req: Request) {
   }
 
   try {
-    const article = parsed.data.html
-      ? parseArticleFromHtml(parsed.data.html, parsed.data.url)
-      : await fetchAndParse(parsed.data.url);
-    const summary = await saveArticle(userId, parsed.data.url, article);
+    let article;
+    let saveUrl = parsed.data.url;
+    if (parsed.data.html) {
+      article = parseArticleFromHtml(parsed.data.html, parsed.data.url);
+    } else {
+      const result = await fetchAndParse(parsed.data.url);
+      article = result.parsed;
+      saveUrl = result.finalUrl;
+    }
+    const summary = await saveArticle(userId, saveUrl, article);
     return Response.json({ article: summary }, { status: 201 });
   } catch (err) {
     if (err instanceof IngestError) {
