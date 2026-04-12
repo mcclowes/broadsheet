@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import { authedUserId } from "@/lib/auth-types";
 import { DigestSettings } from "./digest-settings";
+import { ThemeSettings } from "./theme-settings";
 import styles from "./settings.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,16 @@ export default async function SettingsPage() {
       </nav>
 
       <h1 className={styles.pageTitle}>Settings</h1>
+
+      <section className={styles.section} aria-labelledby="appearance-heading">
+        <h2 id="appearance-heading" className={styles.sectionTitle}>
+          Appearance
+        </h2>
+        <p className={styles.sectionIntro}>
+          Pick a colour theme, or follow your system&rsquo;s preference.
+        </p>
+        <ThemeSettings />
+      </section>
 
       <section className={styles.section} aria-labelledby="import-heading">
         <h2 id="import-heading" className={styles.sectionTitle}>
