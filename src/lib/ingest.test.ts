@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { JSDOM } from "jsdom";
 import {
   parseArticleFromHtml,
+  extractMetaImage,
   estimateReadMinutes,
   IngestError,
   isPrivateAddress,
@@ -164,6 +166,87 @@ const y = 2;</code></pre>
     expect(() => parseArticleFromHtml(empty, "https://example.com")).toThrow(
       IngestError,
     );
+  });
+});
+
+describe("extractMetaImage", () => {
+  function makeDoc(headMeta: string) {
+    const dom = new JSDOM(
+      `<!doctype html><html><head>${headMeta}</head><body></body></html>`,
+      { url: "https://example.com/article" },
+    );
+    return dom.window.document;
+  }
+
+  it("extracts og:image", () => {
+    const doc = makeDoc(
+      '<meta property="og:image" content="https://cdn.example.com/hero.jpg" />',
+    );
+    expect(extractMetaImage(doc, "https://example.com/article")).toBe(
+      "https://cdn.example.com/hero.jpg",
+    );
+  });
+
+  it("falls back to twitter:image when og:image is absent", () => {
+    const doc = makeDoc(
+      '<meta name="twitter:image" content="https://cdn.example.com/twitter.jpg" />',
+    );
+    expect(extractMetaImage(doc, "https://example.com/article")).toBe(
+      "https://cdn.example.com/twitter.jpg",
+    );
+  });
+
+  it("resolves relative URLs against the base", () => {
+    const doc = makeDoc(
+      '<meta property="og:image" content="/images/hero.jpg" />',
+    );
+    expect(extractMetaImage(doc, "https://example.com/article")).toBe(
+      "https://example.com/images/hero.jpg",
+    );
+  });
+
+  it("returns null when no image meta tags exist", () => {
+    const doc = makeDoc('<meta name="author" content="Jane" />');
+    expect(extractMetaImage(doc, "https://example.com/article")).toBeNull();
+  });
+
+  it("prefers og:image over twitter:image", () => {
+    const doc = makeDoc(
+      '<meta property="og:image" content="https://cdn.example.com/og.jpg" />' +
+        '<meta name="twitter:image" content="https://cdn.example.com/tw.jpg" />',
+    );
+    expect(extractMetaImage(doc, "https://example.com/article")).toBe(
+      "https://cdn.example.com/og.jpg",
+    );
+  });
+});
+
+describe("parseArticleFromHtml – image extraction", () => {
+  it("extracts og:image into parsed result", () => {
+    const html = `<!doctype html>
+<html><head>
+  <title>Hero test</title>
+  <meta property="og:image" content="https://cdn.example.com/hero.jpg" />
+</head>
+<body><article>
+  <h1>Hero test</h1>
+  <p>A paragraph with enough content to satisfy the readability heuristic for article extraction and keep the parser happy.</p>
+  <p>Another paragraph with enough content to keep the readability algorithm happy about extraction of this article.</p>
+</article></body></html>`;
+    const parsed = parseArticleFromHtml(html, "https://example.com/hero");
+    expect(parsed.image).toBe("https://cdn.example.com/hero.jpg");
+  });
+
+  it("returns null image when no meta image tags exist", () => {
+    const html = `<!doctype html>
+<html><head><title>No image</title></head>
+<body><article>
+  <h1>No image</h1>
+  <p>A paragraph with enough content to satisfy the readability heuristic for article extraction and keep the parser happy.</p>
+  <p>Another paragraph with enough content to keep the readability algorithm happy about extraction of this article.</p>
+</article></body></html>`;
+    const parsed = parseArticleFromHtml(html, "https://example.com/no-image");
+    expect(parsed.image).toBeNull();
   });
 });
 

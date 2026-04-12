@@ -36,6 +36,7 @@ export default async function ReadPage({
           byline: article.byline,
           excerpt: article.excerpt,
           lang: article.lang,
+          image: article.image ?? null,
           wordCount: article.wordCount,
           readMinutes: article.readMinutes,
           savedAt: article.savedAt,
@@ -54,6 +55,18 @@ export default async function ReadPage({
           </Link>
         </nav>
       </ScrollNav>
+
+      {article.image ? (
+        <figure className={styles.heroFigure}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={article.image}
+            alt=""
+            className={styles.heroImage}
+            loading="eager"
+          />
+        </figure>
+      ) : null}
 
       <header className={styles.header}>
         <h1 className={styles.title}>{article.title}</h1>

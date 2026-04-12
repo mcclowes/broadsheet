@@ -97,6 +97,7 @@ export default async function LibraryPage({
     byline: a.byline,
     excerpt: a.excerpt,
     lang: a.lang,
+    image: a.image ?? null,
     wordCount: a.wordCount,
     readMinutes: a.readMinutes,
     savedAt: a.savedAt,

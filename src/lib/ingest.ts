@@ -11,6 +11,7 @@ export interface ParsedArticle {
   excerpt: string | null;
   siteName: string | null;
   lang: string | null;
+  image: string | null;
   markdown: string;
   wordCount: number;
 }
@@ -198,6 +199,38 @@ export async function readBoundedBody(res: Response): Promise<string> {
   return buf.toString("utf8");
 }
 
+/**
+ * Extract the article's hero image from Open Graph / Twitter Card meta tags.
+ * Returns an absolute URL or null.
+ */
+export function extractMetaImage(
+  doc: {
+    querySelector: (
+      sel: string,
+    ) => { getAttribute: (a: string) => string | null } | null;
+  },
+  baseUrl: string,
+): string | null {
+  const selectors = [
+    'meta[property="og:image"]',
+    'meta[name="twitter:image"]',
+    'meta[name="twitter:image:src"]',
+    'meta[property="twitter:image"]',
+  ];
+  for (const sel of selectors) {
+    const el = doc.querySelector(sel);
+    const raw = el?.getAttribute("content");
+    if (raw) {
+      try {
+        return new URL(raw, baseUrl).href;
+      } catch {
+        // malformed URL — try next selector
+      }
+    }
+  }
+  return null;
+}
+
 export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
   const dom = new JSDOM(html, { url });
   const reader = new Readability(dom.window.document);
@@ -209,6 +242,10 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
       "Could not extract a readable article from this page",
     );
   }
+
+  // Extract the hero / og:image from <head> meta tags before we discard the
+  // full document. Preference: og:image > twitter:image > twitter:image:src.
+  const image = extractMetaImage(dom.window.document, url);
 
   // Readability resolves most relative URLs and fixes most lazy-loaded images,
   // but misses <img src="" data-src="…"> (attribute present but empty). Do a
@@ -243,6 +280,7 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
     excerpt: article.excerpt?.trim() || null,
     siteName: article.siteName?.trim() || null,
     lang: article.lang ?? null,
+    image,
     markdown,
     wordCount: countWords(markdown),
   };

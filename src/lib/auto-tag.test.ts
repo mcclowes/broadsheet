@@ -9,6 +9,7 @@ function make(overrides: Partial<ParsedArticle> = {}): ParsedArticle {
     excerpt: null,
     siteName: null,
     lang: null,
+    image: null,
     markdown: "",
     wordCount: 0,
     ...overrides,
