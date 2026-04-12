@@ -453,6 +453,9 @@ describe("isPrivateAddress", () => {
     "fc00::1",
     "fd12:3456::1",
     "fe80::1",
+    "fe90::1",
+    "fea0::1",
+    "febf::1",
     "::ffff:127.0.0.1",
   ])("flags %s as private", (ip) => {
     expect(isPrivateAddress(ip)).toBe(true);

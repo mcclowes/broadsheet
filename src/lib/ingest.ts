@@ -132,7 +132,8 @@ export function isPrivateIPv6(ip: string): boolean {
   const lower = ip.toLowerCase().replace(/%.*$/, "");
   if (lower === "::" || lower === "::1") return true;
   if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
-  if (lower.startsWith("fe80")) return true;
+  // fe80::/10 link-local spans fe80:: through febf::
+  if (/^fe[89ab]/.test(lower)) return true;
   if (lower.startsWith("::ffff:")) {
     const v4 = lower.slice(7);
     if (net.isIPv4(v4)) return isPrivateIPv4(v4);
