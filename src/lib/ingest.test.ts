@@ -1,11 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { JSDOM } from "jsdom";
 import {
   parseArticleFromHtml,
   extractMetaImage,
   estimateReadMinutes,
+  fetchAndParse,
   IngestError,
   isPrivateAddress,
   isHtmlContentType,
@@ -561,5 +562,33 @@ describe("charsetFromContentType", () => {
   it("returns undefined when no charset specified", () => {
     expect(charsetFromContentType("text/html")).toBeUndefined();
     expect(charsetFromContentType(null)).toBeUndefined();
+  });
+});
+
+describe("fetchAndParse redirect tracking", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns finalUrl after following redirects", async () => {
+    const finalHtml = sampleHtml;
+    const fetchMock = vi.fn(async (input: URL | string) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.startsWith("https://8.8.8.8/abc")) {
+        return new Response(null, {
+          status: 301,
+          headers: { location: "https://1.1.1.1/article" },
+        });
+      }
+      return new Response(finalHtml, {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await fetchAndParse("https://8.8.8.8/abc");
+    expect(result.finalUrl).toBe("https://1.1.1.1/article");
+    expect(result.parsed.title).toBe("Test Article");
   });
 });
