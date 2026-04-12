@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { listArticles, type LibraryView, type ReadState } from "@/lib/articles";
 import { SaveForm } from "./save-form";
 import { CacheLibrary } from "./cache-library";
+import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./library.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -210,7 +211,12 @@ export default async function LibraryPage({
               <Link href={`/read/${a.id}`} className={styles.link}>
                 <h2 className={styles.title}>{a.title}</h2>
                 <div className={styles.meta}>
-                  {a.source ? <span>{a.source}</span> : null}
+                  {a.source ? (
+                    <span className={styles.source}>
+                      <PublicationIcon url={a.url} />
+                      {a.source}
+                    </span>
+                  ) : null}
                   <span>{a.readMinutes} min read</span>
                   {a.readAt ? <span className={styles.read}>Read</span> : null}
                   {a.archivedAt ? (
