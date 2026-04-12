@@ -3,7 +3,11 @@ import { z } from "zod";
 import { ConflictError, type Volume } from "folio-db-next";
 import type { AuthedUserId } from "./auth-types";
 import { getFolio, volumeNameForUser } from "./folio";
-import { estimateReadMinutes, type ParsedArticle } from "./ingest";
+import {
+  estimateReadMinutes,
+  MAX_USER_HTML_BYTES,
+  type ParsedArticle,
+} from "./ingest";
 import { generateTags } from "./auto-tag";
 
 const TRACKING_PARAM_PATTERNS = [
@@ -161,6 +165,11 @@ export interface ListFilters {
 }
 
 export const LIST_LIMIT_MAX = 200;
+
+export const saveArticleRequestSchema = z.object({
+  url: z.string().url(),
+  html: z.string().min(1).max(MAX_USER_HTML_BYTES).optional(),
+});
 
 export function parseListFilters(params: URLSearchParams): ListFilters {
   const rawView = params.get("view");
