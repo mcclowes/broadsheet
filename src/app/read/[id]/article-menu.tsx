@@ -30,11 +30,15 @@ export function ArticleMenu({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function onAutoRead() {
-      setRead(true);
+    function onExternalRead(e: Event) {
+      // Default to `true` for back-compat with events that carry no detail.
+      const next = (e as CustomEvent<{ read?: boolean } | undefined>).detail
+        ?.read;
+      setRead(next === undefined ? true : next);
     }
-    window.addEventListener("article-marked-read", onAutoRead);
-    return () => window.removeEventListener("article-marked-read", onAutoRead);
+    window.addEventListener("article-marked-read", onExternalRead);
+    return () =>
+      window.removeEventListener("article-marked-read", onExternalRead);
   }, []);
 
   useEffect(() => {
@@ -80,10 +84,17 @@ export function ArticleMenu({
     const next = !read;
     setRead(next);
     setOpen(false);
-    if (next) window.dispatchEvent(new CustomEvent("article-marked-read"));
     const result = await patch({ read: next });
-    if (!result) setRead(!next);
-    else startTransition(() => router.refresh());
+    if (!result) {
+      setRead(!next);
+      return;
+    }
+    // Dispatch after the server confirms the change so a silent failure
+    // doesn't permanently disable ReadTracker's scroll listener.
+    window.dispatchEvent(
+      new CustomEvent("article-marked-read", { detail: { read: next } }),
+    );
+    startTransition(() => router.refresh());
   }
 
   async function toggleArchived() {

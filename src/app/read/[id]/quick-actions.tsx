@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   updateCachedArticleMeta,
@@ -37,6 +37,17 @@ export function QuickActions({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    function onExternalRead(e: Event) {
+      const next = (e as CustomEvent<{ read?: boolean } | undefined>).detail
+        ?.read;
+      setRead(next === undefined ? true : next);
+    }
+    window.addEventListener("article-marked-read", onExternalRead);
+    return () =>
+      window.removeEventListener("article-marked-read", onExternalRead);
+  }, []);
+
   async function patch(body: Record<string, unknown>) {
     if (!navigator.onLine) {
       await updateCachedArticleMeta(
@@ -64,13 +75,16 @@ export function QuickActions({
   async function toggleRead() {
     const next = !read;
     setRead(next);
-    if (next) {
-      window.dispatchEvent(new CustomEvent("article-marked-read"));
-    }
-    const result = await patch({ read: next });
-    if (!result) setRead(!next);
-    else startTransition(() => router.refresh());
     setOpen(false);
+    const result = await patch({ read: next });
+    if (!result) {
+      setRead(!next);
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent("article-marked-read", { detail: { read: next } }),
+    );
+    startTransition(() => router.refresh());
   }
 
   async function toggleArchived() {

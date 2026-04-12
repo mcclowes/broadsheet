@@ -19,7 +19,17 @@ export function ReadTracker({ articleId, alreadyRead }: Props) {
 
     const controller = new AbortController();
 
-    function onExternalMark() {
+    function onExternalMark(e: Event) {
+      const next = (e as CustomEvent<{ read?: boolean } | undefined>).detail
+        ?.read;
+      // Event without detail (legacy) or marking read — stop the scroll
+      // handler. If the event says the article was marked *unread*, leave
+      // our scroll handler active so a further scroll can mark it read again.
+      if (next === false) {
+        fired.current = false;
+        retries.current = 0;
+        return;
+      }
       fired.current = true;
       controller.abort();
     }
@@ -36,7 +46,9 @@ export function ReadTracker({ articleId, alreadyRead }: Props) {
       });
 
       if (res.ok) {
-        window.dispatchEvent(new CustomEvent("article-marked-read"));
+        window.dispatchEvent(
+          new CustomEvent("article-marked-read", { detail: { read: true } }),
+        );
         // Remove listener once successfully marked — no need to keep firing
         controller.abort();
       } else {
