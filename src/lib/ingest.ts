@@ -26,6 +26,43 @@ turndown.addRule("stripScripts", {
   replacement: () => "",
 });
 
+// <pre> without a <code> child is not matched by Turndown's built-in fenced
+// code-block rule, so the text passes through as a plain paragraph and the
+// browser collapses its whitespace. Wrap it in a fenced block ourselves.
+turndown.addRule("preWithoutCode", {
+  filter(node) {
+    return node.nodeName === "PRE" && !node.querySelector("code");
+  },
+  replacement(_content, node) {
+    const text = (node as Element).textContent || "";
+    return "\n\n```\n" + text + "\n```\n\n";
+  },
+});
+
+// Turndown's default image rule drops <img> when `src` is falsy. Many sites
+// use `<img src="" data-src="…">` for lazy loading; Readability fixes some
+// but not all of these. Fall back to data-src / data-lazy-src.
+turndown.addRule("imgWithDataSrc", {
+  filter(node) {
+    if (node.nodeName !== "IMG") return false;
+    const src = node.getAttribute("src");
+    if (src) return false; // default rule handles it
+    const fallback =
+      node.getAttribute("data-src") || node.getAttribute("data-lazy-src");
+    return !!fallback;
+  },
+  replacement(_content, node) {
+    const src =
+      (node as Element).getAttribute("data-src") ||
+      (node as Element).getAttribute("data-lazy-src") ||
+      "";
+    const alt = (node as Element).getAttribute("alt") || "";
+    const title = (node as Element).getAttribute("title");
+    const titlePart = title ? ` "${title}"` : "";
+    return `![${alt}](${src}${titlePart})`;
+  },
+});
+
 // Convert <table> to GFM pipe tables. Tables without a heading row are
 // preserved as raw HTML via Turndown's `keep` fallback (registered by the
 // plugin), which marked passes through and DOMPurify sanitises.
@@ -172,7 +209,27 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
       "Could not extract a readable article from this page",
     );
   }
-  const markdown = turndown.turndown(article.content).trim();
+
+  // Readability resolves most relative URLs and fixes most lazy-loaded images,
+  // but misses <img src="" data-src="…"> (attribute present but empty). Do a
+  // second pass so these survive Turndown's default image rule.
+  const contentDom = new JSDOM(article.content, { url });
+  for (const img of contentDom.window.document.querySelectorAll("img")) {
+    if (!img.getAttribute("src")) {
+      const fallback =
+        img.getAttribute("data-src") || img.getAttribute("data-lazy-src");
+      if (fallback) {
+        try {
+          img.setAttribute("src", new URL(fallback, url).href);
+        } catch {
+          img.setAttribute("src", fallback);
+        }
+      }
+    }
+  }
+  const fixedContent = contentDom.window.document.body.innerHTML;
+
+  const markdown = turndown.turndown(fixedContent).trim();
   if (!markdown) {
     throw new IngestError(
       "Parsed article was empty",
