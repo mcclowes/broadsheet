@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
 import { renderMarkdown } from "@/lib/markdown";
 import { ArticleActions } from "./article-actions";
+import { ReadTracker } from "./read-tracker";
 import styles from "./read.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +53,11 @@ export default async function ReadPage({
           initialRead={article.readAt !== null}
         />
       </header>
+
+      <ReadTracker
+        articleId={article.id}
+        alreadyRead={article.readAt !== null}
+      />
 
       <article
         className="reader-body"
