@@ -66,20 +66,28 @@ See `.env.example`. The non-obvious one is Folio's adapter selection (see `src/l
 
 Override the dev directory with `BROADSHEET_FS_DIR=/path/to/dir`.
 
-### Chrome extension (dev)
+### Chrome extension
+
+The MV3 extension in `apps/extension/` saves the current tab to your
+library. It defaults to the production URL; for local dev, change the base
+URL to `http://localhost:3000` via the extension's options page.
 
 ```bash
-npm run dev   # in the repo root
+npm run dev                 # in the repo root, for dev
+npm run extension:package   # build dist/broadsheet-extension-<version>.zip
 ```
 
-Then in Chrome:
+Load unpacked:
 
 1. `chrome://extensions` → enable **Developer mode**.
 2. **Load unpacked** → select `apps/extension/`.
-3. Sign in to Broadsheet at `http://localhost:3000` in the same profile (the extension uses cookie auth).
+3. Sign in to Broadsheet in the same profile (the extension uses cookie auth).
 4. Click the toolbar icon or press `⌘⇧S` / `Ctrl+Shift+S` to save the current tab.
 
-See [`apps/extension/README.md`](./apps/extension/README.md) for details.
+Releases are tagged `extension-vX.Y.Z`; the
+`extension-release` workflow attaches a zip to the GitHub release ready for
+Chrome Web Store upload. See [`apps/extension/README.md`](./apps/extension/README.md)
+for the full publishing checklist.
 
 ### iOS app (dev)
 

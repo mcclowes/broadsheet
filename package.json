@@ -12,6 +12,8 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "extension:icons": "node apps/extension/scripts/generate-icons.mjs",
+    "extension:package": "node apps/extension/scripts/package.mjs",
     "prepare": "husky"
   },
   "dependencies": {

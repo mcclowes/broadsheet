@@ -1,10 +1,12 @@
+const DEFAULT_BASE_URL = "https://broadsheet.marginalutility.dev";
+
 const input = document.getElementById("base-url");
 const saveButton = document.getElementById("save");
 const saved = document.getElementById("saved");
 
 async function load() {
   const { baseUrl } = await chrome.storage.sync.get("baseUrl");
-  input.value = baseUrl ?? "http://localhost:3000";
+  input.value = baseUrl ?? DEFAULT_BASE_URL;
 }
 
 function originPatternFor(baseUrl) {
@@ -22,12 +24,13 @@ saveButton.addEventListener("click", async () => {
     saved.textContent = "Invalid URL.";
     return;
   }
-  if (!/^https?:\/\/localhost(?::\d+)?\/\*$/.test(pattern)) {
-    const granted = await chrome.permissions.request({ origins: [pattern] });
-    if (!granted) {
-      saved.textContent = "Permission denied.";
-      return;
-    }
+  // chrome.permissions.request is a no-op for origins already granted in
+  // manifest.host_permissions (e.g. the default production URL), so we can
+  // safely request on every save — Chrome will only prompt when needed.
+  const granted = await chrome.permissions.request({ origins: [pattern] });
+  if (!granted) {
+    saved.textContent = "Permission denied.";
+    return;
   }
   await chrome.storage.sync.set({ baseUrl: value });
   saved.textContent = "Saved.";
