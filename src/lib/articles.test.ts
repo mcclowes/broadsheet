@@ -115,6 +115,43 @@ describe("filterArticles", () => {
     });
     expect(result.map((a) => a.id)).toEqual(["c"]);
   });
+
+  it("filters by q across title/source/excerpt/byline/tags", () => {
+    const corpus: ArticleSummary[] = [
+      make("x", { title: "React hooks explained", tags: ["react"] }),
+      make("y", {
+        title: "A primer on Rust",
+        excerpt: "Ownership and borrowing",
+      }),
+      make("z", {
+        title: "Cooking",
+        source: "nytimes.com",
+        byline: "Sam Sifton",
+      }),
+    ];
+    expect(filterArticles(corpus, { q: "hooks" }).map((a) => a.id)).toEqual([
+      "x",
+    ]);
+    expect(filterArticles(corpus, { q: "ownership" }).map((a) => a.id)).toEqual(
+      ["y"],
+    );
+    expect(filterArticles(corpus, { q: "nytimes" }).map((a) => a.id)).toEqual([
+      "z",
+    ]);
+    expect(filterArticles(corpus, { q: "#react" }).map((a) => a.id)).toEqual([
+      "x",
+    ]);
+  });
+
+  it("q terms are AND-combined", () => {
+    const corpus: ArticleSummary[] = [
+      make("x", { title: "React hooks" }),
+      make("y", { title: "React class components" }),
+    ];
+    expect(
+      filterArticles(corpus, { q: "react hooks" }).map((a) => a.id),
+    ).toEqual(["x"]);
+  });
 });
 
 describe("canonicalizeUrl", () => {
@@ -240,7 +277,23 @@ describe("parseListFilters", () => {
       tag: undefined,
       source: undefined,
       limit: undefined,
+      q: undefined,
     });
+  });
+
+  it("parses q and trims whitespace", () => {
+    expect(from("q=hello+world").q).toBe("hello world");
+    expect(from("q=%20%20hello%20").q).toBe("hello");
+  });
+
+  it("treats empty q as undefined", () => {
+    expect(from("q=").q).toBeUndefined();
+    expect(from("q=%20%20").q).toBeUndefined();
+  });
+
+  it("caps q length at LIST_QUERY_MAX", () => {
+    const long = "x".repeat(500);
+    expect(from(`q=${long}`).q?.length).toBe(128);
   });
 
   it("parses recognized view and state", () => {

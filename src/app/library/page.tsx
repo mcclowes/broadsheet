@@ -13,6 +13,7 @@ import { SaveForm } from "./save-form";
 import { DigestToggle } from "./digest-toggle";
 import { CacheLibrary } from "./cache-library";
 import { SwipeableArticleLink } from "./swipeable-article-link";
+import { PaletteTrigger } from "@/app/components/palette-trigger";
 import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./library.module.scss";
 
@@ -125,6 +126,7 @@ export default async function LibraryPage({
           Broadsheet
         </Link>
         <div className={styles.headerActions}>
+          <PaletteTrigger />
           <SaveForm />
           <UserButton />
         </div>

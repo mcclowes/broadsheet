@@ -232,7 +232,10 @@ export interface ListFilters {
   tag?: string;
   source?: string;
   limit?: number;
+  q?: string;
 }
+
+export const LIST_QUERY_MAX = 128;
 
 export const LIST_LIMIT_MAX = 200;
 
@@ -268,7 +271,12 @@ export function parseListFilters(params: URLSearchParams): ListFilters {
   }
   const tag = params.get("tag") ?? undefined;
   const source = params.get("source") ?? undefined;
-  return { view, state, tag, source, limit };
+  const rawQ = params.get("q");
+  const q =
+    rawQ && rawQ.trim().length > 0
+      ? rawQ.trim().slice(0, LIST_QUERY_MAX)
+      : undefined;
+  return { view, state, tag, source, limit, q };
 }
 
 export function filterArticles(
@@ -277,6 +285,12 @@ export function filterArticles(
 ): ArticleSummary[] {
   const view = filters.view ?? "inbox";
   const state = filters.state ?? "all";
+  const terms = filters.q
+    ? filters.q
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((t) => t.length > 0)
+    : null;
   return articles.filter((a) => {
     if (view === "inbox" && a.archivedAt) return false;
     if (view === "archive" && !a.archivedAt) return false;
@@ -284,6 +298,18 @@ export function filterArticles(
     if (state === "unread" && a.readAt) return false;
     if (filters.tag && !a.tags.includes(filters.tag)) return false;
     if (filters.source && a.source !== filters.source) return false;
+    if (terms) {
+      const haystack = [
+        a.title,
+        a.source ?? "",
+        a.excerpt ?? "",
+        a.byline ?? "",
+        ...a.tags.map((t) => `#${t}`),
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!terms.every((t) => haystack.includes(t))) return false;
+    }
     return true;
   });
 }
