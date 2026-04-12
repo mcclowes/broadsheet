@@ -69,6 +69,9 @@ export default async function SourcesPage() {
         <Link href="/sources" className={styles.tabActive}>
           Sources
         </Link>
+        <Link href="/settings" className={styles.tab}>
+          Settings
+        </Link>
       </nav>
 
       <p className={styles.intro}>

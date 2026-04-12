@@ -1,0 +1,159 @@
+.main {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--fg);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 1.5rem 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.tab,
+.tabActive {
+  font-size: 0.9375rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--fg-muted);
+
+  &:hover {
+    color: var(--fg);
+  }
+}
+
+.tabActive {
+  background: var(--fg);
+  color: white;
+
+  &:hover {
+    color: white;
+  }
+}
+
+.pageTitle {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 1.5rem;
+  letter-spacing: -0.01em;
+}
+
+.section {
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--rule);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.sectionTitle {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 0.375rem;
+}
+
+.sectionIntro {
+  color: var(--fg-muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  margin: 0 0 1rem;
+}
+
+.digestRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.digestStatus {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.digestLabel {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.digestEmail {
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.digestButton,
+.digestButtonActive {
+  font-size: 0.875rem;
+  padding: 0.375rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: var(--fg);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.digestButtonActive {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: white;
+
+  &:hover {
+    background: var(--fg);
+    color: white;
+    border-color: var(--fg);
+  }
+}
+
+.muted {
+  color: var(--fg-muted);
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.error {
+  color: #a11;
+  font-size: 0.875rem;
+  flex-basis: 100%;
+  margin: 0;
+}
