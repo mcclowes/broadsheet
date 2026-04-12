@@ -5,6 +5,7 @@ import { getArticle } from "@/lib/articles";
 import { renderMarkdown } from "@/lib/markdown";
 import { authedUserId } from "@/lib/auth-types";
 import { ArticleActions } from "./article-actions";
+import { ArticleMenu } from "./article-menu";
 import { ReadTracker } from "./read-tracker";
 import { CacheArticle } from "./cache-article";
 import { ReadingProgress } from "./reading-progress";
@@ -91,19 +92,14 @@ export default async function ReadPage({
             </span>
           ) : null}
           <span>{article.readMinutes} min read</span>
+          <ArticleMenu
+            articleId={article.id}
+            articleUrl={article.url}
+            initialArchived={article.archivedAt !== null}
+            initialRead={article.readAt !== null}
+          />
         </div>
-        <div className={styles.links}>
-          <a href={article.url} target="_blank" rel="noreferrer noopener">
-            Original
-          </a>
-          <Link href={`/read/${id}/diff`}>Check for changes</Link>
-        </div>
-        <ArticleActions
-          articleId={article.id}
-          initialTags={article.tags}
-          initialArchived={article.archivedAt !== null}
-          initialRead={article.readAt !== null}
-        />
+        <ArticleActions articleId={article.id} initialTags={article.tags} />
       </header>
 
       <ReadTracker

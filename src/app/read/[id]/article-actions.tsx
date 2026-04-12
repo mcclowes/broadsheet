@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   updateCachedArticleMeta,
@@ -11,31 +11,14 @@ import styles from "./read.module.scss";
 interface Props {
   articleId: string;
   initialTags: string[];
-  initialArchived: boolean;
-  initialRead: boolean;
 }
 
-export function ArticleActions({
-  articleId,
-  initialTags,
-  initialArchived,
-  initialRead,
-}: Props) {
+export function ArticleActions({ articleId, initialTags }: Props) {
   const router = useRouter();
   const [tags, setTags] = useState<string[]>(initialTags);
-  const [archived, setArchived] = useState(initialArchived);
-  const [read, setRead] = useState(initialRead);
   const [draft, setDraft] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    function onAutoRead() {
-      setRead(true);
-    }
-    window.addEventListener("article-marked-read", onAutoRead);
-    return () => window.removeEventListener("article-marked-read", onAutoRead);
-  }, []);
 
   async function patch(body: Record<string, unknown>) {
     setError(null);
@@ -105,46 +88,8 @@ export function ArticleActions({
     await commitTags(tags.filter((t) => t !== tag));
   }
 
-  async function toggleArchived() {
-    const next = !archived;
-    setArchived(next);
-    const result = await patch({ archived: next });
-    if (!result) setArchived(!next);
-    else startTransition(() => router.refresh());
-  }
-
-  async function toggleRead() {
-    const next = !read;
-    setRead(next);
-    if (next) {
-      window.dispatchEvent(new CustomEvent("article-marked-read"));
-    }
-    const result = await patch({ read: next });
-    if (!result) setRead(!next);
-    else startTransition(() => router.refresh());
-  }
-
   return (
     <div className={styles.actions}>
-      <div className={styles.actionRow}>
-        <button
-          type="button"
-          className={styles.actionButton}
-          onClick={toggleRead}
-          disabled={pending}
-        >
-          {read ? "Mark unread" : "Mark read"}
-        </button>
-        <button
-          type="button"
-          className={styles.actionButton}
-          onClick={toggleArchived}
-          disabled={pending}
-        >
-          {archived ? "Unarchive" : "Archive"}
-        </button>
-      </div>
-
       <div className={styles.tagRow}>
         {tags.map((tag) => (
           <span key={tag} className={styles.tag}>
