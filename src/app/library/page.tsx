@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import { listArticles, type LibraryView, type ReadState } from "@/lib/articles";
 import { SaveForm } from "./save-form";
+import { DigestToggle } from "./digest-toggle";
 import { CacheLibrary } from "./cache-library";
 import styles from "./library.module.scss";
 
@@ -116,12 +117,15 @@ export default async function LibraryPage({
       </header>
 
       <nav className={styles.topTabs} aria-label="Primary">
-        <Link href="/library" className={styles.topTabActive}>
-          Library
-        </Link>
-        <Link href="/sources" className={styles.topTab}>
-          Sources
-        </Link>
+        <div className={styles.topTabsLeft}>
+          <Link href="/library" className={styles.topTabActive}>
+            Library
+          </Link>
+          <Link href="/sources" className={styles.topTab}>
+            Sources
+          </Link>
+        </div>
+        <DigestToggle />
       </nav>
 
       <SaveForm />

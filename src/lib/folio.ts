@@ -51,3 +51,7 @@ export function volumeNameForUser(userId: string, suffix?: string): string {
   }
   return `${base}-${suffix}`;
 }
+
+// Central registry volume for digest subscribers. One document per opted-in
+// user, keyed by the hashed userId (same hex as volumeNameForUser).
+export const DIGEST_REGISTRY_VOLUME = "digest-registry";
