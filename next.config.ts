@@ -2,7 +2,11 @@ import type { NextConfig } from "next";
 
 // Validate required Clerk environment variables at startup so developers
 // get an actionable message instead of a cryptic runtime error.
+// Skipped in preview mode, where Clerk is bypassed entirely (see
+// src/lib/preview-mode.ts).
 function validateClerkEnv() {
+  if (process.env.BROADSHEET_PREVIEW_MODE === "1") return;
+
   const pk = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const sk = process.env.CLERK_SECRET_KEY;
 

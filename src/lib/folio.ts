@@ -4,12 +4,20 @@ import { MemoryAdapter } from "folio-db-next/adapters/memory";
 import { FsAdapter } from "folio-db-next/adapters/fs";
 import { VercelBlobAdapter } from "folio-db-next/adapters/blob";
 import type { AuthedUserId } from "./auth-types";
+import { isPreviewMode } from "./preview-mode";
 
 let adapter: StorageAdapter | null = null;
 let folio: Folio | null = null;
 
 function resolveAdapter(): StorageAdapter {
   if (adapter) return adapter;
+
+  // Preview mode must never touch persistent storage — demo data is
+  // ephemeral and seeded fresh per cold start.
+  if (isPreviewMode()) {
+    adapter = new MemoryAdapter();
+    return adapter;
+  }
 
   if (process.env.BROADSHEET_FOLIO_ADAPTER === "memory") {
     adapter = new MemoryAdapter();

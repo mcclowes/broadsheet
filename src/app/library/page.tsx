@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
-import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import {
   listArticles,
@@ -8,10 +6,12 @@ import {
   type LibraryView,
   type ReadState,
 } from "@/lib/articles";
-import { authedUserId } from "@/lib/auth-types";
+import { getRequestUserId } from "@/lib/preview-mode";
+import { ensurePreviewSeed } from "@/lib/preview-seed";
 import { SaveForm } from "./save-form";
 import { DigestToggle } from "./digest-toggle";
 import { CacheLibrary } from "./cache-library";
+import { AuthUserButton } from "@/components/auth-chrome";
 import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./library.module.scss";
 
@@ -71,9 +71,9 @@ export default async function LibraryPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const { userId: rawUserId } = await auth();
-  if (!rawUserId) redirect("/sign-in");
-  const userId = authedUserId(rawUserId);
+  await ensurePreviewSeed();
+  const userId = await getRequestUserId();
+  if (!userId) redirect("/sign-in");
 
   const sp = await searchParams;
   const view = parseView(sp.view);
@@ -125,7 +125,7 @@ export default async function LibraryPage({
         </Link>
         <div className={styles.headerActions}>
           <SaveForm />
-          <UserButton />
+          <AuthUserButton />
         </div>
       </header>
 

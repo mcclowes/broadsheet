@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
-import { UserButton } from "@clerk/nextjs";
 import { notFound, redirect } from "next/navigation";
 import { fetchSourceItems, getSource } from "@/lib/sources";
 import { articleIdForUrl, listArticles } from "@/lib/articles";
-import { authedUserId } from "@/lib/auth-types";
+import { getRequestUserId } from "@/lib/preview-mode";
 import { ItemActions } from "../item-actions";
 import { RemoveSourceButton } from "../remove-source-button";
+import { AuthUserButton } from "@/components/auth-chrome";
 import styles from "../sources.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +39,8 @@ export default async function SourceDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { userId: rawUserId } = await auth();
-  if (!rawUserId) redirect("/sign-in");
-  const userId = authedUserId(rawUserId);
+  const userId = await getRequestUserId();
+  if (!userId) redirect("/sign-in");
 
   const { id } = await params;
   const source = await getSource(userId, id);
@@ -62,7 +60,7 @@ export default async function SourceDetailPage({
         <Link href="/" className={styles.brand}>
           Broadsheet
         </Link>
-        <UserButton />
+        <AuthUserButton />
       </header>
 
       <nav className={styles.tabs} aria-label="Primary">

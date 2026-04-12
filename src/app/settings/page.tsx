@@ -1,20 +1,18 @@
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
-import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
-import { authedUserId } from "@/lib/auth-types";
+import { getRequestUserId } from "@/lib/preview-mode";
 import { DigestSettings } from "./digest-settings";
+import { AuthUserButton } from "@/components/auth-chrome";
 import styles from "./settings.module.scss";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const { userId: rawUserId } = await auth();
-  if (!rawUserId) redirect("/sign-in");
+  const userId = await getRequestUserId();
+  if (!userId) redirect("/sign-in");
   // We don't currently need userId on this page — settings are read/written
   // by client-side API calls that re-derive it from `auth()` themselves.
   // The redirect above is enough to gate access.
-  authedUserId(rawUserId);
 
   return (
     <main className={styles.main}>
@@ -22,7 +20,7 @@ export default async function SettingsPage() {
         <Link href="/" className={styles.brand}>
           Broadsheet
         </Link>
-        <UserButton />
+        <AuthUserButton />
       </header>
 
       <nav className={styles.tabs} aria-label="Primary">

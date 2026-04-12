@@ -1,4 +1,3 @@
-import { auth } from "@clerk/nextjs/server";
 import { fetchAndParse, IngestError, parseArticleFromHtml } from "@/lib/ingest";
 import {
   listArticles,
@@ -6,15 +5,15 @@ import {
   saveArticle,
   saveArticleRequestSchema,
 } from "@/lib/articles";
-import { authedUserId } from "@/lib/auth-types";
+import { getRequestUserId } from "@/lib/preview-mode";
+import { ensurePreviewSeed } from "@/lib/preview-seed";
 import { checkOrigin } from "@/lib/csrf";
 import { articleIngestLimiter } from "@/lib/rate-limit";
 
 export async function GET(req: Request) {
-  const { userId: rawUserId } = await auth();
-  if (!rawUserId)
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = authedUserId(rawUserId);
+  await ensurePreviewSeed();
+  const userId = await getRequestUserId();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const url = new URL(req.url);
   const filters = parseListFilters(url.searchParams);
@@ -30,10 +29,8 @@ export async function POST(req: Request) {
   const originError = checkOrigin(req);
   if (originError) return originError;
 
-  const { userId: rawUserId } = await auth();
-  if (!rawUserId)
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = authedUserId(rawUserId);
+  const userId = await getRequestUserId();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const limit = articleIngestLimiter.consume(userId);
   if (!limit.allowed) {

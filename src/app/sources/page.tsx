@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
-import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import {
   fetchUnifiedFeed,
@@ -9,9 +7,11 @@ import {
   type UnifiedFeedItem,
 } from "@/lib/sources";
 import { articleIdForUrl, listArticles } from "@/lib/articles";
-import { authedUserId } from "@/lib/auth-types";
+import { getRequestUserId } from "@/lib/preview-mode";
+import { ensurePreviewSeed } from "@/lib/preview-seed";
 import { AddSourceForm } from "./add-source-form";
 import { ItemActions } from "./item-actions";
+import { AuthUserButton } from "@/components/auth-chrome";
 import styles from "./sources.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -41,9 +41,9 @@ function formatRelative(iso: string | null): string | null {
 }
 
 export default async function SourcesPage() {
-  const { userId: rawUserId } = await auth();
-  if (!rawUserId) redirect("/sign-in");
-  const userId = authedUserId(rawUserId);
+  await ensurePreviewSeed();
+  const userId = await getRequestUserId();
+  if (!userId) redirect("/sign-in");
 
   const [sources, unified, savedArticles] = await Promise.all([
     listSources(userId),
@@ -59,7 +59,7 @@ export default async function SourcesPage() {
         <Link href="/" className={styles.brand}>
           Broadsheet
         </Link>
-        <UserButton />
+        <AuthUserButton />
       </header>
 
       <nav className={styles.tabs} aria-label="Primary">

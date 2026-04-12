@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
-import { SignInButton, UserButton } from "@clerk/nextjs";
 import { listArticles, type ArticleSummary } from "@/lib/articles";
-import { authedUserId } from "@/lib/auth-types";
+import { getRequestUserId } from "@/lib/preview-mode";
+import { ensurePreviewSeed } from "@/lib/preview-seed";
+import { AuthUserButton, AuthSignInButton } from "@/components/auth-chrome";
 import styles from "./page.module.scss";
 
 // No force-dynamic needed — auth() already makes this page dynamic.
@@ -33,9 +33,10 @@ function storyMeta(a: ArticleSummary): string {
 }
 
 export default async function HomePage() {
-  const { userId: rawUserId } = await auth();
+  await ensurePreviewSeed();
+  const userId = await getRequestUserId();
 
-  if (!rawUserId) {
+  if (!userId) {
     return (
       <main className={styles.landing}>
         <header className={styles.landingMasthead}>
@@ -43,9 +44,9 @@ export default async function HomePage() {
             <span className={styles.landingCorner}>Est. 2025</span>
             <h1 className={styles.landingTitle}>Broadsheet</h1>
             <div className={styles.auth}>
-              <SignInButton mode="modal">
+              <AuthSignInButton>
                 <button className={styles.authButton}>Sign in</button>
-              </SignInButton>
+              </AuthSignInButton>
             </div>
           </div>
           <p className={styles.landingMotto}>
@@ -62,11 +63,11 @@ export default async function HomePage() {
             distraction-free format. Keep them in your personal library forever.
           </p>
           <div className={styles.heroCta}>
-            <SignInButton mode="modal">
+            <AuthSignInButton>
               <button className={styles.ctaButton}>
                 Get started &mdash; it&apos;s free
               </button>
-            </SignInButton>
+            </AuthSignInButton>
           </div>
         </section>
 
@@ -138,9 +139,9 @@ export default async function HomePage() {
           <p className={styles.bottomTagline}>
             The reading list that respects your attention.
           </p>
-          <SignInButton mode="modal">
+          <AuthSignInButton>
             <button className={styles.ctaButton}>Start reading</button>
-          </SignInButton>
+          </AuthSignInButton>
         </section>
 
         <footer className={styles.landingFooter}>
@@ -150,7 +151,6 @@ export default async function HomePage() {
     );
   }
 
-  const userId = authedUserId(rawUserId);
   const articles = await listArticles(userId, { view: "inbox", limit: 17 });
   const lead = articles[0];
   const secondary = articles.slice(1, 5);
@@ -168,7 +168,7 @@ export default async function HomePage() {
             <Link href="/library" className={styles.authLink}>
               Library
             </Link>
-            <UserButton />
+            <AuthUserButton />
           </div>
         </div>
         <p className={styles.mastheadTagline}>

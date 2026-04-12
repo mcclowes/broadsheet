@@ -5,6 +5,7 @@ import { ServiceWorkerRegister } from "./components/service-worker-register";
 import { OfflineSync } from "./components/offline-sync";
 import { OfflineIndicator } from "./components/offline-indicator";
 import { CommandPalette } from "./components/command-palette";
+import { isPreviewMode } from "@/lib/preview-mode";
 import "./globals.scss";
 
 export const metadata: Metadata = {
@@ -28,18 +29,21 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <ClerkProvider>
-      <html lang="en">
-        <body>
-          {children}
-          <CommandPalette />
-          <ServiceWorkerRegister />
-          <OfflineSync />
-          <OfflineIndicator />
-          <Analytics />
-        </body>
-      </html>
-    </ClerkProvider>
+  const shell = (
+    <html lang="en">
+      <body>
+        {children}
+        <CommandPalette />
+        <ServiceWorkerRegister />
+        <OfflineSync />
+        <OfflineIndicator />
+        <Analytics />
+      </body>
+    </html>
   );
+
+  // Preview builds run without Clerk keys — ClerkProvider would throw at
+  // runtime, so drop it entirely. Pages render a static demo session.
+  if (isPreviewMode()) return shell;
+  return <ClerkProvider>{shell}</ClerkProvider>;
 }

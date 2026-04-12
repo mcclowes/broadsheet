@@ -1,7 +1,6 @@
-import { auth } from "@clerk/nextjs/server";
 import { diffLines } from "diff";
 import { getArticle } from "@/lib/articles";
-import { authedUserId } from "@/lib/auth-types";
+import { getRequestUserId } from "@/lib/preview-mode";
 import { fetchAndParse, IngestError } from "@/lib/ingest";
 import { diffLimiter } from "@/lib/rate-limit";
 
@@ -15,10 +14,8 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { userId: rawUserId } = await auth();
-  if (!rawUserId)
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = authedUserId(rawUserId);
+  const userId = await getRequestUserId();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   if (!/^[a-f0-9]{32}$/.test(id)) {

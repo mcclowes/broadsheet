@@ -1,4 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { isPreviewMode } from "./lib/preview-mode";
 
 const isProtected = createRouteMatcher([
   "/library(.*)",
@@ -8,11 +10,19 @@ const isProtected = createRouteMatcher([
   "/api/sources(.*)",
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
+// In preview mode Clerk isn't provisioned — every request passes through
+// and `getRequestUserId()` returns the demo user instead.
+function previewMiddleware() {
+  return NextResponse.next();
+}
+
+const realMiddleware = clerkMiddleware(async (auth, req) => {
   if (isProtected(req)) {
     await auth.protect();
   }
 });
+
+export default isPreviewMode() ? previewMiddleware : realMiddleware;
 
 export const config = {
   matcher: [

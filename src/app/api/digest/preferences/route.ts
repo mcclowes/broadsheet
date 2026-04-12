@@ -1,14 +1,12 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { getDigestPreferences, setDigestPreferences } from "@/lib/digest";
-import { authedUserId } from "@/lib/auth-types";
+import { getRequestUserId, isPreviewMode } from "@/lib/preview-mode";
 import { checkOrigin } from "@/lib/csrf";
 
 export async function GET() {
-  const { userId: rawUserId } = await auth();
-  if (!rawUserId)
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = authedUserId(rawUserId);
+  const userId = await getRequestUserId();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const prefs = await getDigestPreferences(userId);
   return Response.json(
@@ -26,10 +24,8 @@ export async function PATCH(req: Request) {
   const originError = checkOrigin(req);
   if (originError) return originError;
 
-  const { userId: rawUserId } = await auth();
-  if (!rawUserId)
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = authedUserId(rawUserId);
+  const userId = await getRequestUserId();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: unknown;
   try {
@@ -46,20 +42,26 @@ export async function PATCH(req: Request) {
     );
   }
 
-  // If no email provided, fall back to the user's primary Clerk email
+  // If no email provided, fall back to the user's primary Clerk email.
+  // In preview mode there's no Clerk to ask — use a fixture address so the
+  // digest-enable flow is exercisable.
   let email = parsed.data.email;
   if (!email) {
-    const clerk = await clerkClient();
-    const user = await clerk.users.getUser(userId);
-    const primary = user.emailAddresses.find(
-      (e) => e.id === user.primaryEmailAddressId,
-    );
-    email = primary?.emailAddress;
-    if (!email) {
-      return Response.json(
-        { error: "No email address found on your account" },
-        { status: 400 },
+    if (isPreviewMode()) {
+      email = "demo@broadsheet.preview";
+    } else {
+      const clerk = await clerkClient();
+      const user = await clerk.users.getUser(userId);
+      const primary = user.emailAddresses.find(
+        (e) => e.id === user.primaryEmailAddressId,
       );
+      email = primary?.emailAddress;
+      if (!email) {
+        return Response.json(
+          { error: "No email address found on your account" },
+          { status: 400 },
+        );
+      }
     }
   }
 
