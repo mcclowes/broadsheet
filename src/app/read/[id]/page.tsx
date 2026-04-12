@@ -6,6 +6,7 @@ import { renderMarkdown } from "@/lib/markdown";
 import { ArticleActions } from "./article-actions";
 import { CacheArticle } from "./cache-article";
 import { ScrollNav } from "./scroll-nav";
+import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./read.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +59,12 @@ export default async function ReadPage({
         <h1 className={styles.title}>{article.title}</h1>
         <div className={styles.meta}>
           {article.byline ? <span>{article.byline}</span> : null}
-          {article.source ? <span>{article.source}</span> : null}
+          {article.source ? (
+            <span className={styles.source}>
+              <PublicationIcon url={article.url} size={18} />
+              {article.source}
+            </span>
+          ) : null}
           <span>{article.readMinutes} min read</span>
           <a
             href={article.url}

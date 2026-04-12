@@ -241,6 +241,12 @@
   }
 }
 
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
 .read {
   color: var(--accent);
 }
