@@ -38,15 +38,112 @@ export default async function HomePage() {
   if (!rawUserId) {
     return (
       <main className={styles.landing}>
-        <header className={styles.landingHeader}>
-          <h1 className={styles.landingTitle}>Broadsheet</h1>
-          <div className={styles.auth}>
-            <SignInButton mode="modal" />
+        <header className={styles.landingMasthead}>
+          <div className={styles.landingMastheadTop}>
+            <span className={styles.landingCorner}>Est. 2025</span>
+            <h1 className={styles.landingTitle}>Broadsheet</h1>
+            <div className={styles.auth}>
+              <SignInButton mode="modal" />
+            </div>
           </div>
+          <p className={styles.landingMotto}>
+            &ldquo;All the articles worth reading.&rdquo;
+          </p>
         </header>
-        <section className={styles.tagline}>
-          <p>Save articles. Read them cleanly. Keep them.</p>
+
+        <section className={styles.hero}>
+          <h2 className={styles.heroHeadline}>
+            Your articles, without the noise
+          </h2>
+          <p className={styles.heroSub}>
+            Save articles from across the web. Read them in a clean,
+            distraction-free format. Keep them in your personal library forever.
+          </p>
+          <div className={styles.heroCta}>
+            <SignInButton mode="modal">
+              <button className={styles.ctaButton}>
+                Get started &mdash; it&apos;s free
+              </button>
+            </SignInButton>
+          </div>
         </section>
+
+        <section className={styles.features}>
+          <div className={styles.feature}>
+            <h3 className={styles.featureKicker}>Save</h3>
+            <p className={styles.featureHeadline}>
+              One click from your browser
+            </p>
+            <p className={styles.featureDesc}>
+              The Chrome extension saves any article to your personal library
+              instantly. No copying links, no emailing yourself.
+            </p>
+          </div>
+          <div className={styles.feature}>
+            <h3 className={styles.featureKicker}>Read</h3>
+            <p className={styles.featureHeadline}>Just the words</p>
+            <p className={styles.featureDesc}>
+              Articles are stripped of ads, pop-ups, and clutter. Beautiful
+              typography, clean layout, no distractions.
+            </p>
+          </div>
+          <div className={styles.feature}>
+            <h3 className={styles.featureKicker}>Keep</h3>
+            <p className={styles.featureHeadline}>Your library, forever</p>
+            <p className={styles.featureDesc}>
+              Articles are parsed and stored so they&apos;re always available —
+              even if the original disappears from the web.
+            </p>
+          </div>
+        </section>
+
+        <section className={styles.howItWorks}>
+          <h3 className={styles.sectionRule}>How it works</h3>
+          <ol className={styles.steps}>
+            <li className={styles.step}>
+              <span className={styles.stepNumber}>1</span>
+              <div>
+                <p className={styles.stepTitle}>Install the extension</p>
+                <p className={styles.stepDesc}>
+                  Add the Chrome extension to your browser.
+                </p>
+              </div>
+            </li>
+            <li className={styles.step}>
+              <span className={styles.stepNumber}>2</span>
+              <div>
+                <p className={styles.stepTitle}>Save what you find</p>
+                <p className={styles.stepDesc}>
+                  Click the Broadsheet icon on any article you want to read
+                  later.
+                </p>
+              </div>
+            </li>
+            <li className={styles.step}>
+              <span className={styles.stepNumber}>3</span>
+              <div>
+                <p className={styles.stepTitle}>Read on your terms</p>
+                <p className={styles.stepDesc}>
+                  Open your library anytime. Your articles, cleaned up and
+                  waiting.
+                </p>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section className={styles.bottomCta}>
+          <p className={styles.bottomTagline}>
+            The reading list that respects your attention.
+          </p>
+          <SignInButton mode="modal">
+            <button className={styles.ctaButton}>Start reading</button>
+          </SignInButton>
+        </section>
+
+        <footer className={styles.landingFooter}>
+          <p>Free and open source</p>
+        </footer>
       </main>
     );
   }

@@ -273,8 +273,38 @@ export function extractMetaImage(
   return null;
 }
 
+// Some sites (Docusaurus, Prism, highlight.js) render code blocks as
+// `<pre><code><div class="token-line">…<br></div>…</code></pre>`. Turndown's
+// default fenced rule reads `code.textContent`, which flattens the structure
+// onto a single line (since <br> and block boundaries contribute no newlines
+// to textContent). Flatten the highlighted tree to plain text ourselves,
+// preserving line breaks, so Turndown emits a well-formed fenced block.
+function normalizeHighlightedCodeBlocks(document: Document): void {
+  for (const pre of document.querySelectorAll("pre")) {
+    const code = pre.querySelector("code");
+    if (!code) continue;
+    if (!code.querySelector("div, br, p, span")) continue;
+    const lineContainers = code.querySelectorAll(
+      "div.token-line, .code-line, div[class*='line']",
+    );
+    let text: string;
+    if (lineContainers.length > 0) {
+      text = Array.from(lineContainers)
+        .map((el) => el.textContent ?? "")
+        .join("\n");
+    } else {
+      const html = code.innerHTML.replace(/<br\s*\/?>(\s*)/gi, "\n");
+      const tmp = code.ownerDocument.createElement("div");
+      tmp.innerHTML = html;
+      text = tmp.textContent ?? "";
+    }
+    code.textContent = text;
+  }
+}
+
 export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
   const dom = new JSDOM(html, { url });
+  normalizeHighlightedCodeBlocks(dom.window.document);
   const reader = new Readability(dom.window.document);
   const article = reader.parse();
   if (!article || !article.content) {
