@@ -5,6 +5,7 @@ import { getArticle } from "@/lib/articles";
 import { renderMarkdown } from "@/lib/markdown";
 import { ArticleActions } from "./article-actions";
 import { CacheArticle } from "./cache-article";
+import { QuickActions } from "./quick-actions";
 import styles from "./read.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -80,6 +81,13 @@ export default async function ReadPage({
       <article
         className="reader-body"
         dangerouslySetInnerHTML={{ __html: html }}
+      />
+
+      <QuickActions
+        articleId={article.id}
+        articleUrl={article.url}
+        initialArchived={article.archivedAt !== null}
+        initialRead={article.readAt !== null}
       />
     </main>
   );
