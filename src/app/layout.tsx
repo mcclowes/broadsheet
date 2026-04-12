@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { ServiceWorkerRegister } from "./components/service-worker-register";
 import { OfflineSync } from "./components/offline-sync";
 import { OfflineIndicator } from "./components/offline-indicator";
+import { CommandPalette } from "./components/command-palette";
 import "./globals.scss";
 
 export const metadata: Metadata = {
@@ -31,6 +32,7 @@ export default function RootLayout({
       <html lang="en">
         <body>
           {children}
+          <CommandPalette />
           <ServiceWorkerRegister />
           <OfflineSync />
           <OfflineIndicator />
