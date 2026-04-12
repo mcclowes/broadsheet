@@ -3,6 +3,8 @@ import { z } from "zod";
 import type { Volume } from "folio-db-next";
 import { getFolio, volumeNameForUser } from "./folio";
 import { estimateReadMinutes, type ParsedArticle } from "./ingest";
+import type { Highlight } from "./highlights";
+import type { Annotation } from "./annotations";
 
 const TRACKING_PARAM_PATTERNS = [
   /^utm_/i,
@@ -61,6 +63,8 @@ export type ArticleFrontmatter = {
   readAt: string | null;
   archivedAt: string | null;
   tags: string[];
+  highlights: Highlight[];
+  annotations: Annotation[];
   [key: string]: unknown;
 };
 
@@ -78,6 +82,28 @@ export const articleFrontmatterSchema: z.ZodType<ArticleFrontmatter> = z.object(
     readAt: z.string().nullable(),
     archivedAt: z.string().nullable().default(null),
     tags: z.array(z.string()).default([]),
+    highlights: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          text: z.string().min(1),
+          startOffset: z.number().int().nonnegative(),
+          endOffset: z.number().int().positive(),
+          createdAt: z.string(),
+        }),
+      )
+      .default([]),
+    annotations: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          body: z.string().min(1),
+          highlightId: z.string().nullable(),
+          createdAt: z.string(),
+          updatedAt: z.string(),
+        }),
+      )
+      .default([]),
   },
 ) as unknown as z.ZodType<ArticleFrontmatter>;
 
@@ -129,6 +155,8 @@ export async function saveArticle(
     readAt: null,
     archivedAt: null,
     tags: [],
+    highlights: [],
+    annotations: [],
   };
   await volume.set(id, { frontmatter, body: parsed.markdown });
   return { id, ...frontmatter };

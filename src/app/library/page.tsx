@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import { listArticles, type LibraryView, type ReadState } from "@/lib/articles";
 import { SaveForm } from "./save-form";
+import { SearchForm } from "./search-form";
 import styles from "./library.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -98,7 +99,14 @@ export default async function LibraryPage({
 
       <SaveForm />
 
+      <SearchForm />
+
       <nav className={styles.filters} aria-label="Library filters">
+        <div className={styles.filterGroup}>
+          <Link href="/collections" className={styles.filter}>
+            Collections
+          </Link>
+        </div>
         <div className={styles.filterGroup}>
           <Link
             href={filterLink(current, { view: "inbox" })}

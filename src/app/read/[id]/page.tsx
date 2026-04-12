@@ -3,7 +3,12 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
 import { renderMarkdown } from "@/lib/markdown";
+import { listHighlights } from "@/lib/highlights";
+import { listAnnotations } from "@/lib/annotations";
+import { listCollectionsForArticle } from "@/lib/collections";
 import { ArticleActions } from "./article-actions";
+import { ReaderFeatures } from "./reader-features";
+import { CollectionPicker } from "./collection-picker";
 import styles from "./read.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +24,12 @@ export default async function ReadPage({
   const { id } = await params;
   const article = await getArticle(userId, id);
   if (!article) notFound();
+
+  const [highlights, annotations, articleCollections] = await Promise.all([
+    listHighlights(userId, id),
+    listAnnotations(userId, id),
+    listCollectionsForArticle(userId, id),
+  ]);
 
   const html = renderMarkdown(article.body);
 
@@ -51,11 +62,21 @@ export default async function ReadPage({
           initialArchived={article.archivedAt !== null}
           initialRead={article.readAt !== null}
         />
+        <CollectionPicker
+          articleId={article.id}
+          initialCollections={articleCollections.map((c) => ({
+            id: c.id,
+            name: c.name,
+          }))}
+        />
       </header>
 
-      <article
-        className="reader-body"
-        dangerouslySetInnerHTML={{ __html: html }}
+      <ReaderFeatures
+        articleId={article.id}
+        articleBody={article.body}
+        html={html}
+        initialHighlights={highlights}
+        initialAnnotations={annotations}
       />
     </main>
   );

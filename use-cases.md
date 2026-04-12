@@ -12,6 +12,7 @@ What professional personas would use a read-it-later tool seriously enough to pa
 Save papers, blog posts, pre-prints, and grey literature. Organize by research question, not just recency.
 
 **Key needs:**
+
 - Highlight and save specific passages (quotes, data points, key claims)
 - Annotate with interpretation, critique, or links to related work
 - Organize by project or paper — tags alone aren't enough; they want collections scoped to a research question
@@ -27,6 +28,7 @@ Save papers, blog posts, pre-prints, and grey literature. Organize by research q
 Source tracking during active reporting. Save-and-quote under time pressure.
 
 **Key needs:**
+
 - Source tracking — save an article, highlight a claim, annotate "confirmed by X on Y date"
 - Story folders — group everything related to an investigation or beat
 - Quick clip — grab a quote while skimming, return to it during writing
@@ -42,6 +44,7 @@ Source tracking during active reporting. Save-and-quote under time pressure.
 Think-tank researchers, competitive intelligence, investor research. Monitor a topic over time and distill it.
 
 **Key needs:**
+
 - Topic monitoring — save articles on a theme, track how a narrative or dataset evolves
 - Key data extraction — highlight specific stats, forecasts, or claims to build briefing docs
 - Shared collections — team members contribute to and consume a shared reading list
@@ -57,6 +60,7 @@ Think-tank researchers, competitive intelligence, investor research. Monitor a t
 Lighter version of the researcher persona. Driven by coursework and deadlines.
 
 **Key needs:**
+
 - Course reading lists — organized by class, week, or assignment
 - Exam prep — highlight key passages, review highlights later as a study aid
 - Citation export for essays and papers
@@ -71,6 +75,7 @@ Lighter version of the researcher persona. Driven by coursework and deadlines.
 Curators who read widely and reference what they've read in their own output.
 
 **Key needs:**
+
 - Inspiration queue — save articles they might reference or riff on
 - Quote bank — pull specific passages to cite or link in their writing
 - Organize by output — "articles for next week's newsletter" as a collection
@@ -85,6 +90,7 @@ Curators who read widely and reference what they've read in their own output.
 Case research, regulatory tracking, and opinion monitoring. Precision and confidentiality matter.
 
 **Key needs:**
+
 - Case-organized research — save articles, commentary, and analysis grouped by matter
 - Precise quoting — exact passage preservation; paraphrasing isn't acceptable in legal work
 - Annotation with privileged notes — security and privacy of notes is non-negotiable
@@ -99,15 +105,15 @@ Case research, regulatory tracking, and opinion monitoring. Precision and confid
 
 Features ranked by how many professional personas need them and at what intensity.
 
-| Feature | Researchers | Journalists | Analysts | Students | Creators | Legal |
-|---|---|---|---|---|---|---|
-| **Highlights** | Must | Must | Must | Must | Must | Must |
-| **Annotations / notes** | Must | Must | Should | Nice | Nice | Must |
-| **Collections / projects** | Must | Must | Must | Should | Should | Must |
-| **Full-text search** | Must | Must | Must | Should | Nice | Must |
-| **Export (quotes + citations)** | Must | Should | Should | Must | Nice | Should |
-| **Shared collections** | Nice | Nice | Must | Nice | Nice | Nice |
-| **Audit trail / versioning** | Nice | Should | Nice | — | — | Must |
+| Feature                         | Researchers | Journalists | Analysts | Students | Creators | Legal  |
+| ------------------------------- | ----------- | ----------- | -------- | -------- | -------- | ------ |
+| **Highlights**                  | Must        | Must        | Must     | Must     | Must     | Must   |
+| **Annotations / notes**         | Must        | Must        | Should   | Nice     | Nice     | Must   |
+| **Collections / projects**      | Must        | Must        | Must     | Should   | Should   | Must   |
+| **Full-text search**            | Must        | Must        | Must     | Should   | Nice     | Must   |
+| **Export (quotes + citations)** | Must        | Should      | Should   | Must     | Nice     | Should |
+| **Shared collections**          | Nice        | Nice        | Must     | Nice     | Nice     | Nice   |
+| **Audit trail / versioning**    | Nice        | Should      | Nice     | —        | —        | Must   |
 
 ### Reading the matrix
 

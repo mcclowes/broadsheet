@@ -24,6 +24,8 @@ function make(
     readAt: null,
     archivedAt: null,
     tags: [],
+    highlights: [],
+    annotations: [],
     ...overrides,
   };
 }
