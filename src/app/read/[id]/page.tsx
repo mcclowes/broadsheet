@@ -33,7 +33,12 @@ export default async function ReadPage({
   const { id } = await params;
   const { from } = await searchParams;
   const backHref = from?.startsWith("/library") ? from : "/library";
-  let article = await getArticle(userId, id);
+  const [articleResult, highlights, unanchoredHighlights] = await Promise.all([
+    getArticle(userId, id),
+    listHighlights(userId, id),
+    listUnanchoredHighlights(userId, id),
+  ]);
+  let article = articleResult;
   if (!article) notFound();
 
   let rehydrateError: string | null = null;
@@ -56,14 +61,7 @@ export default async function ReadPage({
     }
   }
 
-  // Body stores the article as markdown (per the PRD); render via
-  // marked → DOMPurify at request time.
   const html = renderMarkdown(article.body);
-  const highlights = await listHighlights(userId, article.id);
-  const unanchoredHighlights = await listUnanchoredHighlights(
-    userId,
-    article.id,
-  );
 
   return (
     <main className={styles.main}>
