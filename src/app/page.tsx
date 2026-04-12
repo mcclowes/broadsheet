@@ -2,6 +2,13 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { SignInButton, UserButton } from "@clerk/nextjs";
 import { listArticles, type ArticleSummary } from "@/lib/articles";
+import {
+  generatePoem,
+  generateWordScrambles,
+  generateQuiz,
+} from "@/lib/diversions";
+import { WordGame } from "./components/word-game";
+import { MiniQuiz } from "./components/mini-quiz";
 import styles from "./page.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -145,8 +152,45 @@ export default async function HomePage() {
               </ul>
             </section>
           ) : null}
+
+          {storyCount >= 10 ? <Diversions articles={articles} /> : null}
         </>
       )}
     </main>
+  );
+}
+
+function Diversions({ articles }: { articles: ArticleSummary[] }) {
+  const poem = generatePoem(articles);
+  const scrambles = generateWordScrambles(articles);
+  const quiz = generateQuiz(articles);
+
+  return (
+    <section className={styles.diversions}>
+      <h4 className={styles.diversionsTitle}>Diversions</h4>
+      <div className={styles.diversionsGrid}>
+        <div className={styles.diversionCard}>
+          <h4 className={styles.diversionTitle}>{poem.title}</h4>
+          <p className={styles.diversionIntro}>
+            Composed from today&rsquo;s headlines.
+          </p>
+          <ul className={styles.poemLines}>
+            {poem.lines.map((line, i) =>
+              line === "" ? (
+                <li key={i} className={styles.poemBreak} aria-hidden="true" />
+              ) : (
+                <li key={i} className={styles.poemLine}>
+                  {line}
+                </li>
+              ),
+            )}
+          </ul>
+        </div>
+
+        {scrambles.length > 0 ? <WordGame scrambles={scrambles} /> : null}
+
+        {quiz.length > 0 ? <MiniQuiz questions={quiz} /> : null}
+      </div>
+    </section>
   );
 }
