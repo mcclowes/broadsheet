@@ -8,6 +8,7 @@ import {
   type LibraryView,
   type ReadState,
 } from "@/lib/articles";
+import { authedUserId } from "@/lib/auth-types";
 import { SaveForm } from "./save-form";
 import { DigestToggle } from "./digest-toggle";
 import { CacheLibrary } from "./cache-library";
@@ -70,8 +71,9 @@ export default async function LibraryPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId) redirect("/sign-in");
+  const userId = authedUserId(rawUserId);
 
   const sp = await searchParams;
   const view = parseView(sp.view);

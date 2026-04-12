@@ -1,6 +1,7 @@
 import { createHash, createHmac } from "node:crypto";
 import { z } from "zod";
 import type { Volume } from "folio-db-next";
+import type { AuthedUserId } from "./auth-types";
 import { getFolio, DIGEST_REGISTRY_VOLUME } from "./folio";
 
 // ── Preferences schema ──────────────────────────────────────────────
@@ -43,7 +44,7 @@ function slugForUser(userId: string): string {
 // ── Read / write ────────────────────────────────────────────────────
 
 export async function getDigestPreferences(
-  userId: string,
+  userId: AuthedUserId,
 ): Promise<DigestPreferences> {
   const page = await registryVolume().get(slugForUser(userId));
   if (!page) return { enabled: false, email: "", enabledAt: null };
@@ -55,7 +56,7 @@ export async function getDigestPreferences(
 }
 
 export async function setDigestPreferences(
-  userId: string,
+  userId: AuthedUserId,
   opts: { enabled: boolean; email: string },
 ): Promise<DigestPreferences> {
   const slug = slugForUser(userId);

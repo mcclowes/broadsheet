@@ -12,11 +12,12 @@ import {
   setArchived,
   setTags,
 } from "./articles";
+import { authedUserId, type AuthedUserId } from "./auth-types";
 import type { ParsedArticle } from "./ingest";
 import { getFolio, volumeNameForUser } from "./folio";
 
-const USER = "user_test_crud_alice";
-const OTHER = "user_test_crud_bob";
+const USER = authedUserId("user_test_crud_alice");
+const OTHER = authedUserId("user_test_crud_bob");
 
 function makeParsed(overrides: Partial<ParsedArticle> = {}): ParsedArticle {
   return {
@@ -32,7 +33,7 @@ function makeParsed(overrides: Partial<ParsedArticle> = {}): ParsedArticle {
   };
 }
 
-async function clearVolume(userId: string): Promise<void> {
+async function clearVolume(userId: AuthedUserId): Promise<void> {
   const volume = getFolio().volume(volumeNameForUser(userId));
   const pages = await volume.list();
   for (const p of pages) {

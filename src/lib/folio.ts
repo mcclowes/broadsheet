@@ -3,6 +3,7 @@ import { createFolio, Folio, type StorageAdapter } from "folio-db-next";
 import { MemoryAdapter } from "folio-db-next/adapters/memory";
 import { FsAdapter } from "folio-db-next/adapters/fs";
 import { VercelBlobAdapter } from "folio-db-next/adapters/blob";
+import type { AuthedUserId } from "./auth-types";
 
 let adapter: StorageAdapter | null = null;
 let folio: Folio | null = null;
@@ -49,7 +50,10 @@ export function getFolio(): Folio {
 // - Article IDs (articleIdForUrl): 32 hex chars (128 bits) — tighter budget
 //   because one user may store thousands of URLs.
 // Both use SHA-256 so the full hash is always available if we need to widen.
-export function volumeNameForUser(userId: string, suffix?: string): string {
+export function volumeNameForUser(
+  userId: AuthedUserId,
+  suffix?: string,
+): string {
   const hex = createHash("sha256").update(userId).digest("hex").slice(0, 24);
   const base = `user-${hex}`;
   if (!suffix) return base;

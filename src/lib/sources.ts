@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Volume } from "folio-db-next";
+import type { AuthedUserId } from "./auth-types";
 import { getFolio, volumeNameForUser } from "./folio";
 import { canonicalizeUrl } from "./articles";
 import {
@@ -41,14 +42,14 @@ export function sourceIdForFeedUrl(feedUrl: string): string {
   return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
 }
 
-function userVolume(userId: string): Volume<SourceFrontmatter> {
+function userVolume(userId: AuthedUserId): Volume<SourceFrontmatter> {
   return getFolio().volume<SourceFrontmatter>(
     volumeNameForUser(userId, "sources"),
     { schema: sourceFrontmatterSchema },
   );
 }
 
-export async function listSources(userId: string): Promise<Source[]> {
+export async function listSources(userId: AuthedUserId): Promise<Source[]> {
   const pages = await userVolume(userId).list();
   return pages
     .map((p) => ({ id: p.slug, ...p.frontmatter }))
@@ -56,7 +57,7 @@ export async function listSources(userId: string): Promise<Source[]> {
 }
 
 export async function getSource(
-  userId: string,
+  userId: AuthedUserId,
   id: string,
 ): Promise<Source | null> {
   const page = await userVolume(userId).get(id);
@@ -75,7 +76,7 @@ export interface AddSourceResult {
  * keyed on the canonical feed URL.
  */
 export async function addSource(
-  userId: string,
+  userId: AuthedUserId,
   inputUrl: string,
 ): Promise<AddSourceResult> {
   const discovered = await discoverFeed(inputUrl);
@@ -110,7 +111,7 @@ export async function addSource(
 }
 
 export async function removeSource(
-  userId: string,
+  userId: AuthedUserId,
   id: string,
 ): Promise<boolean> {
   const volume = userVolume(userId);
@@ -137,7 +138,7 @@ interface CacheEntry {
 
 const feedCache = new Map<string, CacheEntry>();
 
-function cacheKey(userId: string, sourceId: string): string {
+function cacheKey(userId: AuthedUserId, sourceId: string): string {
   return `${userId}:${sourceId}`;
 }
 
@@ -154,7 +155,7 @@ export interface FetchedFeedItems {
 }
 
 export async function fetchSourceItems(
-  userId: string,
+  userId: AuthedUserId,
   source: Source,
   opts: { force?: boolean } = {},
 ): Promise<FetchedFeedItems> {
@@ -241,7 +242,7 @@ export interface UnifiedFeedResult {
  * interleaved list of items. Per-source errors are collected, not thrown.
  */
 export async function fetchUnifiedFeed(
-  userId: string,
+  userId: AuthedUserId,
   limit = 60,
 ): Promise<UnifiedFeedResult> {
   const sources = await listSources(userId);

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
+import { authedUserId } from "@/lib/auth-types";
 import { DiffViewer } from "./diff-viewer";
 import styles from "./diff.module.scss";
 
@@ -12,8 +13,9 @@ export default async function DiffPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId) redirect("/sign-in");
+  const userId = authedUserId(rawUserId);
 
   const { id } = await params;
   const article = await getArticle(userId, id);

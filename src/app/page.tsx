@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { SignInButton, UserButton } from "@clerk/nextjs";
 import { listArticles, type ArticleSummary } from "@/lib/articles";
+import { authedUserId } from "@/lib/auth-types";
 import styles from "./page.module.scss";
 
 // No force-dynamic needed — auth() already makes this page dynamic.
@@ -32,9 +33,9 @@ function storyMeta(a: ArticleSummary): string {
 }
 
 export default async function HomePage() {
-  const { userId } = await auth();
+  const { userId: rawUserId } = await auth();
 
-  if (!userId) {
+  if (!rawUserId) {
     return (
       <main className={styles.landing}>
         <header className={styles.landingHeader}>
@@ -50,6 +51,7 @@ export default async function HomePage() {
     );
   }
 
+  const userId = authedUserId(rawUserId);
   const articles = await listArticles(userId, { view: "inbox", limit: 17 });
   const lead = articles[0];
   const secondary = articles.slice(1, 5);

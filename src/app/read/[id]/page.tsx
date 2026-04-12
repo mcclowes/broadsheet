@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
+import { authedUserId } from "@/lib/auth-types";
 import { renderMarkdown } from "@/lib/markdown";
 import { ArticleActions } from "./article-actions";
 import { ReadTracker } from "./read-tracker";
@@ -19,8 +20,9 @@ export default async function ReadPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId) redirect("/sign-in");
+  const userId = authedUserId(rawUserId);
 
   const { id } = await params;
   const article = await getArticle(userId, id);
