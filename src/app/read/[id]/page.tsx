@@ -5,6 +5,7 @@ import { getArticle } from "@/lib/articles";
 import { renderMarkdown } from "@/lib/markdown";
 import { ArticleActions } from "./article-actions";
 import { CacheArticle } from "./cache-article";
+import { ReadingProgress } from "./reading-progress";
 import { QuickActions } from "./quick-actions";
 import { ScrollNav } from "./scroll-nav";
 import { PublicationIcon } from "@/components/publication-icon";
@@ -28,6 +29,7 @@ export default async function ReadPage({
 
   return (
     <main className={styles.main}>
+      <ReadingProgress />
       <CacheArticle
         article={{
           id: article.id,
