@@ -3,10 +3,29 @@ import { createFolio, Folio, type StorageAdapter } from "folio-db-next";
 import { MemoryAdapter } from "folio-db-next/adapters/memory";
 import { FsAdapter } from "folio-db-next/adapters/fs";
 import { VercelBlobAdapter } from "folio-db-next/adapters/blob";
+import { NoopListCache, type ListCache } from "folio-db-next";
+import { RuntimeListCache } from "folio-db-next/caches/runtime";
 import type { AuthedUserId } from "./auth-types";
 
 let adapter: StorageAdapter | null = null;
 let folio: Folio | null = null;
+let listCache: ListCache | null = null;
+
+// Shared per-process list cache. Backed by Vercel Runtime Cache in
+// production (where BLOB_READ_WRITE_TOKEN is set); no-op under the
+// memory/fs adapters used by tests and local dev so we don't pay cache
+// round-trips against in-memory state. Safe to share across all user
+// volumes — the cache keys by volume name internally. Invalidated by Folio
+// on writes via tag expiry.
+export function getListCache(): ListCache {
+  if (listCache) return listCache;
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    listCache = new RuntimeListCache();
+  } else {
+    listCache = new NoopListCache();
+  }
+  return listCache;
+}
 
 function resolveAdapter(): StorageAdapter {
   if (adapter) return adapter;

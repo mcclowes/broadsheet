@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { ConflictError, type Volume } from "folio-db-next";
 import type { AuthedUserId } from "./auth-types";
-import { getFolio, volumeNameForUser } from "./folio";
+import { getFolio, getListCache, volumeNameForUser } from "./folio";
 import {
   estimateReadMinutes,
   MAX_USER_HTML_BYTES,
@@ -116,12 +116,9 @@ function domainOf(url: string): string | null {
   }
 }
 
-// NOTE: This function has a check-then-act race condition. Two concurrent
-// saves for the same URL can both see `existing === null` and proceed to
-// write. With Folio's unconditional upsert, the second write wins silently.
-// This is acceptable for now (both writes produce equivalent content from
-// the same URL), but a proper fix requires a `setIfAbsent` primitive in
-// Folio — logged in FOLIO-TRACKER.md.
+// Atomic create via folio-db-next@0.2.0 `setIfAbsent`. On ConflictError, an
+// earlier save for the same URL already landed — return that one so the
+// caller treats "already saved" identically to "just saved".
 export async function saveArticle(
   userId: AuthedUserId,
   url: string,
@@ -130,10 +127,6 @@ export async function saveArticle(
   const canonicalUrl = canonicalizeUrl(url);
   const id = articleIdForUrl(canonicalUrl);
   const volume = userVolume(userId);
-  const existing = await volume.get(id);
-  if (existing) {
-    return { id, ...existing.frontmatter };
-  }
   const frontmatter: ArticleFrontmatter = {
     title: parsed.title,
     url: canonicalUrl,
@@ -149,8 +142,15 @@ export async function saveArticle(
     archivedAt: null,
     tags: generateTags(parsed),
   };
-  await volume.set(id, { frontmatter, body: parsed.markdown });
-  return { id, ...frontmatter };
+  try {
+    await volume.setIfAbsent(id, { frontmatter, body: parsed.markdown });
+    return { id, ...frontmatter };
+  } catch (err) {
+    if (!(err instanceof ConflictError)) throw err;
+    const existing = await volume.get(id);
+    if (!existing) throw err; // deleted between our conflict and our re-read
+    return { id, ...existing.frontmatter };
+  }
 }
 
 export interface ArticleStubInput {
@@ -169,8 +169,6 @@ export async function saveArticleStub(
   const canonicalUrl = canonicalizeUrl(input.url);
   const id = articleIdForUrl(canonicalUrl);
   const volume = userVolume(userId);
-  const existing = await volume.get(id);
-  if (existing) return { id, created: false };
   const frontmatter: ArticleFrontmatter = {
     title: input.title,
     url: canonicalUrl,
@@ -188,8 +186,13 @@ export async function saveArticleStub(
     pendingIngest: true,
     importedFrom: input.importedFrom,
   };
-  await volume.set(id, { frontmatter, body: "" });
-  return { id, created: true };
+  try {
+    await volume.setIfAbsent(id, { frontmatter, body: "" });
+    return { id, created: true };
+  } catch (err) {
+    if (!(err instanceof ConflictError)) throw err;
+    return { id, created: false };
+  }
 }
 
 export async function rehydrateArticle(
@@ -318,9 +321,13 @@ export async function listArticles(
   userId: AuthedUserId,
   filters: ListFilters = {},
 ): Promise<ArticleSummary[]> {
-  const pages = await userVolume(userId).list();
-  const all = pages
-    .map((p) => ({ id: p.slug, ...p.frontmatter }))
+  // Frontmatter-only: library views only ever read the summary fields, so
+  // hydrating article bodies here is pure waste. Served from RuntimeListCache
+  // on hit; rebuilt from the adapter on miss. Writes invalidate the cache
+  // automatically via Folio's onEvent pipeline.
+  const entries = await userVolume(userId).list({ fields: "frontmatter" });
+  const all = entries
+    .map((e) => ({ id: e.slug, ...e.frontmatter }))
     .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
   const filtered = filterArticles(all, filters);
   return filters.limit ? filtered.slice(0, filters.limit) : filtered;
