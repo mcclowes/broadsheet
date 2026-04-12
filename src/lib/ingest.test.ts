@@ -98,6 +98,67 @@ describe("parseArticleFromHtml", () => {
     );
   });
 
+  it("preserves newlines in <pre> blocks without <code>", () => {
+    const preHtml = `<!doctype html>
+<html><head><title>Poem</title></head>
+<body><article>
+<h1>Poem</h1>
+<p>A paragraph before the poem with enough content to satisfy the readability heuristic for article extraction.</p>
+<pre>line one
+                  line two
+line three</pre>
+<p>A paragraph after the poem with more content to keep the readability algorithm happy about extraction.</p>
+</article></body></html>`;
+    const parsed = parseArticleFromHtml(preHtml, "https://example.com/poem");
+    expect(parsed.markdown).toContain("```\nline one\n");
+    expect(parsed.markdown).toContain("                  line two\n");
+    expect(parsed.markdown).toContain("line three\n```");
+  });
+
+  it("preserves <pre><code> blocks unchanged", () => {
+    const codeHtml = `<!doctype html>
+<html><head><title>Code</title></head>
+<body><article>
+<h1>Code</h1>
+<p>A paragraph before the code with enough content to satisfy the readability heuristic for article extraction.</p>
+<pre><code>const x = 1;
+const y = 2;</code></pre>
+<p>A paragraph after the code with more content to keep the readability algorithm happy about extraction.</p>
+</article></body></html>`;
+    const parsed = parseArticleFromHtml(codeHtml, "https://example.com/code");
+    expect(parsed.markdown).toContain("```\nconst x = 1;\nconst y = 2;\n```");
+  });
+
+  it("preserves images with absolute src", () => {
+    const imgHtml = `<!doctype html>
+<html><head><title>Images</title></head>
+<body><article>
+<h1>Images</h1>
+<p>A paragraph with enough content to satisfy the readability heuristic for article extraction and keep the parser happy.</p>
+<img src="https://cdn.example.com/photo.jpg" alt="A photo">
+<p>Another paragraph with enough content to keep the readability algorithm happy about extraction of this article.</p>
+</article></body></html>`;
+    const parsed = parseArticleFromHtml(imgHtml, "https://example.com/images");
+    expect(parsed.markdown).toContain(
+      "![A photo](https://cdn.example.com/photo.jpg)",
+    );
+  });
+
+  it("resolves lazy-loaded images with data-src", () => {
+    const lazyHtml = `<!doctype html>
+<html><head><title>Lazy</title></head>
+<body><article>
+<h1>Lazy images</h1>
+<p>A paragraph with enough content to satisfy the readability heuristic for article extraction and keep the parser happy.</p>
+<img src="" data-src="/images/lazy.jpg" alt="Lazy photo">
+<p>Another paragraph with enough content to keep the readability algorithm happy about extraction of this article.</p>
+</article></body></html>`;
+    const parsed = parseArticleFromHtml(lazyHtml, "https://example.com/lazy");
+    expect(parsed.markdown).toContain(
+      "![Lazy photo](https://example.com/images/lazy.jpg)",
+    );
+  });
+
   it("throws IngestError when no readable content is found", () => {
     const empty = "<!doctype html><html><body></body></html>";
     expect(() => parseArticleFromHtml(empty, "https://example.com")).toThrow(
