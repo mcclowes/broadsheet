@@ -108,6 +108,94 @@ describe("parseFeedXml", () => {
     expect(() => parseFeedXml("", "https://x.example")).toThrow(IngestError);
   });
 
+  it("falls back to <updated> when <published> is missing in Atom", () => {
+    const atomUpdated = `<?xml version="1.0" encoding="UTF-8"?>
+      <feed xmlns="http://www.w3.org/2005/Atom">
+        <title>Updated-only blog</title>
+        <link rel="alternate" href="https://upd.example/" />
+        <entry>
+          <title>Updated entry</title>
+          <link rel="alternate" href="https://upd.example/posts/1" />
+          <updated>2026-04-11T08:00:00Z</updated>
+          <summary>Has updated but no published.</summary>
+        </entry>
+      </feed>`;
+    const feed = parseFeedXml(atomUpdated, "https://upd.example/feed.xml");
+    expect(feed.items).toHaveLength(1);
+    expect(feed.items[0].publishedAt).toBe("2026-04-11T08:00:00.000Z");
+  });
+
+  it("returns null publishedAt when neither published nor updated exist in Atom", () => {
+    const atomNoDates = `<?xml version="1.0" encoding="UTF-8"?>
+      <feed xmlns="http://www.w3.org/2005/Atom">
+        <title>No-date blog</title>
+        <link rel="alternate" href="https://nd.example/" />
+        <entry>
+          <title>Dateless entry</title>
+          <link rel="alternate" href="https://nd.example/posts/1" />
+          <summary>No dates at all.</summary>
+        </entry>
+      </feed>`;
+    const feed = parseFeedXml(atomNoDates, "https://nd.example/feed.xml");
+    expect(feed.items[0].publishedAt).toBeNull();
+  });
+
+  it("parses Atom entry with content instead of summary", () => {
+    const atomContent = `<?xml version="1.0" encoding="UTF-8"?>
+      <feed xmlns="http://www.w3.org/2005/Atom">
+        <title>Content blog</title>
+        <link rel="alternate" href="https://cnt.example/" />
+        <entry>
+          <title>Content entry</title>
+          <link rel="alternate" href="https://cnt.example/posts/1" />
+          <content type="text">Full body text here.</content>
+        </entry>
+      </feed>`;
+    const feed = parseFeedXml(atomContent, "https://cnt.example/feed.xml");
+    expect(feed.items[0].excerpt).toBe("Full body text here.");
+  });
+
+  it("handles RSS items with no pubDate", () => {
+    const rssNoDate = `<?xml version="1.0"?>
+      <rss version="2.0">
+        <channel>
+          <title>No-date RSS</title>
+          <link>https://nd.example/</link>
+          <item>
+            <title>Dateless item</title>
+            <link>https://nd.example/a</link>
+          </item>
+        </channel>
+      </rss>`;
+    const feed = parseFeedXml(rssNoDate, "https://nd.example/feed");
+    expect(feed.items[0].publishedAt).toBeNull();
+  });
+
+  it("strips HTML from RSS description excerpts", () => {
+    const rssHtml = `<?xml version="1.0"?>
+      <rss version="2.0">
+        <channel>
+          <title>HTML desc</title>
+          <link>https://hd.example/</link>
+          <item>
+            <title>HTML item</title>
+            <link>https://hd.example/a</link>
+            <description>&lt;p&gt;Some &lt;strong&gt;bold&lt;/strong&gt; text.&lt;/p&gt;</description>
+          </item>
+        </channel>
+      </rss>`;
+    const feed = parseFeedXml(rssHtml, "https://hd.example/feed");
+    expect(feed.items[0].excerpt).toBe("Some bold text.");
+  });
+
+  it("handles well-formed feed with zero items", () => {
+    const emptyFeed = `<?xml version="1.0"?>
+      <rss version="2.0"><channel><title>Empty</title><link>https://e.example/</link></channel></rss>`;
+    const feed = parseFeedXml(emptyFeed, "https://e.example/feed");
+    expect(feed.title).toBe("Empty");
+    expect(feed.items).toEqual([]);
+  });
+
   it("truncates very long excerpts", () => {
     const long = "word ".repeat(200);
     const xml = `<?xml version="1.0"?>
@@ -138,6 +226,23 @@ describe("extractFeedLinksFromHtml", () => {
 
   it("returns an empty array when there are no feed links", () => {
     const html = `<html><head></head><body></body></html>`;
+    expect(extractFeedLinksFromHtml(html, "https://x.example")).toEqual([]);
+  });
+
+  it("prefers Atom links over RSS links", () => {
+    const html = `<!doctype html><html><head>
+      <link rel="alternate" type="application/rss+xml" href="/rss.xml" />
+      <link rel="alternate" type="application/atom+xml" href="/atom.xml" />
+      </head><body></body></html>`;
+    const links = extractFeedLinksFromHtml(html, "https://site.example/");
+    expect(links[0]).toBe("https://site.example/atom.xml");
+    expect(links[1]).toBe("https://site.example/rss.xml");
+  });
+
+  it("ignores links without type attribute", () => {
+    const html = `<!doctype html><html><head>
+      <link rel="alternate" href="/feed.xml" />
+      </head><body></body></html>`;
     expect(extractFeedLinksFromHtml(html, "https://x.example")).toEqual([]);
   });
 });

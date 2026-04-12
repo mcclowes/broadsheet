@@ -59,6 +59,97 @@ describe("renderMarkdown", () => {
     expect(html).toContain("<td>A+</td>");
   });
 
+  it("renders fenced code blocks", () => {
+    const html = renderMarkdown("```js\nconsole.log('hi');\n```");
+    expect(html).toContain("<pre>");
+    expect(html).toContain("<code>");
+    expect(html).toContain("console.log");
+  });
+
+  it("renders inline code", () => {
+    const html = renderMarkdown("Use `npm install` to install.");
+    expect(html).toContain("<code>npm install</code>");
+  });
+
+  it("renders blockquotes", () => {
+    const html = renderMarkdown("> This is a quote.");
+    expect(html).toContain("<blockquote>");
+    expect(html).toContain("This is a quote.");
+  });
+
+  it("renders unordered lists", () => {
+    const html = renderMarkdown("- one\n- two\n- three");
+    expect(html).toContain("<ul>");
+    expect(html).toContain("<li>one</li>");
+    expect(html).toContain("<li>two</li>");
+  });
+
+  it("renders ordered lists", () => {
+    const html = renderMarkdown("1. first\n2. second");
+    expect(html).toContain("<ol>");
+    expect(html).toContain("<li>first</li>");
+  });
+
+  it("renders horizontal rules", () => {
+    const html = renderMarkdown("Above\n\n---\n\nBelow");
+    expect(html).toContain("<hr>");
+  });
+
+  it("renders emphasis and strong", () => {
+    const html = renderMarkdown("*italic* and **bold**");
+    expect(html).toContain("<em>italic</em>");
+    expect(html).toContain("<strong>bold</strong>");
+  });
+
+  it("handles empty input", () => {
+    const html = renderMarkdown("");
+    expect(html).toBe("");
+  });
+
+  it("strips <form> tags", () => {
+    const html = renderMarkdown(
+      '<form action="/submit"><input type="text" /></form>',
+    );
+    expect(html).not.toContain("<form");
+    expect(html).not.toContain("<input");
+  });
+
+  it("strips <object> and <embed> tags", () => {
+    const html = renderMarkdown(
+      '<object data="evil.swf"></object><embed src="evil.swf" />',
+    );
+    expect(html).not.toContain("<object");
+    expect(html).not.toContain("<embed");
+  });
+
+  it("strips data: URIs from links", () => {
+    const html = renderMarkdown(
+      "[click](data:text/html,<script>alert(1)</script>)",
+    );
+    expect(html).not.toMatch(/href\s*=\s*["']?data:/i);
+  });
+
+  it("strips SVG-based XSS", () => {
+    const html = renderMarkdown(
+      '<svg onload="alert(1)"><circle r="10"/></svg>',
+    );
+    expect(html).not.toContain("<svg");
+    expect(html).not.toContain("onload");
+  });
+
+  it("strips <style> tags", () => {
+    const html = renderMarkdown("<style>body { display: none }</style>Hello");
+    expect(html).not.toContain("<style");
+    expect(html).not.toContain("display");
+  });
+
+  it("strips <meta> tags", () => {
+    const html = renderMarkdown(
+      '<meta http-equiv="refresh" content="0;url=evil">',
+    );
+    expect(html).not.toContain("<meta");
+  });
+
   it("preserves raw html tables with colspan/rowspan/scope", () => {
     const html = renderMarkdown(
       [

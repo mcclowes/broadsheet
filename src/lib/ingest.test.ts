@@ -111,8 +111,50 @@ describe("estimateReadMinutes", () => {
     expect(estimateReadMinutes(10)).toBe(1);
   });
 
+  it("returns 1 for zero words", () => {
+    expect(estimateReadMinutes(0)).toBe(1);
+  });
+
   it("scales with word count", () => {
     expect(estimateReadMinutes(2200)).toBe(10);
+  });
+
+  it("rounds to nearest minute", () => {
+    // 220 words / 220 wpm = 1 minute exactly
+    expect(estimateReadMinutes(220)).toBe(1);
+    // 330 words / 220 wpm ≈ 1.5 → rounds to 2
+    expect(estimateReadMinutes(330)).toBe(2);
+  });
+});
+
+describe("parseArticleFromHtml – edge cases", () => {
+  it("falls back to 'Untitled' when <title> is empty", () => {
+    const html = `<!doctype html>
+      <html><head><title></title></head>
+      <body><article>
+        <p>First paragraph of enough length to satisfy readability heuristics for article content extraction.</p>
+        <p>Second paragraph with more words to ensure readability accepts this as valid article content worth parsing.</p>
+        <p>Third paragraph providing additional context and substance to the test article body for reliable extraction.</p>
+      </article></body></html>`;
+    const parsed = parseArticleFromHtml(html, "https://example.com/no-title");
+    expect(parsed.title).toBe("Untitled");
+  });
+
+  it("extracts byline from meta tag", () => {
+    const parsed = parseArticleFromHtml(
+      sampleHtml,
+      "https://example.com/article",
+    );
+    expect(parsed.byline).toBe("Jane Writer");
+  });
+
+  it("counts words in the markdown output", () => {
+    const parsed = parseArticleFromHtml(
+      sampleHtml,
+      "https://example.com/article",
+    );
+    expect(parsed.wordCount).toBeGreaterThan(0);
+    expect(typeof parsed.wordCount).toBe("number");
   });
 });
 
@@ -151,6 +193,60 @@ describe("isPrivateAddress", () => {
   it("rejects malformed input", () => {
     expect(isPrivateAddress("not an ip")).toBe(true);
     expect(isPrivateAddress("999.999.999.999")).toBe(true);
+  });
+
+  it("rejects empty string", () => {
+    expect(isPrivateAddress("")).toBe(true);
+  });
+
+  it("flags IPv4-mapped IPv6 private addresses", () => {
+    expect(isPrivateAddress("::ffff:10.0.0.1")).toBe(true);
+    expect(isPrivateAddress("::ffff:192.168.1.1")).toBe(true);
+  });
+
+  it("allows IPv4-mapped IPv6 public addresses", () => {
+    expect(isPrivateAddress("::ffff:8.8.8.8")).toBe(false);
+  });
+
+  it("flags multicast IPv4 range (224+)", () => {
+    expect(isPrivateAddress("239.255.255.255")).toBe(true);
+    expect(isPrivateAddress("255.255.255.255")).toBe(true);
+  });
+
+  it("allows addresses just outside private ranges", () => {
+    expect(isPrivateAddress("100.63.255.255")).toBe(false);
+    expect(isPrivateAddress("100.128.0.1")).toBe(false);
+    expect(isPrivateAddress("11.0.0.1")).toBe(false);
+  });
+});
+
+describe("IngestError", () => {
+  it("exposes publicMessage separately from internal message", () => {
+    const err = new IngestError(
+      "DNS lookup failed for internal.corp: NXDOMAIN",
+      undefined,
+      "Could not resolve the host",
+    );
+    expect(err.message).toBe("DNS lookup failed for internal.corp: NXDOMAIN");
+    expect(err.publicMessage).toBe("Could not resolve the host");
+    expect(err.name).toBe("IngestError");
+  });
+
+  it("defaults publicMessage to the internal message", () => {
+    const err = new IngestError("Something broke");
+    expect(err.publicMessage).toBe("Something broke");
+  });
+
+  it("preserves the cause", () => {
+    const cause = new Error("root");
+    const err = new IngestError("Wrapper", cause);
+    expect(err.cause).toBe(cause);
+  });
+
+  it("is instanceof Error", () => {
+    const err = new IngestError("test");
+    expect(err).toBeInstanceOf(Error);
+    expect(err).toBeInstanceOf(IngestError);
   });
 });
 
