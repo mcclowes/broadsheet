@@ -9,3 +9,4 @@ apps/extension/dist
 default.profraw
 package-lock.json
 src/lib/__fixtures__
+pocket

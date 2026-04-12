@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
+import { listHighlights } from "@/lib/annotations";
 import { renderMarkdown } from "@/lib/markdown";
 import { authedUserId } from "@/lib/auth-types";
+import { Annotator } from "./annotator";
 import { ArticleActions } from "./article-actions";
 import { ArticleMenu } from "./article-menu";
 import { ReadTracker } from "./read-tracker";
@@ -36,6 +38,7 @@ export default async function ReadPage({
   // Body stores the article as markdown (per the PRD); render via
   // marked → DOMPurify at request time.
   const html = renderMarkdown(article.body);
+  const highlights = await listHighlights(userId, article.id);
 
   return (
     <main className={styles.main}>
@@ -107,10 +110,7 @@ export default async function ReadPage({
         alreadyRead={article.readAt !== null}
       />
 
-      <article
-        className="reader-body"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+      <Annotator articleId={article.id} html={html} initial={highlights} />
 
       <QuickActions
         articleId={article.id}
