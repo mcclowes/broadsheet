@@ -1,0 +1,17 @@
+{
+  "name": "Broadsheet",
+  "short_name": "Broadsheet",
+  "description": "Save articles. Read them cleanly. Keep them.",
+  "start_url": "/library",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fafaf7",
+  "theme_color": "#b4451f",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

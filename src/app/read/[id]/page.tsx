@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
 import { renderMarkdown } from "@/lib/markdown";
 import { ArticleActions } from "./article-actions";
+import { CacheArticle } from "./cache-article";
 import styles from "./read.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,26 @@ export default async function ReadPage({
 
   return (
     <main className={styles.main}>
+      <CacheArticle
+        article={{
+          id: article.id,
+          title: article.title,
+          url: article.url,
+          source: article.source,
+          byline: article.byline,
+          excerpt: article.excerpt,
+          lang: article.lang,
+          wordCount: article.wordCount,
+          readMinutes: article.readMinutes,
+          savedAt: article.savedAt,
+          readAt: article.readAt,
+          archivedAt: article.archivedAt,
+          tags: article.tags,
+          body: article.body,
+          cachedAt: new Date().toISOString(),
+        }}
+      />
+
       <nav className={styles.nav}>
         <Link href="/library" className={styles.back}>
           ← Library
