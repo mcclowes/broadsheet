@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { NotFoundError } from "folio-db-next";
 import { getArticle, patchArticle } from "@/lib/articles";
@@ -85,6 +86,15 @@ export async function PATCH(
       return Response.json({ error: "Not found" }, { status: 404 });
 
     const result = await patchArticle(userId, id, updates);
+
+    // The library and reader pages are `force-dynamic` so they SSR on every
+    // request, but Next.js's client router cache can still serve a stale RSC
+    // payload on back navigation from /read/[id] → /library. Marking an
+    // article as read there then appears to "not work" — the article still
+    // shows as unread until the cache entry expires. Explicitly invalidating
+    // both paths forces the client to fetch fresh data on the next visit.
+    revalidatePath("/library");
+    revalidatePath(`/read/${id}`);
 
     return Response.json({
       ok: true,
