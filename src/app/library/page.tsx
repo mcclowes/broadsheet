@@ -115,6 +115,15 @@ export default async function LibraryPage({
         <UserButton />
       </header>
 
+      <nav className={styles.topTabs} aria-label="Primary">
+        <Link href="/library" className={styles.topTabActive}>
+          Library
+        </Link>
+        <Link href="/sources" className={styles.topTab}>
+          Sources
+        </Link>
+      </nav>
+
       <SaveForm />
 
       <nav className={styles.filters} aria-label="Library filters">

@@ -88,7 +88,7 @@ export function isPrivateAddress(ip: string): boolean {
   return true;
 }
 
-async function assertPublicHost(hostname: string): Promise<void> {
+export async function assertPublicHost(hostname: string): Promise<void> {
   const stripped = hostname.replace(/^\[|\]$/g, "");
   if (net.isIP(stripped)) {
     if (isPrivateAddress(stripped)) {
@@ -128,7 +128,7 @@ async function assertPublicHost(hostname: string): Promise<void> {
   }
 }
 
-async function readBoundedBody(res: Response): Promise<string> {
+export async function readBoundedBody(res: Response): Promise<string> {
   if (!res.body) {
     throw new IngestError(
       "Response had no body",
@@ -191,7 +191,28 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
   };
 }
 
-export async function fetchAndParse(url: string): Promise<ParsedArticle> {
+export interface FetchPublicOptions {
+  accept: string;
+  validateContentType: (contentType: string | null) => boolean;
+  contentTypeError: string;
+  extraHeaders?: Record<string, string>;
+}
+
+export interface FetchPublicResult {
+  body: string;
+  finalUrl: string;
+  contentType: string | null;
+}
+
+/**
+ * Fetches a URL with the full SSRF / timeout / body-cap / redirect protections.
+ * Shared between article ingestion and feed subscriptions so hardening only
+ * has to be audited once.
+ */
+export async function fetchPublicResource(
+  url: string,
+  opts: FetchPublicOptions,
+): Promise<FetchPublicResult> {
   let current: URL;
   try {
     current = new URL(url);
@@ -216,7 +237,8 @@ export async function fetchAndParse(url: string): Promise<ParsedArticle> {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (compatible; Broadsheet/0.1; +https://broadsheet.app/bot)",
-          Accept: "text/html,application/xhtml+xml",
+          Accept: opts.accept,
+          ...opts.extraHeaders,
         },
         redirect: "manual",
       });
@@ -261,16 +283,17 @@ export async function fetchAndParse(url: string): Promise<ParsedArticle> {
       );
     }
 
-    if (!isHtmlContentType(res.headers.get("content-type"))) {
+    const contentType = res.headers.get("content-type");
+    if (!opts.validateContentType(contentType)) {
       throw new IngestError(
-        `Unsupported content-type ${res.headers.get("content-type")}`,
+        `Unsupported content-type ${contentType}`,
         undefined,
-        "Upstream did not return HTML",
+        opts.contentTypeError,
       );
     }
 
-    const html = await readBoundedBody(res);
-    return parseArticleFromHtml(html, current.toString());
+    const body = await readBoundedBody(res);
+    return { body, finalUrl: current.toString(), contentType };
   }
 
   throw new IngestError(
@@ -278,6 +301,15 @@ export async function fetchAndParse(url: string): Promise<ParsedArticle> {
     undefined,
     "Too many redirects",
   );
+}
+
+export async function fetchAndParse(url: string): Promise<ParsedArticle> {
+  const { body, finalUrl } = await fetchPublicResource(url, {
+    accept: "text/html,application/xhtml+xml",
+    validateContentType: isHtmlContentType,
+    contentTypeError: "Upstream did not return HTML",
+  });
+  return parseArticleFromHtml(body, finalUrl);
 }
 
 function countWords(markdown: string): number {

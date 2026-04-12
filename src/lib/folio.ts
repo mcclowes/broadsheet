@@ -40,8 +40,14 @@ export function getFolio(): Folio {
 
 // Volume names must match [a-z0-9][a-z0-9_-]*. Clerk user IDs can include
 // uppercase and other characters, so we hash them into a stable, slug-safe
-// volume name.
-export function volumeNameForUser(userId: string): string {
+// volume name. An optional suffix (e.g. "sources") keeps related per-user
+// volumes alongside the main article store.
+export function volumeNameForUser(userId: string, suffix?: string): string {
   const hex = createHash("sha256").update(userId).digest("hex").slice(0, 24);
-  return `user-${hex}`;
+  const base = `user-${hex}`;
+  if (!suffix) return base;
+  if (!/^[a-z0-9][a-z0-9_-]*$/.test(suffix)) {
+    throw new Error(`Invalid volume suffix: ${suffix}`);
+  }
+  return `${base}-${suffix}`;
 }
