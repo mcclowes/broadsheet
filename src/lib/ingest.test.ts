@@ -321,6 +321,13 @@ const y = 2;</code></pre>
         markdownIncludes: ["curiosity"],
         minWordCount: 1000,
       },
+      {
+        file: "poetryinternational-uncle-mohan-singh.html",
+        url: "https://www.poetryinternational.com/en/poets-poems/poems/poem/103-10514_UNCLE-MOHAN-SINGH",
+        titleIncludes: "Uncle Mohan Singh",
+        markdownIncludes: ["Nakodar", "harmonium"],
+        minWordCount: 60,
+      },
     ];
 
     for (const c of cases) {
@@ -334,6 +341,22 @@ const y = 2;</code></pre>
         }
       });
     }
+
+    it("strips site chrome (nav, breadcrumbs, footer) from short-content pages", () => {
+      const html = readFileSync(
+        join(fixtureDir, "poetryinternational-uncle-mohan-singh.html"),
+        "utf8",
+      );
+      const parsed = parseArticleFromHtml(
+        html,
+        "https://www.poetryinternational.com/en/poets-poems/poems/poem/103-10514_UNCLE-MOHAN-SINGH",
+      );
+      // Nav items that appeared in the bug report — must not leak into the article body.
+      expect(parsed.markdown).not.toMatch(/Festival/);
+      expect(parsed.markdown).not.toMatch(/Workshops/);
+      expect(parsed.markdown).not.toMatch(/Contact us/i);
+      expect(parsed.markdown).not.toMatch(/About Us/i);
+    });
   });
 
   it("truncates overly long title", () => {

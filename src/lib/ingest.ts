@@ -497,8 +497,50 @@ function normalizeHighlightedCodeBlocks(document: Document): void {
   }
 }
 
+// Readability scores by text density, which fails on short-content pages
+// (poetry, recipe cards, TIL posts) where the surrounding chrome has more
+// words than the article itself. Strip elements that are unambiguously site
+// chrome by their semantics — tag name, ARIA role, or the conventional
+// "breadcrumb" class — before scoring. We intentionally avoid class-name
+// guesses beyond that: real articles use <nav>/<header>/<footer>/<aside>
+// inside content far less often than sites use them for chrome, and when
+// they do it's usually for things we're happy to drop (author nav, tag list).
+const CHROME_SELECTORS = [
+  "nav",
+  "header",
+  "footer",
+  "aside",
+  "[role='navigation']",
+  "[role='banner']",
+  "[role='contentinfo']",
+  "[role='complementary']",
+  "[role='search']",
+  "[aria-label*='breadcrumb' i]",
+  ".breadcrumb",
+];
+
+function stripNonArticleChrome(document: Document): void {
+  // If the page has an explicit article container, leave its descendants
+  // alone — articles legitimately use <header> for title blocks, <nav> for
+  // table-of-contents, <aside> for pull quotes, <footer> for citations.
+  // We only want to kill chrome *outside* the article root.
+  const articleRoots = Array.from(
+    document.querySelectorAll("main, article, [role='main']"),
+  );
+  const isInsideArticle = (el: Element): boolean =>
+    articleRoots.some((root) => root !== el && root.contains(el));
+
+  for (const sel of CHROME_SELECTORS) {
+    for (const el of document.querySelectorAll(sel)) {
+      if (isInsideArticle(el)) continue;
+      el.remove();
+    }
+  }
+}
+
 export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
   const dom = new JSDOM(html, { url });
+  stripNonArticleChrome(dom.window.document);
   normalizeHighlightedCodeBlocks(dom.window.document);
   const reader = new Readability(dom.window.document);
   const article = reader.parse();
