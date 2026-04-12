@@ -2,6 +2,20 @@ import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { getArticle, markRead, setArchived, setTags } from "@/lib/articles";
 
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { userId } = await auth();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const article = await getArticle(userId, id);
+  if (!article) return Response.json({ error: "Not found" }, { status: 404 });
+
+  return Response.json({ article });
+}
+
 const patchSchema = z
   .object({
     read: z.boolean().optional(),

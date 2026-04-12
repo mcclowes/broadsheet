@@ -5,6 +5,9 @@ struct SettingsView: View {
     @Environment(Clerk.self) private var clerk
     @State private var baseURL: String = BroadsheetConfig.baseURL.absoluteString
     @State private var baseURLStatus: String?
+    @State private var cacheSize: Int64 = 0
+    @State private var cachedCount: Int = 0
+    @State private var showClearConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -44,6 +47,23 @@ struct SettingsView: View {
                     }
                 }
 
+                Section(
+                    header: Text("Offline storage"),
+                    footer: Text("Articles you've opened are cached for offline reading. The library list is always cached.")
+                ) {
+                    LabeledContent("Cached articles") {
+                        Text("\(cachedCount)")
+                            .foregroundStyle(.secondary)
+                    }
+                    LabeledContent("Cache size") {
+                        Text(formattedCacheSize)
+                            .foregroundStyle(.secondary)
+                    }
+                    Button("Clear offline cache", role: .destructive) {
+                        showClearConfirm = true
+                    }
+                }
+
                 Section("About") {
                     LabeledContent("Version", value: Bundle.main.shortVersion)
                     Link("broadsheet.app",
@@ -51,7 +71,31 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .confirmationDialog(
+                "Clear offline cache?",
+                isPresented: $showClearConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Clear cache", role: .destructive) {
+                    Task {
+                        await OfflineStore.shared.clearAll()
+                        await refreshCacheInfo()
+                    }
+                }
+            } message: {
+                Text("Cached articles will be re-downloaded when you open them with a network connection.")
+            }
+            .task { await refreshCacheInfo() }
         }
+    }
+
+    private var formattedCacheSize: String {
+        ByteCountFormatter.string(fromByteCount: cacheSize, countStyle: .file)
+    }
+
+    private func refreshCacheInfo() async {
+        cacheSize = await OfflineStore.shared.cacheSize()
+        cachedCount = await OfflineStore.shared.cachedBodyCount()
     }
 }
 

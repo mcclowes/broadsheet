@@ -18,6 +18,13 @@ struct LibraryView: View {
                     )
                 } else {
                     List {
+                        if store.isOffline {
+                            Section {
+                                Label("Offline — showing cached articles",
+                                      systemImage: "wifi.slash")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                         if pendingCount > 0 {
                             Section {
                                 Label("\(pendingCount) pending save\(pendingCount == 1 ? "" : "s")",
