@@ -66,3 +66,7 @@ export function volumeNameForUser(
 // Central registry volume for digest subscribers. One document per opted-in
 // user, keyed by the hashed userId (same hex as volumeNameForUser).
 export const DIGEST_REGISTRY_VOLUME = "digest-registry";
+
+// Central registry volume for auto-archive preferences. One document per user
+// who has configured a non-default schedule, keyed by the hashed userId.
+export const AUTO_ARCHIVE_REGISTRY_VOLUME = "auto-archive-registry";
