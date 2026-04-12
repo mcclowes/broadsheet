@@ -11,6 +11,7 @@ export interface ParsedArticle {
   excerpt: string | null;
   siteName: string | null;
   lang: string | null;
+  image: string | null;
   markdown: string;
   wordCount: number;
 }
@@ -24,6 +25,43 @@ const turndown = new TurndownService({
 turndown.addRule("stripScripts", {
   filter: ["script", "style", "iframe", "noscript"],
   replacement: () => "",
+});
+
+// <pre> without a <code> child is not matched by Turndown's built-in fenced
+// code-block rule, so the text passes through as a plain paragraph and the
+// browser collapses its whitespace. Wrap it in a fenced block ourselves.
+turndown.addRule("preWithoutCode", {
+  filter(node) {
+    return node.nodeName === "PRE" && !node.querySelector("code");
+  },
+  replacement(_content, node) {
+    const text = (node as Element).textContent || "";
+    return "\n\n```\n" + text + "\n```\n\n";
+  },
+});
+
+// Turndown's default image rule drops <img> when `src` is falsy. Many sites
+// use `<img src="" data-src="…">` for lazy loading; Readability fixes some
+// but not all of these. Fall back to data-src / data-lazy-src.
+turndown.addRule("imgWithDataSrc", {
+  filter(node) {
+    if (node.nodeName !== "IMG") return false;
+    const src = node.getAttribute("src");
+    if (src) return false; // default rule handles it
+    const fallback =
+      node.getAttribute("data-src") || node.getAttribute("data-lazy-src");
+    return !!fallback;
+  },
+  replacement(_content, node) {
+    const src =
+      (node as Element).getAttribute("data-src") ||
+      (node as Element).getAttribute("data-lazy-src") ||
+      "";
+    const alt = (node as Element).getAttribute("alt") || "";
+    const title = (node as Element).getAttribute("title");
+    const titlePart = title ? ` "${title}"` : "";
+    return `![${alt}](${src}${titlePart})`;
+  },
 });
 
 // Convert <table> to GFM pipe tables. Tables without a heading row are
@@ -88,7 +126,7 @@ export function isPrivateAddress(ip: string): boolean {
   return true;
 }
 
-async function assertPublicHost(hostname: string): Promise<void> {
+export async function assertPublicHost(hostname: string): Promise<void> {
   const stripped = hostname.replace(/^\[|\]$/g, "");
   if (net.isIP(stripped)) {
     if (isPrivateAddress(stripped)) {
@@ -128,7 +166,7 @@ async function assertPublicHost(hostname: string): Promise<void> {
   }
 }
 
-async function readBoundedBody(res: Response): Promise<string> {
+export async function readBoundedBody(res: Response): Promise<string> {
   if (!res.body) {
     throw new IngestError(
       "Response had no body",
@@ -161,6 +199,38 @@ async function readBoundedBody(res: Response): Promise<string> {
   return buf.toString("utf8");
 }
 
+/**
+ * Extract the article's hero image from Open Graph / Twitter Card meta tags.
+ * Returns an absolute URL or null.
+ */
+export function extractMetaImage(
+  doc: {
+    querySelector: (
+      sel: string,
+    ) => { getAttribute: (a: string) => string | null } | null;
+  },
+  baseUrl: string,
+): string | null {
+  const selectors = [
+    'meta[property="og:image"]',
+    'meta[name="twitter:image"]',
+    'meta[name="twitter:image:src"]',
+    'meta[property="twitter:image"]',
+  ];
+  for (const sel of selectors) {
+    const el = doc.querySelector(sel);
+    const raw = el?.getAttribute("content");
+    if (raw) {
+      try {
+        return new URL(raw, baseUrl).href;
+      } catch {
+        // malformed URL — try next selector
+      }
+    }
+  }
+  return null;
+}
+
 export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
   const dom = new JSDOM(html, { url });
   const reader = new Readability(dom.window.document);
@@ -172,7 +242,31 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
       "Could not extract a readable article from this page",
     );
   }
-  const markdown = turndown.turndown(article.content).trim();
+
+  // Extract the hero / og:image from <head> meta tags before we discard the
+  // full document. Preference: og:image > twitter:image > twitter:image:src.
+  const image = extractMetaImage(dom.window.document, url);
+
+  // Readability resolves most relative URLs and fixes most lazy-loaded images,
+  // but misses <img src="" data-src="…"> (attribute present but empty). Do a
+  // second pass so these survive Turndown's default image rule.
+  const contentDom = new JSDOM(article.content, { url });
+  for (const img of contentDom.window.document.querySelectorAll("img")) {
+    if (!img.getAttribute("src")) {
+      const fallback =
+        img.getAttribute("data-src") || img.getAttribute("data-lazy-src");
+      if (fallback) {
+        try {
+          img.setAttribute("src", new URL(fallback, url).href);
+        } catch {
+          img.setAttribute("src", fallback);
+        }
+      }
+    }
+  }
+  const fixedContent = contentDom.window.document.body.innerHTML;
+
+  const markdown = turndown.turndown(fixedContent).trim();
   if (!markdown) {
     throw new IngestError(
       "Parsed article was empty",
@@ -186,12 +280,34 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
     excerpt: article.excerpt?.trim() || null,
     siteName: article.siteName?.trim() || null,
     lang: article.lang ?? null,
+    image,
     markdown,
     wordCount: countWords(markdown),
   };
 }
 
-export async function fetchAndParse(url: string): Promise<ParsedArticle> {
+export interface FetchPublicOptions {
+  accept: string;
+  validateContentType: (contentType: string | null) => boolean;
+  contentTypeError: string;
+  extraHeaders?: Record<string, string>;
+}
+
+export interface FetchPublicResult {
+  body: string;
+  finalUrl: string;
+  contentType: string | null;
+}
+
+/**
+ * Fetches a URL with the full SSRF / timeout / body-cap / redirect protections.
+ * Shared between article ingestion and feed subscriptions so hardening only
+ * has to be audited once.
+ */
+export async function fetchPublicResource(
+  url: string,
+  opts: FetchPublicOptions,
+): Promise<FetchPublicResult> {
   let current: URL;
   try {
     current = new URL(url);
@@ -216,7 +332,8 @@ export async function fetchAndParse(url: string): Promise<ParsedArticle> {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (compatible; Broadsheet/0.1; +https://broadsheet.app/bot)",
-          Accept: "text/html,application/xhtml+xml",
+          Accept: opts.accept,
+          ...opts.extraHeaders,
         },
         redirect: "manual",
       });
@@ -261,16 +378,17 @@ export async function fetchAndParse(url: string): Promise<ParsedArticle> {
       );
     }
 
-    if (!isHtmlContentType(res.headers.get("content-type"))) {
+    const contentType = res.headers.get("content-type");
+    if (!opts.validateContentType(contentType)) {
       throw new IngestError(
-        `Unsupported content-type ${res.headers.get("content-type")}`,
+        `Unsupported content-type ${contentType}`,
         undefined,
-        "Upstream did not return HTML",
+        opts.contentTypeError,
       );
     }
 
-    const html = await readBoundedBody(res);
-    return parseArticleFromHtml(html, current.toString());
+    const body = await readBoundedBody(res);
+    return { body, finalUrl: current.toString(), contentType };
   }
 
   throw new IngestError(
@@ -278,6 +396,15 @@ export async function fetchAndParse(url: string): Promise<ParsedArticle> {
     undefined,
     "Too many redirects",
   );
+}
+
+export async function fetchAndParse(url: string): Promise<ParsedArticle> {
+  const { body, finalUrl } = await fetchPublicResource(url, {
+    accept: "text/html,application/xhtml+xml",
+    validateContentType: isHtmlContentType,
+    contentTypeError: "Upstream did not return HTML",
+  });
+  return parseArticleFromHtml(body, finalUrl);
 }
 
 function countWords(markdown: string): number {

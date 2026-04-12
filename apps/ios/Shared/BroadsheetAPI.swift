@@ -37,6 +37,19 @@ struct BroadsheetAPI {
         let articles: [ArticleSummary]
     }
 
+    struct FullArticleResponse: Decodable {
+        let article: FullArticle
+    }
+
+    /// GET /api/articles/:id — fetch a single article with its Markdown body.
+    func get(id: String) async throws -> FullArticle {
+        let response: FullArticleResponse = try await request(
+            path: "/api/articles/\(id)",
+            method: "GET"
+        )
+        return response.article
+    }
+
     /// POST /api/articles — save a URL.
     func save(url: String) async throws -> ArticleSummary {
         let response: SaveResponse = try await request(
@@ -127,7 +140,7 @@ struct BroadsheetAPI {
 }
 
 /// Response shape shared with the web app's `ArticleSummary`.
-struct ArticleSummary: Decodable, Identifiable, Equatable {
+struct ArticleSummary: Codable, Identifiable, Equatable, Hashable {
     let id: String
     let title: String
     let url: String
@@ -140,4 +153,30 @@ struct ArticleSummary: Decodable, Identifiable, Equatable {
     let readAt: String?
     let archivedAt: String?
     let tags: [String]
+}
+
+/// Full article including the Markdown body, returned by `GET /api/articles/:id`.
+struct FullArticle: Decodable {
+    let id: String
+    let title: String
+    let url: String
+    let source: String?
+    let byline: String?
+    let excerpt: String?
+    let wordCount: Int
+    let readMinutes: Int
+    let savedAt: String
+    let readAt: String?
+    let archivedAt: String?
+    let tags: [String]
+    let body: String
+
+    var summary: ArticleSummary {
+        ArticleSummary(
+            id: id, title: title, url: url, source: source,
+            byline: byline, excerpt: excerpt, wordCount: wordCount,
+            readMinutes: readMinutes, savedAt: savedAt, readAt: readAt,
+            archivedAt: archivedAt, tags: tags
+        )
+    }
 }

@@ -2,6 +2,20 @@ import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { getArticle, markRead, setArchived, setTags } from "@/lib/articles";
 
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { userId } = await auth();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const article = await getArticle(userId, id);
+  if (!article) return Response.json({ error: "Not found" }, { status: 404 });
+
+  return Response.json({ article });
+}
+
 const patchSchema = z
   .object({
     read: z.boolean().optional(),
@@ -41,12 +55,17 @@ export async function PATCH(
   }
 
   const updates = parsed.data;
-  if (updates.read !== undefined) await markRead(userId, id, updates.read);
-  if (updates.archived !== undefined)
-    await setArchived(userId, id, updates.archived);
-  let tags = existing.tags;
-  if (updates.tags !== undefined)
-    tags = await setTags(userId, id, updates.tags);
+  try {
+    if (updates.read !== undefined) await markRead(userId, id, updates.read);
+    if (updates.archived !== undefined)
+      await setArchived(userId, id, updates.archived);
+    let tags = existing.tags;
+    if (updates.tags !== undefined)
+      tags = await setTags(userId, id, updates.tags);
 
-  return Response.json({ ok: true, tags });
+    return Response.json({ ok: true, tags });
+  } catch (err) {
+    console.error("[api/articles/PATCH] update failed", { id, err });
+    return Response.json({ error: "Internal error" }, { status: 500 });
+  }
 }
