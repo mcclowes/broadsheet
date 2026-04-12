@@ -321,13 +321,9 @@ export async function listArticles(
   userId: AuthedUserId,
   filters: ListFilters = {},
 ): Promise<ArticleSummary[]> {
-  // Frontmatter-only: library views only ever read the summary fields, so
-  // hydrating article bodies here is pure waste. Served from RuntimeListCache
-  // on hit; rebuilt from the adapter on miss. Writes invalidate the cache
-  // automatically via Folio's onEvent pipeline.
-  const entries = await userVolume(userId).list({ fields: "frontmatter" });
-  const all = entries
-    .map((e) => ({ id: e.slug, ...e.frontmatter }))
+  const pages = await userVolume(userId).list();
+  const all = pages
+    .map((p) => ({ id: p.slug, ...p.frontmatter }))
     .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
   const filtered = filterArticles(all, filters);
   return filters.limit ? filtered.slice(0, filters.limit) : filtered;
