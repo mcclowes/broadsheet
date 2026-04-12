@@ -137,6 +137,9 @@ export default async function LibraryPage({
           <Link href="/sources" className={styles.topTab}>
             Sources
           </Link>
+          <Link href="/settings" className={styles.topTab}>
+            Settings
+          </Link>
         </div>
         <DigestToggle />
       </nav>

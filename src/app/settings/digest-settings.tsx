@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import styles from "./library.module.scss";
+import styles from "./settings.module.scss";
 
 interface DigestPreferences {
   enabled: boolean;
@@ -9,11 +9,9 @@ interface DigestPreferences {
   enabledAt: string | null;
 }
 
-export function DigestToggle() {
+export function DigestSettings() {
   const [prefs, setPrefs] = useState<DigestPreferences | null>(null);
-  const [initiallyEnabled, setInitiallyEnabled] = useState<boolean | null>(
-    null,
-  );
+  const [loaded, setLoaded] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -22,22 +20,18 @@ export function DigestToggle() {
       .then((r) => r.json())
       .then((data) => {
         setPrefs(data.preferences);
-        setInitiallyEnabled(Boolean(data.preferences?.enabled));
+        setLoaded(true);
       })
       .catch(() => {
-        // Silently fail — the toggle just won't show
+        setError("Couldn’t load digest preferences.");
+        setLoaded(true);
       });
   }, []);
 
-  // If the user already had the digest enabled when this session started,
-  // don't clutter the top nav — they can manage it from /settings. We keep
-  // rendering it for the rest of this session if they enabled it here, so
-  // the control doesn't vanish the moment they tap it.
-  if (!prefs || initiallyEnabled) return null;
-
   function handleToggle() {
+    if (!prefs) return;
     setError(null);
-    const next = !prefs!.enabled;
+    const next = !prefs.enabled;
 
     startTransition(async () => {
       const res = await fetch("/api/digest/preferences", {
@@ -57,8 +51,28 @@ export function DigestToggle() {
     });
   }
 
+  if (!loaded) {
+    return <p className={styles.muted}>Loading…</p>;
+  }
+
+  if (!prefs) {
+    return (
+      <p className={styles.error} role="alert">
+        {error ?? "Couldn’t load digest preferences."}
+      </p>
+    );
+  }
+
   return (
-    <div className={styles.digestToggle}>
+    <div className={styles.digestRow}>
+      <div className={styles.digestStatus}>
+        <span className={styles.digestLabel}>
+          {prefs.enabled ? "On" : "Off"}
+        </span>
+        {prefs.enabled && prefs.email ? (
+          <span className={styles.digestEmail}>Sends to {prefs.email}</span>
+        ) : null}
+      </div>
       <button
         type="button"
         className={
@@ -68,14 +82,10 @@ export function DigestToggle() {
         disabled={pending}
         aria-pressed={prefs.enabled}
       >
-        {pending
-          ? "Updating…"
-          : prefs.enabled
-            ? "Daily digest on"
-            : "Daily digest off"}
+        {pending ? "Updating…" : prefs.enabled ? "Turn off" : "Turn on"}
       </button>
       {error ? (
-        <span className={styles.digestError} role="alert">
+        <span className={styles.error} role="alert">
           {error}
         </span>
       ) : null}
