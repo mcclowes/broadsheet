@@ -37,6 +37,67 @@ describe("parseArticleFromHtml", () => {
     expect(parsed.wordCount).toBeGreaterThan(20);
   });
 
+  it("converts tables with a header row to GFM pipe tables", () => {
+    const tableHtml = `<!doctype html>
+<html>
+  <head><title>Benchmark results</title></head>
+  <body>
+    <article>
+      <h1>Benchmark results</h1>
+      <p>We ran three open-weights models through the same security evaluation harness. Each task tests whether the model can correctly classify the described bug when given the full diff and surrounding context.</p>
+      <p>The results below include a grading column for the hardest task, recovering the full public chain from a partial fingerprint, which none of the smaller models could solve end-to-end.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>OWASP false-positive</th>
+            <th>FreeBSD NFS detection</th>
+            <th>OpenBSD SACK analysis</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>GPT-OSS-120b (5.1B active)</td>
+            <td>No</td>
+            <td>Yes</td>
+            <td>Yes (A+)</td>
+          </tr>
+          <tr>
+            <td>GPT-OSS-20b (3.6B active)</td>
+            <td>Yes</td>
+            <td>Yes</td>
+            <td>No (C)</td>
+          </tr>
+          <tr>
+            <td>Kimi K2 (open-weights)</td>
+            <td>Yes</td>
+            <td>Yes</td>
+            <td>No</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>The 120b model was the only one to recover the full public chain, though it still false-positived on the OWASP baseline. We discuss the failure modes and what they mean for production use in the remainder of the article.</p>
+    </article>
+  </body>
+</html>`;
+    const parsed = parseArticleFromHtml(
+      tableHtml,
+      "https://example.com/benchmark",
+    );
+    // Header row
+    expect(parsed.markdown).toMatch(
+      /\|\s*Model\s*\|\s*OWASP false-positive\s*\|\s*FreeBSD NFS detection\s*\|\s*OpenBSD SACK analysis\s*\|/,
+    );
+    // GFM separator row
+    expect(parsed.markdown).toMatch(
+      /\|\s*---\s*\|\s*---\s*\|\s*---\s*\|\s*---\s*\|/,
+    );
+    // A data cell stays on the same row as the model name (not split into paragraphs)
+    expect(parsed.markdown).toMatch(
+      /\|\s*GPT-OSS-120b \(5\.1B active\)\s*\|\s*No\s*\|\s*Yes\s*\|\s*Yes \(A\+\)\s*\|/,
+    );
+  });
+
   it("throws IngestError when no readable content is found", () => {
     const empty = "<!doctype html><html><body></body></html>";
     expect(() => parseArticleFromHtml(empty, "https://example.com")).toThrow(
