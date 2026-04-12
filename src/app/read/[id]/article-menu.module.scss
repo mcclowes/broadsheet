@@ -34,7 +34,7 @@
   background: var(--bg);
   border: 1px solid var(--rule);
   border-radius: 0.5rem;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 24px var(--shadow-sm);
   display: flex;
   flex-direction: column;
 }

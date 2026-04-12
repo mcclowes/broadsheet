@@ -11,9 +11,9 @@
   display: block;
   background: linear-gradient(
     90deg,
-    rgba(0, 0, 0, 0.06) 0%,
-    rgba(0, 0, 0, 0.12) 50%,
-    rgba(0, 0, 0, 0.06) 100%
+    var(--skeleton-base) 0%,
+    var(--skeleton-shimmer) 50%,
+    var(--skeleton-base) 100%
   );
   background-size: 200% 100%;
   animation: skeletonShimmer 1.6s ease-in-out infinite;
@@ -24,7 +24,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
-    background: rgba(0, 0, 0, 0.08);
+    background: var(--skeleton-shimmer);
   }
 }
 

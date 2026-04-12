@@ -45,10 +45,10 @@
 
 .tabActive {
   background: var(--fg);
-  color: white;
+  color: var(--bg);
 
   &:hover {
-    color: white;
+    color: var(--bg);
   }
 }
 
@@ -136,11 +136,11 @@
 .digestButtonActive {
   background: var(--fg);
   border-color: var(--fg);
-  color: white;
+  color: var(--bg);
 
   &:hover {
     background: var(--fg);
-    color: white;
+    color: var(--bg);
     border-color: var(--fg);
   }
 }
@@ -152,7 +152,7 @@
 }
 
 .error {
-  color: #a11;
+  color: var(--error);
   font-size: 0.875rem;
   flex-basis: 100%;
   margin: 0;

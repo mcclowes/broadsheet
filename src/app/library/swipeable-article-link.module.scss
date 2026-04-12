@@ -7,7 +7,7 @@
 
 .foreground {
   position: relative;
-  background: var(--bg, white);
+  background: var(--bg);
   transition: transform 0.2s ease;
   will-change: transform;
 }
@@ -31,7 +31,7 @@
   padding: 0 1rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: white;
+  color: var(--bg);
   background: var(--fg-muted);
   pointer-events: none;
 

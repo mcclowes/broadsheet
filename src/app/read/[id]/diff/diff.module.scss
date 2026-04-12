@@ -46,7 +46,7 @@
 
 .error {
   font-size: 0.9375rem;
-  color: #a11;
+  color: var(--error);
   padding: 2rem 0;
 }
 
@@ -61,12 +61,12 @@
   gap: 1rem;
   padding: 0.5rem 0.75rem;
   font-size: 0.75rem;
-  background: #f3f1ec;
+  background: var(--bg-elevated);
   border-bottom: 1px solid var(--rule);
 }
 
 .legendRemoved {
-  color: #86181d;
+  color: var(--diff-remove-fg);
 
   &::before {
     content: "−";
@@ -78,7 +78,7 @@
 }
 
 .legendAdded {
-  color: #176f2c;
+  color: var(--diff-add-fg);
 
   &::before {
     content: "+";
@@ -105,17 +105,17 @@
 }
 
 .lineContext {
-  background: white;
+  background: var(--bg);
 }
 
 .lineRemoved {
-  background: #ffeef0;
-  color: #86181d;
+  background: var(--diff-remove-bg);
+  color: var(--diff-remove-fg);
 }
 
 .lineAdded {
-  background: #e6ffec;
-  color: #176f2c;
+  background: var(--diff-add-bg);
+  color: var(--diff-add-fg);
 }
 
 .linePrefix {
