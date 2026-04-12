@@ -45,13 +45,47 @@ describe("checkOrigin", () => {
     expect(checkOrigin(reqWithOrigin("http://localhost:3000"))).toBeNull();
   });
 
-  it("allows chrome extension origins", async () => {
+  it("allows any chrome extension origin when no allowlist env set (dev)", async () => {
+    delete process.env.BROADSHEET_EXTENSION_IDS;
+    delete process.env.VERCEL_ENV;
     const checkOrigin = await loadCheckOrigin();
     expect(
       checkOrigin(
         reqWithOrigin("chrome-extension://abcdefghijklmnopqrstuvwxyz"),
       ),
     ).toBeNull();
+  });
+
+  it("allows only allowlisted chrome extension IDs when env is set", async () => {
+    process.env.BROADSHEET_EXTENSION_IDS =
+      "abcdefghijklmnopqrstuvwxyz,pqrstuvwxyzabcdefghijklmno";
+    const checkOrigin = await loadCheckOrigin();
+    expect(
+      checkOrigin(
+        reqWithOrigin("chrome-extension://abcdefghijklmnopqrstuvwxyz"),
+      ),
+    ).toBeNull();
+    expect(
+      checkOrigin(
+        reqWithOrigin("chrome-extension://pqrstuvwxyzabcdefghijklmno"),
+      ),
+    ).toBeNull();
+    const blocked = checkOrigin(
+      reqWithOrigin("chrome-extension://maliciousextensionid0000000"),
+    );
+    expect(blocked).not.toBeNull();
+    expect(blocked!.status).toBe(403);
+  });
+
+  it("rejects all extension origins in production when no allowlist set", async () => {
+    delete process.env.BROADSHEET_EXTENSION_IDS;
+    process.env.VERCEL_ENV = "production";
+    const checkOrigin = await loadCheckOrigin();
+    const response = checkOrigin(
+      reqWithOrigin("chrome-extension://abcdefghijklmnopqrstuvwxyz"),
+    );
+    expect(response).not.toBeNull();
+    expect(response!.status).toBe(403);
   });
 
   it("rejects a foreign origin with 403", async () => {
