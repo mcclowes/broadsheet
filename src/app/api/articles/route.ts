@@ -7,6 +7,7 @@ import {
   parseArticleFromHtml,
 } from "@/lib/ingest";
 import { listArticles, saveArticle } from "@/lib/articles";
+import { articleIngestLimiter } from "@/lib/rate-limit";
 
 const saveSchema = z.object({
   url: z.string().url(),
@@ -23,6 +24,19 @@ export async function GET() {
 export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const limit = articleIngestLimiter.consume(userId);
+  if (!limit.allowed) {
+    return Response.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((limit.retryAfterMs ?? 1000) / 1000)),
+        },
+      },
+    );
+  }
 
   let body: unknown;
   try {
