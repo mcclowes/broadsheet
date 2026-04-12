@@ -64,8 +64,7 @@ export async function setDigestPreferences(
   }
 
   const existing = await vol.get(slug);
-  const enabledAt =
-    existing?.frontmatter.enabledAt ?? new Date().toISOString();
+  const enabledAt = existing?.frontmatter.enabledAt ?? new Date().toISOString();
 
   const frontmatter: DigestFrontmatter = {
     enabled: true,
