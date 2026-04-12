@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { SignInButton, UserButton } from "@clerk/nextjs";
 import { listArticles, type ArticleSummary } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
+import { PaletteTrigger } from "./components/palette-trigger";
 import styles from "./page.module.scss";
 
 // No force-dynamic needed — auth() already makes this page dynamic.
@@ -165,6 +166,7 @@ export default async function HomePage() {
           <span className={styles.mastheadCorner}>Vol. I</span>
           <h1 className={styles.mastheadTitle}>Broadsheet</h1>
           <div className={styles.auth}>
+            <PaletteTrigger />
             <Link href="/library" className={styles.authLink}>
               Library
             </Link>
