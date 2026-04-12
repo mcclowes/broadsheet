@@ -81,10 +81,10 @@
 
 .topTabActive {
   background: var(--fg);
-  color: white;
+  color: var(--bg);
 
   &:hover {
-    color: white;
+    color: var(--bg);
   }
 }
 
@@ -102,7 +102,8 @@
   padding: 0.625rem 0.875rem;
   border: 1px solid var(--rule);
   border-radius: 0.375rem;
-  background: white;
+  background: var(--bg-elevated);
+  color: var(--fg);
   font-size: 1rem;
 
   &:focus {
@@ -116,7 +117,7 @@
   padding: 0.625rem 1.25rem;
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: white;
+  color: var(--bg);
   border-radius: 0.375rem;
   font-weight: 500;
 
@@ -129,7 +130,7 @@
 .saveError {
   flex-basis: 100%;
   margin: 0.5rem 0 0;
-  color: #a11;
+  color: var(--error);
   font-size: 0.875rem;
 }
 
@@ -163,10 +164,10 @@
 
 .filterActive {
   background: var(--fg);
-  color: white;
+  color: var(--bg);
 
   &:hover {
-    color: white;
+    color: var(--bg);
   }
 }
 
@@ -180,7 +181,7 @@
   padding: 0.25rem 0.625rem;
   border-radius: 999px;
   background: var(--accent);
-  color: white;
+  color: var(--bg);
   text-decoration: none;
 }
 
@@ -209,10 +210,10 @@
 .tagChipActive {
   background: var(--fg);
   border-color: var(--fg);
-  color: white;
+  color: var(--bg);
 
   &:hover {
-    color: white;
+    color: var(--bg);
   }
 }
 
@@ -346,18 +347,18 @@
 .digestButtonActive {
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
+  color: var(--bg);
 
   &:hover {
     background: var(--accent);
-    color: white;
+    color: var(--bg);
     border-color: var(--accent);
   }
 }
 
 .digestError {
   font-size: 0.75rem;
-  color: #a11;
+  color: var(--error);
 }
 
 .pagination {

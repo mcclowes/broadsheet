@@ -86,7 +86,7 @@
   padding: 0.5rem 1.25rem;
   border-radius: 999px;
   background: var(--fg);
-  color: white;
+  color: var(--bg);
   border: none;
   cursor: pointer;
 
@@ -97,7 +97,7 @@
 }
 
 .error {
-  color: #a11;
+  color: var(--error);
   font-size: 0.875rem;
   margin: 0;
 }

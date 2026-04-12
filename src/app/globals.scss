@@ -1,9 +1,28 @@
 :root {
   --bg: #fafaf7;
+  --bg-elevated: #f3f1ec;
   --fg: #1a1a1a;
   --fg-muted: #6b6b6b;
+  --fg-on-accent: #ffffff;
   --accent: #b4451f;
   --rule: #e4e2dc;
+  --error: #a11;
+  --danger: #c44;
+  --warn-bg: #fff7f5;
+  --warn-border: #e5b4a8;
+  --warn-fg: #884422;
+  --highlight: #e4b400;
+  --highlight-bg: rgba(228, 180, 0, 0.08);
+  --diff-add-bg: #e6ffec;
+  --diff-add-fg: #176f2c;
+  --diff-remove-bg: #ffeef0;
+  --diff-remove-fg: #86181d;
+  --overlay: rgba(0, 0, 0, 0.4);
+  --shadow-sm: rgba(0, 0, 0, 0.08);
+  --shadow-md: rgba(0, 0, 0, 0.12);
+  --shadow-lg: rgba(0, 0, 0, 0.15);
+  --skeleton-base: rgba(0, 0, 0, 0.06);
+  --skeleton-shimmer: rgba(0, 0, 0, 0.12);
   --max-read-width: 38rem;
 
   --font-serif:
@@ -11,6 +30,40 @@
   --font-sans:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica,
     Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131311;
+    --bg-elevated: #1f1e1b;
+    --fg: #ece9df;
+    --fg-muted: #9a968b;
+    --fg-on-accent: #131311;
+    --accent: #e8794f;
+    --rule: #2e2c27;
+    --error: #ff8a80;
+    --danger: #ff8a80;
+    --warn-bg: rgba(232, 121, 79, 0.1);
+    --warn-border: rgba(232, 121, 79, 0.35);
+    --warn-fg: #e8a685;
+    --highlight: #e4b400;
+    --highlight-bg: rgba(228, 180, 0, 0.18);
+    --diff-add-bg: rgba(46, 160, 67, 0.18);
+    --diff-add-fg: #7ee2a8;
+    --diff-remove-bg: rgba(248, 81, 73, 0.18);
+    --diff-remove-fg: #ff9ea2;
+    --overlay: rgba(0, 0, 0, 0.6);
+    --shadow-sm: rgba(0, 0, 0, 0.4);
+    --shadow-md: rgba(0, 0, 0, 0.5);
+    --shadow-lg: rgba(0, 0, 0, 0.6);
+    --skeleton-base: rgba(255, 255, 255, 0.06);
+    --skeleton-shimmer: rgba(255, 255, 255, 0.12);
+  }
+
+  img {
+    /* Slightly damp image brightness so they don't glare against the dark canvas. */
+    filter: brightness(0.9);
+  }
 }
 
 * {
@@ -109,7 +162,7 @@ button {
 }
 
 .reader-body pre {
-  background: #f3f1ec;
+  background: var(--bg-elevated);
   padding: 1rem;
   border-radius: 6px;
   overflow-x: auto;
@@ -119,7 +172,7 @@ button {
 .reader-body code {
   font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
   font-size: 0.875em;
-  background: #f3f1ec;
+  background: var(--bg-elevated);
   padding: 0.125em 0.375em;
   border-radius: 3px;
 }
@@ -152,7 +205,7 @@ button {
 }
 
 .reader-body thead {
-  background: #f3f1ec;
+  background: var(--bg-elevated);
 }
 
 .reader-body th,

@@ -24,10 +24,10 @@
 .menu {
   display: flex;
   flex-direction: column;
-  background: var(--bg, #fafaf7);
+  background: var(--bg);
   border: 1px solid var(--rule);
   border-radius: 0.5rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px var(--shadow-md);
   overflow: hidden;
   animation: menuIn 0.15s ease;
 }
@@ -86,8 +86,8 @@
   height: 3rem;
   border-radius: 50%;
   border: 1px solid var(--rule);
-  background: var(--bg, #fafaf7);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--bg);
+  box-shadow: 0 2px 8px var(--shadow-md);
   cursor: pointer;
   transition:
     transform 0.15s ease,
@@ -96,7 +96,7 @@
 
   &:hover {
     border-color: var(--fg);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px var(--shadow-lg);
   }
 }
 

@@ -5,9 +5,9 @@
   gap: 0.25rem;
   padding: 0.25rem 0.35rem;
   background: var(--bg);
-  border: 1px solid var(--border, #ccc);
+  border: 1px solid var(--rule);
   border-radius: 6px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 14px var(--shadow-md);
   z-index: 60;
 }
 
@@ -15,7 +15,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--rule);
   cursor: pointer;
   padding: 0;
 
@@ -40,7 +40,7 @@
   font-size: 1.1rem;
   line-height: 1;
   padding: 0 0.25rem;
-  color: var(--fg-muted, #666);
+  color: var(--fg-muted);
 }
 
 .notePanel {
@@ -50,29 +50,31 @@
   width: min(360px, calc(100vw - 3rem));
   padding: 1rem;
   background: var(--bg);
-  border: 1px solid var(--border, #ccc);
+  border: 1px solid var(--rule);
   border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 10px 30px var(--shadow-lg);
   z-index: 70;
 }
 
 .quote {
   margin: 0 0 0.75rem;
   padding: 0.5rem 0.75rem;
-  border-left: 3px solid var(--accent, #888);
+  border-left: 3px solid var(--accent);
   font-size: 0.9rem;
-  color: var(--fg-muted, #555);
-  background: var(--bg-muted, rgba(0, 0, 0, 0.03));
+  color: var(--fg-muted);
+  background: var(--bg-elevated);
 }
 
 .noteInput {
   width: 100%;
   min-height: 80px;
   padding: 0.5rem;
-  border: 1px solid var(--border, #ccc);
+  border: 1px solid var(--rule);
   border-radius: 4px;
   font-family: inherit;
   font-size: 0.9rem;
+  background: var(--bg);
+  color: var(--fg);
   resize: vertical;
   box-sizing: border-box;
 }
@@ -85,8 +87,9 @@
 
   button {
     padding: 0.35rem 0.75rem;
-    border: 1px solid var(--border, #ccc);
+    border: 1px solid var(--rule);
     background: var(--bg);
+    color: var(--fg);
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.85rem;
@@ -94,12 +97,12 @@
 }
 
 .danger {
-  color: #b91c1c;
-  border-color: #fca5a5 !important;
+  color: var(--danger);
+  border-color: var(--danger) !important;
 }
 
 .error {
-  color: #b91c1c;
+  color: var(--error);
   font-size: 0.85rem;
   margin-top: 0.5rem;
 }
@@ -107,6 +110,9 @@
 :global(.reader-body mark[data-highlight-id]) {
   border-radius: 2px;
   padding: 0 1px;
+  /* Highlight backgrounds are always pale; force dark text for legibility
+     regardless of the surrounding theme. */
+  color: #1a1a1a;
   cursor: pointer;
 
   &[data-color="yellow"] {

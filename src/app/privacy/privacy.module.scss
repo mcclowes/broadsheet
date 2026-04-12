@@ -59,7 +59,7 @@
   code {
     font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
     font-size: 0.9em;
-    background: #f3f1ec;
+    background: var(--bg-elevated);
     padding: 0.1em 0.35em;
     border-radius: 3px;
   }
