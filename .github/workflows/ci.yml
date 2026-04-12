@@ -9,6 +9,12 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # Dummy Clerk keys satisfy the shape check in next.config.ts'
+    # validateClerkEnv. The build step does not exercise Clerk at
+    # runtime; real keys live on Vercel, not in CI.
+    env:
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci-dummy-key
+      CLERK_SECRET_KEY: sk_test_ci-dummy-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
