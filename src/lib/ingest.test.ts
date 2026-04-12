@@ -210,6 +210,57 @@ const y = 2;</code></pre>
     );
   });
 
+  it("renders markdown-style emphasis in source HTML as <em>/<strong>", () => {
+    // Some publishers (commonly literary / poetry sites generated from a
+    // markdown-based CMS) emit italics as literal _text_ / *text* in the
+    // rendered HTML rather than wrapping them in <em>. The canonical body
+    // should still render these as emphasis.
+    const emphasisHtml = `<!doctype html><html><head><title>Poets on Translation</title></head>
+<body><article>
+  <h1>Poets on Translation</h1>
+  <p>_Poets on Translation is a series of short essays in which poets examine the intersections of poetry and translation._</p>
+  <p>From _shirt_ to _shatsu_, from _elevator_ to _erebētā_: loanwords became **fully domesticated** in the language.</p>
+  <p>Another paragraph with more content so readability is happy with the word count for extraction.</p>
+</article></body></html>`;
+    const parsed = parseArticleFromHtml(
+      emphasisHtml,
+      "https://example.com/poets-on-translation",
+    );
+    expect(parsed.sanitizedHtml).toContain("<em>");
+    expect(parsed.sanitizedHtml).toContain(
+      "<strong>fully domesticated</strong>",
+    );
+    // The raw underscore characters should not survive into the rendered body
+    // (apart from inside words like snake_case, which isn't present here).
+    expect(parsed.sanitizedHtml).not.toContain("_Poets on Translation");
+    expect(parsed.sanitizedHtml).not.toContain("_shirt_");
+  });
+
+  it("does not promote emphasis inside code, pre, or identifier-like text", () => {
+    const codeAndIdentifiersHtml = `<!doctype html><html><head><title>Code</title></head>
+<body><article>
+  <h1>Code sample</h1>
+  <p>An introduction with enough words to make readability happy with the content length here.</p>
+  <p>Variables like user_id and my_var_name should not be italicised.</p>
+  <p>Inline <code>user_id = 1</code> stays untouched, as does the block below.</p>
+  <pre><code>def foo(user_id):
+    return user_id * 2</code></pre>
+  <p>Another paragraph with more content to keep readability satisfied with word count requirements here.</p>
+</article></body></html>`;
+    const parsed = parseArticleFromHtml(
+      codeAndIdentifiersHtml,
+      "https://example.com/code-emphasis",
+    );
+    // snake_case identifiers survive unchanged
+    expect(parsed.sanitizedHtml).toContain("user_id");
+    expect(parsed.sanitizedHtml).toContain("my_var_name");
+    // Code block contents are untouched
+    expect(parsed.sanitizedHtml).toContain("def foo(user_id)");
+    expect(parsed.sanitizedHtml).toContain("user_id * 2");
+    // Sanity: no stray <em> has been introduced around identifiers
+    expect(parsed.sanitizedHtml).not.toMatch(/<em>[^<]*user[^<]*<\/em>/);
+  });
+
   it("throws IngestError when no readable content is found", () => {
     const empty = "<!doctype html><html><body></body></html>";
     expect(() => parseArticleFromHtml(empty, "https://example.com")).toThrow(
