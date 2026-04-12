@@ -1,6 +1,12 @@
 import type { AuthedUserId } from "./auth-types";
-import { articleIdForUrl, canonicalizeUrl, saveArticleStub } from "./articles";
+import {
+  articleIdForUrl,
+  canonicalizeUrl,
+  rehydrateArticle,
+  saveArticleStub,
+} from "./articles";
 import { addUnanchoredHighlights } from "./annotations";
+import { fetchAndParse } from "./ingest";
 import {
   parsePocketExport,
   type ParsedPocketExport,
@@ -17,6 +23,9 @@ export interface PocketImportResult {
   annotationsMatched: number;
   annotationsOrphaned: number;
   highlightsCreated: number;
+  contentFetched: number;
+  contentFailed: number;
+  contentPending: number;
 }
 
 export interface PocketImportInput {
@@ -24,11 +33,30 @@ export interface PocketImportInput {
   annotations?: string;
 }
 
+export interface PocketImportOptions {
+  /**
+   * Upper bound on the total time (ms) spent fetching article content after
+   * stubs are saved. Remaining articles stay `pendingIngest: true` and will
+   * rehydrate on demand when the user opens them. Defaults to 4 minutes so
+   * imports fit inside the route's 5-minute `maxDuration`.
+   */
+  rehydrateBudgetMs?: number;
+  /** Max concurrent `fetchAndParse` calls during rehydration. */
+  rehydrateConcurrency?: number;
+  /** Injection seam for tests. */
+  fetchAndParseImpl?: typeof fetchAndParse;
+  /** Monotonic clock for tests. */
+  now?: () => number;
+}
+
 export const POCKET_IMPORT_MAX_ITEMS = 5000;
+const DEFAULT_REHYDRATE_BUDGET_MS = 4 * 60 * 1000;
+const DEFAULT_REHYDRATE_CONCURRENCY = 4;
 
 export async function importPocketExport(
   userId: AuthedUserId,
   input: PocketImportInput,
+  options: PocketImportOptions = {},
 ): Promise<PocketImportResult> {
   const parsed: ParsedPocketExport = parsePocketExport(input);
   if (parsed.items.length > POCKET_IMPORT_MAX_ITEMS) {
@@ -46,9 +74,13 @@ export async function importPocketExport(
     annotationsMatched: 0,
     annotationsOrphaned: 0,
     highlightsCreated: 0,
+    contentFetched: 0,
+    contentFailed: 0,
+    contentPending: 0,
   };
 
   const urlToId = new Map<string, string>();
+  const toRehydrate: { id: string; url: string }[] = [];
   for (const item of parsed.items) {
     try {
       const { id, created } = await saveArticleStub(userId, {
@@ -61,8 +93,12 @@ export async function importPocketExport(
       });
       const canonical = canonicalUrlSafe(item.url);
       if (canonical) urlToId.set(canonical, id);
-      if (created) result.articlesCreated++;
-      else result.articlesSkipped++;
+      if (created) {
+        result.articlesCreated++;
+        toRehydrate.push({ id, url: item.url });
+      } else {
+        result.articlesSkipped++;
+      }
     } catch (err) {
       result.articlesFailed++;
       console.error("[pocket-import] stub save failed", {
@@ -89,7 +125,10 @@ export async function importPocketExport(
           importedFrom: "pocket",
         });
         articleId = stub.id;
-        if (stub.created) result.articlesCreated++;
+        if (stub.created) {
+          result.articlesCreated++;
+          toRehydrate.push({ id: stub.id, url: annotation.url });
+        }
       } catch {
         result.annotationsOrphaned++;
         continue;
@@ -116,7 +155,56 @@ export async function importPocketExport(
     }
   }
 
+  await rehydrateImportedArticles(userId, toRehydrate, result, options);
+
   return result;
+}
+
+async function rehydrateImportedArticles(
+  userId: AuthedUserId,
+  items: { id: string; url: string }[],
+  result: PocketImportResult,
+  options: PocketImportOptions,
+): Promise<void> {
+  const budgetMs = options.rehydrateBudgetMs ?? DEFAULT_REHYDRATE_BUDGET_MS;
+  const concurrency = Math.max(
+    1,
+    options.rehydrateConcurrency ?? DEFAULT_REHYDRATE_CONCURRENCY,
+  );
+  const fetchImpl = options.fetchAndParseImpl ?? fetchAndParse;
+  const now = options.now ?? (() => Date.now());
+  const deadline = now() + budgetMs;
+
+  let cursor = 0;
+  async function worker(): Promise<void> {
+    while (cursor < items.length) {
+      if (now() >= deadline) return;
+      const index = cursor++;
+      const item = items[index];
+      try {
+        const { parsed } = await fetchImpl(item.url);
+        await rehydrateArticle(userId, item.id, parsed);
+        result.contentFetched++;
+      } catch (err) {
+        result.contentFailed++;
+        console.error("[pocket-import] rehydrate failed", {
+          url: item.url,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+
+  result.contentPending = Math.max(
+    0,
+    items.length - result.contentFetched - result.contentFailed,
+  );
 }
 
 function canonicalUrlSafe(url: string): string | null {
