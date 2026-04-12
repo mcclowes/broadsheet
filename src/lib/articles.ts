@@ -160,6 +160,38 @@ export interface ListFilters {
   limit?: number;
 }
 
+export const LIST_LIMIT_MAX = 200;
+
+export function parseListFilters(params: URLSearchParams): ListFilters {
+  const rawView = params.get("view");
+  const rawState = params.get("state");
+  const rawLimit = params.get("limit");
+  const view: LibraryView | undefined =
+    rawView === "archive"
+      ? "archive"
+      : rawView === "inbox"
+        ? "inbox"
+        : undefined;
+  const state: ReadState | undefined =
+    rawState === "read"
+      ? "read"
+      : rawState === "unread"
+        ? "unread"
+        : rawState === "all"
+          ? "all"
+          : undefined;
+  let limit: number | undefined;
+  if (rawLimit !== null) {
+    const parsed = Number(rawLimit);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      limit = Math.min(parsed, LIST_LIMIT_MAX);
+    }
+  }
+  const tag = params.get("tag") ?? undefined;
+  const source = params.get("source") ?? undefined;
+  return { view, state, tag, source, limit };
+}
+
 export function filterArticles(
   articles: ArticleSummary[],
   filters: ListFilters,
