@@ -5,6 +5,7 @@ import { getArticle } from "@/lib/articles";
 import { renderMarkdown } from "@/lib/markdown";
 import { ArticleActions } from "./article-actions";
 import { CacheArticle } from "./cache-article";
+import { ReadingProgress } from "./reading-progress";
 import styles from "./read.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ export default async function ReadPage({
 
   return (
     <main className={styles.main}>
+      <ReadingProgress />
       <CacheArticle
         article={{
           id: article.id,
