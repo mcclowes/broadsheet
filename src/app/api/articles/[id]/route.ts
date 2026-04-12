@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
+import { NotFoundError } from "folio-db-next";
 import { getArticle, markRead, setArchived, setTags } from "@/lib/articles";
 
 export async function GET(
@@ -10,10 +11,17 @@ export async function GET(
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const article = await getArticle(userId, id);
-  if (!article) return Response.json({ error: "Not found" }, { status: 404 });
-
-  return Response.json({ article });
+  try {
+    const article = await getArticle(userId, id);
+    if (!article) return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json({ article });
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+    console.error("[api/articles/GET] read failed", { id, err });
+    return Response.json({ error: "Internal error" }, { status: 500 });
+  }
 }
 
 const patchSchema = z
@@ -36,8 +44,6 @@ export async function PATCH(
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const existing = await getArticle(userId, id);
-  if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
 
   let body: unknown;
   try {
@@ -56,6 +62,10 @@ export async function PATCH(
 
   const updates = parsed.data;
   try {
+    const existing = await getArticle(userId, id);
+    if (!existing)
+      return Response.json({ error: "Not found" }, { status: 404 });
+
     if (updates.read !== undefined) await markRead(userId, id, updates.read);
     if (updates.archived !== undefined)
       await setArchived(userId, id, updates.archived);
@@ -65,6 +75,9 @@ export async function PATCH(
 
     return Response.json({ ok: true, tags });
   } catch (err) {
+    if (err instanceof NotFoundError) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
     console.error("[api/articles/PATCH] update failed", { id, err });
     return Response.json({ error: "Internal error" }, { status: 500 });
   }

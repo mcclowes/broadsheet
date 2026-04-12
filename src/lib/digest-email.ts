@@ -87,10 +87,7 @@ function leadHtml(a: ArticleSummary, baseUrl: string): string {
     </table>`;
 }
 
-function secondaryRowHtml(
-  articles: ArticleSummary[],
-  baseUrl: string,
-): string {
+function secondaryRowHtml(articles: ArticleSummary[], baseUrl: string): string {
   if (articles.length === 0) return "";
   // 2-column table layout for email compatibility
   const cells = articles.map((a) => {
