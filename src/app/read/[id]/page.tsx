@@ -60,15 +60,16 @@ export default async function ReadPage({
           {article.byline ? <span>{article.byline}</span> : null}
           {article.source ? <span>{article.source}</span> : null}
           <span>{article.readMinutes} min read</span>
+        </div>
+        <div className={styles.links}>
           <a
             href={article.url}
             target="_blank"
             rel="noreferrer noopener"
-            className={styles.originalLink}
           >
             Original
           </a>
-          <Link href={`/read/${id}/diff`} className={styles.originalLink}>
+          <Link href={`/read/${id}/diff`}>
             Check for changes
           </Link>
         </div>
