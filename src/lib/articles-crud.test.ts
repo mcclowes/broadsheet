@@ -294,6 +294,23 @@ describe("markRead", () => {
     expect(article!.readAt).toBeNull();
   });
 
+  it("handles concurrent markRead calls without throwing", async () => {
+    const summary = await saveArticle(
+      USER,
+      "https://example.com/concurrent-read",
+      makeParsed(),
+    );
+
+    await Promise.all([
+      markRead(USER, summary.id, true),
+      markRead(USER, summary.id, true),
+      markRead(USER, summary.id, true),
+    ]);
+
+    const article = await getArticle(USER, summary.id);
+    expect(article!.readAt).toBeTruthy();
+  });
+
   it("appears in filtered list after marking read", async () => {
     const summary = await saveArticle(
       USER,

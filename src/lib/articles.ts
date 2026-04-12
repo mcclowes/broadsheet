@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import type { Volume } from "folio-db-next";
+import { ConflictError, type Volume } from "folio-db-next";
 import type { AuthedUserId } from "./auth-types";
 import { getFolio, volumeNameForUser } from "./folio";
 import { estimateReadMinutes, type ParsedArticle } from "./ingest";
@@ -198,6 +198,26 @@ export async function getArticle(
   return { id: page.slug, body: page.body, ...page.frontmatter };
 }
 
+const CONFLICT_RETRY_ATTEMPTS = 3;
+const CONFLICT_RETRY_BASE_MS = 10;
+
+async function retryOnConflict<T>(fn: () => Promise<T>): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < CONFLICT_RETRY_ATTEMPTS; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!(err instanceof ConflictError)) throw err;
+      lastErr = err;
+      const jitter = Math.random() * CONFLICT_RETRY_BASE_MS;
+      await new Promise((r) =>
+        setTimeout(r, CONFLICT_RETRY_BASE_MS * 2 ** attempt + jitter),
+      );
+    }
+  }
+  throw lastErr;
+}
+
 export interface ArticlePatch {
   read?: boolean;
   archived?: boolean;
@@ -221,7 +241,7 @@ export async function patchArticle(
     tags = cleanTags(patch.tags);
     frontmatter.tags = tags;
   }
-  await userVolume(userId).patch(id, { frontmatter });
+  await retryOnConflict(() => userVolume(userId).patch(id, { frontmatter }));
   return { tags };
 }
 
@@ -230,9 +250,11 @@ export async function markRead(
   id: string,
   read: boolean,
 ): Promise<void> {
-  await userVolume(userId).patch(id, {
-    frontmatter: { readAt: read ? new Date().toISOString() : null },
-  });
+  await retryOnConflict(() =>
+    userVolume(userId).patch(id, {
+      frontmatter: { readAt: read ? new Date().toISOString() : null },
+    }),
+  );
 }
 
 export async function setArchived(
@@ -240,9 +262,11 @@ export async function setArchived(
   id: string,
   archived: boolean,
 ): Promise<void> {
-  await userVolume(userId).patch(id, {
-    frontmatter: { archivedAt: archived ? new Date().toISOString() : null },
-  });
+  await retryOnConflict(() =>
+    userVolume(userId).patch(id, {
+      frontmatter: { archivedAt: archived ? new Date().toISOString() : null },
+    }),
+  );
 }
 
 function normalizeTag(raw: string): string {
