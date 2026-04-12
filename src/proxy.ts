@@ -1,18 +1,27 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const isProtected = createRouteMatcher([
+const isProtectedRoute = createRouteMatcher([
   "/library(.*)",
   "/read(.*)",
   "/sources(.*)",
+  "/settings(.*)",
+  "/import(.*)",
   "/api/articles(.*)",
   "/api/sources(.*)",
+  "/api/digest(.*)",
+  "/api/import(.*)",
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
-  if (isProtected(req)) {
-    await auth.protect();
-  }
-});
+export default clerkMiddleware(
+  async (auth, req) => {
+    if (isProtectedRoute(req)) {
+      await auth.protect();
+    }
+  },
+  {
+    frontendApiProxy: { enabled: true },
+  },
+);
 
 export const config = {
   matcher: [

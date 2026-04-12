@@ -67,7 +67,7 @@ describe("setDigestPreferences", () => {
   });
 
   it("preserves enabledAt on re-enable with same user", async () => {
-    const first = await setDigestPreferences(USER_A, {
+    await setDigestPreferences(USER_A, {
       enabled: true,
       email: "alice@test.com",
     });

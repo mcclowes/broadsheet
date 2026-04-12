@@ -30,6 +30,11 @@ coverage
 .idea
 .vercel
 
+# claude/agent tooling artifacts
+.agents
+skills-lock.json
+.claude/skills
+
 # extension build output
 apps/extension/dist
 

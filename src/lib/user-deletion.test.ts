@@ -32,7 +32,7 @@ async function seedSource(userId: ReturnType<typeof authedUserId>) {
 const USER = authedUserId("user_test_delete_alice");
 const OTHER = authedUserId("user_test_delete_bob");
 
-function parsed(url: string): ParsedArticle {
+function parsed(): ParsedArticle {
   return {
     title: "T",
     byline: null,
@@ -61,8 +61,8 @@ beforeEach(async () => {
 
 describe("deleteAllUserData", () => {
   it("removes articles, sources and digest registry entry for the user", async () => {
-    await saveArticle(USER, "https://example.com/a", parsed("a"));
-    await saveArticle(USER, "https://example.com/b", parsed("b"));
+    await saveArticle(USER, "https://example.com/a", parsed());
+    await saveArticle(USER, "https://example.com/b", parsed());
     await seedSource(USER);
     await setDigestPreferences(USER, { enabled: true, email: "a@b.com" });
 
@@ -75,8 +75,8 @@ describe("deleteAllUserData", () => {
   });
 
   it("leaves other users' data untouched", async () => {
-    await saveArticle(USER, "https://example.com/a", parsed("a"));
-    await saveArticle(OTHER, "https://example.com/b", parsed("b"));
+    await saveArticle(USER, "https://example.com/a", parsed());
+    await saveArticle(OTHER, "https://example.com/b", parsed());
 
     await deleteAllUserData(USER);
 
