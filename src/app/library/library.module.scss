@@ -149,6 +149,13 @@
   gap: 0.25rem;
 }
 
+.filterDivider {
+  display: inline-block;
+  width: 1px;
+  height: 1.25rem;
+  background: var(--rule);
+}
+
 .filter,
 .filterActive {
   font-size: 0.8125rem;
