@@ -105,6 +105,7 @@ export interface ArticleSummary extends ArticleFrontmatter {
 function userVolume(userId: AuthedUserId): Volume<ArticleFrontmatter> {
   return getFolio().volume<ArticleFrontmatter>(volumeNameForUser(userId), {
     schema: articleFrontmatterSchema,
+    listCache: getListCache(),
   });
 }
 
@@ -321,9 +322,13 @@ export async function listArticles(
   userId: AuthedUserId,
   filters: ListFilters = {},
 ): Promise<ArticleSummary[]> {
-  const pages = await userVolume(userId).list();
-  const all = pages
-    .map((p) => ({ id: p.slug, ...p.frontmatter }))
+  // Frontmatter-only: library views only ever read the summary fields, so
+  // hydrating article bodies here is pure waste. Served from the list
+  // cache on hit (RuntimeListCache in prod, no-op elsewhere); rebuilt from
+  // the adapter on miss. Writes invalidate the cache via Folio itself.
+  const entries = await userVolume(userId).list({ fields: "frontmatter" });
+  const all = entries
+    .map((e) => ({ id: e.slug, ...e.frontmatter }))
     .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
   const filtered = filterArticles(all, filters);
   return filters.limit ? filtered.slice(0, filters.limit) : filtered;
