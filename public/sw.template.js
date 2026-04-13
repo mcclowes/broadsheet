@@ -145,7 +145,20 @@ function trimCache(cache, maxEntries) {
 // toast — #131). Default is to let the new SW wait until all tabs close,
 // so we don't silently reload and lose user state.
 self.addEventListener("message", (event) => {
-  if (event.data === "skipWaiting") {
-    self.skipWaiting();
-  }
+  event.waitUntil(
+    (async () => {
+      const source = event.source;
+      if (!source || !("id" in source)) return;
+
+      const client = await self.clients.get(source.id);
+      if (!client) return;
+
+      const clientOrigin = new URL(client.url).origin;
+      if (clientOrigin !== self.location.origin) return;
+
+      if (event.data === "skipWaiting") {
+        await self.skipWaiting();
+      }
+    })(),
+  );
 });
