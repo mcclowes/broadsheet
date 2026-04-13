@@ -76,6 +76,20 @@ export default async function SettingsPage() {
         </p>
         <DigestSettings />
       </section>
+
+      <section className={styles.section} aria-labelledby="help-heading">
+        <h2 id="help-heading" className={styles.sectionTitle}>
+          Help & about
+        </h2>
+        <p className={styles.sectionIntro}>
+          Guides, troubleshooting, and how Broadsheet handles your data.
+        </p>
+        <p className={styles.sectionIntro}>
+          <Link href="/help">Help & troubleshooting</Link>
+          {" · "}
+          <Link href="/privacy">Privacy policy</Link>
+        </p>
+      </section>
     </main>
   );
 }
