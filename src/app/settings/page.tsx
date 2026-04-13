@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { authedUserId } from "@/lib/auth-types";
 import { DigestSettings } from "./digest-settings";
 import { ThemeSettings } from "./theme-settings";
+import { AutoArchiveSettings } from "./auto-archive-settings";
 import styles from "./settings.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +61,19 @@ export default async function SettingsPage() {
         <Link href="/import/pocket" className={styles.digestButton}>
           Import from Pocket
         </Link>
+      </section>
+
+      <section
+        className={styles.section}
+        aria-labelledby="auto-archive-heading"
+      >
+        <h2 id="auto-archive-heading" className={styles.sectionTitle}>
+          Auto-archive
+        </h2>
+        <p className={styles.sectionIntro}>
+          Keep your inbox tidy by archiving older articles automatically.
+        </p>
+        <AutoArchiveSettings />
       </section>
 
       <section className={styles.section} aria-labelledby="digest-heading">

@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { NotFoundError } from "folio-db-next";
+import { ConflictError, NotFoundError } from "folio-db-next";
 import { getArticle, patchArticle } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
 import { checkOrigin } from "@/lib/csrf";
@@ -103,6 +103,17 @@ export async function PATCH(
   } catch (err) {
     if (err instanceof NotFoundError) {
       return Response.json({ error: "Not found" }, { status: 404 });
+    }
+    if (err instanceof ConflictError) {
+      // Contention bubbled past both folio's retry loop and the app-layer
+      // retryOnConflict + idempotency check. Treat as a transient; client
+      // can retry. Logged as warning, not error — this is expected under
+      // heavy concurrent edits to the same article, not a 5xx-worthy bug.
+      console.warn("[api/articles/PATCH] conflict after retries", { id });
+      return Response.json(
+        { error: "Conflict — another write landed first; please retry" },
+        { status: 409 },
+      );
     }
     console.error("[api/articles/PATCH] update failed", { id, err });
     return Response.json({ error: "Internal error" }, { status: 500 });
