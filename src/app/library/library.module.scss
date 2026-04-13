@@ -134,6 +134,23 @@
   font-size: 0.875rem;
 }
 
+.saveSuccess {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+}
+
+.saveSuccessLink {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+
+  &:hover {
+    color: var(--fg);
+    border-bottom-color: var(--fg);
+  }
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;
