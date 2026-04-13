@@ -2,7 +2,7 @@
   "name": "Broadsheet",
   "short_name": "Broadsheet",
   "description": "Save articles. Read them cleanly. Keep them.",
-  "start_url": "/library",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#fafaf7",
