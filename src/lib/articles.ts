@@ -343,8 +343,14 @@ export async function getArticle(
   return { id: page.slug, body: page.body, ...page.frontmatter };
 }
 
-const CONFLICT_RETRY_ATTEMPTS = 3;
-const CONFLICT_RETRY_BASE_MS = 10;
+// Folio's volume.patch already retries 3 times with jittered backoff. This
+// outer wrapper is the second line of defence for sustained contention on a
+// single article — rapid mark-read/archive toggles from the same user, the
+// auto-archive scheduler racing with a user action, multiple tabs, and so
+// on. Budget: 6 attempts, 50ms→1.6s exponential. Total worst-case wall time
+// ~3s, which is long for a UI click but much better than a 500.
+const CONFLICT_RETRY_ATTEMPTS = 6;
+const CONFLICT_RETRY_BASE_MS = 50;
 
 async function retryOnConflict<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown;
@@ -361,6 +367,41 @@ async function retryOnConflict<T>(fn: () => Promise<T>): Promise<T> {
     }
   }
   throw lastErr;
+}
+
+// Read-after-conflict idempotency check. A ConflictError that bubbles past
+// retryOnConflict means we never landed our patch — but under heavy
+// contention the *winning* concurrent writer may have already applied the
+// same intended state (e.g. both callers set read=true). Re-read the page
+// and, if every intended field already matches, treat it as success.
+// Returns `null` on genuine mismatch (caller should surface the conflict).
+async function articleStateMatches(
+  userId: AuthedUserId,
+  id: string,
+  intent: Partial<ArticleFrontmatter>,
+): Promise<boolean> {
+  const page = await userVolume(userId).get(id);
+  if (!page) return false;
+  for (const [k, v] of Object.entries(intent)) {
+    const current = (page.frontmatter as Record<string, unknown>)[k];
+    if (k === "readAt" || k === "archivedAt") {
+      // Intent is "set to a timestamp" or "clear to null". Accept any
+      // non-null timestamp as satisfying a set-to-now intent, since the
+      // winning writer's clock is what actually landed.
+      const wantSet = v !== null;
+      const haveSet = current !== null && current !== undefined;
+      if (wantSet !== haveSet) return false;
+    } else if (Array.isArray(v)) {
+      const currentArr = Array.isArray(current) ? current : [];
+      if (v.length !== currentArr.length) return false;
+      const sortedV = [...v].sort();
+      const sortedC = [...currentArr].sort();
+      if (sortedV.some((x, i) => x !== sortedC[i])) return false;
+    } else if (current !== v) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export interface ArticlePatch {
@@ -386,7 +427,16 @@ export async function patchArticle(
     tags = cleanTags(patch.tags);
     frontmatter.tags = tags;
   }
-  await retryOnConflict(() => userVolume(userId).patch(id, { frontmatter }));
+  try {
+    await retryOnConflict(() => userVolume(userId).patch(id, { frontmatter }));
+  } catch (err) {
+    if (!(err instanceof ConflictError)) throw err;
+    // Retries exhausted. If a concurrent writer already landed the same
+    // intended state (very common for idempotent toggles), swallow the
+    // error — the user's intent is satisfied. Otherwise re-throw so the
+    // API route can surface a 409 instead of silently losing the write.
+    if (!(await articleStateMatches(userId, id, frontmatter))) throw err;
+  }
   return { tags };
 }
 
@@ -436,6 +486,8 @@ export async function setTags(
   tags: string[],
 ): Promise<string[]> {
   const clean = cleanTags(tags);
-  await userVolume(userId).patch(id, { frontmatter: { tags: clean } });
+  await retryOnConflict(() =>
+    userVolume(userId).patch(id, { frontmatter: { tags: clean } }),
+  );
   return clean;
 }
