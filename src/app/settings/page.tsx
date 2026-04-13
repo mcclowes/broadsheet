@@ -6,6 +6,7 @@ import { authedUserId } from "@/lib/auth-types";
 import { DigestSettings } from "./digest-settings";
 import { ThemeSettings } from "./theme-settings";
 import { AutoArchiveSettings } from "./auto-archive-settings";
+import { PrimaryTabs } from "@/app/components/primary-tabs";
 import styles from "./settings.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -27,17 +28,7 @@ export default async function SettingsPage() {
         <UserButton />
       </header>
 
-      <nav className={styles.tabs} aria-label="Primary">
-        <Link href="/library" className={styles.tab}>
-          Library
-        </Link>
-        <Link href="/sources" className={styles.tab}>
-          Sources
-        </Link>
-        <Link href="/settings" className={styles.tabActive}>
-          Settings
-        </Link>
-      </nav>
+      <PrimaryTabs active="settings" />
 
       <h1 className={styles.pageTitle}>Settings</h1>
 

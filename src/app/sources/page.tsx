@@ -10,6 +10,7 @@ import {
 } from "@/lib/sources";
 import { articleIdForUrl, listArticles } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
+import { PrimaryTabs } from "@/app/components/primary-tabs";
 import { AddSourceForm } from "./add-source-form";
 import { ItemActions } from "./item-actions";
 import styles from "./sources.module.scss";
@@ -62,17 +63,7 @@ export default async function SourcesPage() {
         <UserButton />
       </header>
 
-      <nav className={styles.tabs} aria-label="Primary">
-        <Link href="/library" className={styles.tab}>
-          Library
-        </Link>
-        <Link href="/sources" className={styles.tabActive}>
-          Sources
-        </Link>
-        <Link href="/settings" className={styles.tab}>
-          Settings
-        </Link>
-      </nav>
+      <PrimaryTabs active="sources" />
 
       <p className={styles.intro}>
         Follow a site to see its latest articles here. Nothing is saved to your

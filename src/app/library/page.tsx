@@ -14,6 +14,7 @@ import { DigestToggle } from "./digest-toggle";
 import { CacheLibrary } from "./cache-library";
 import { SwipeableArticleLink } from "./swipeable-article-link";
 import { PaletteTrigger } from "@/app/components/palette-trigger";
+import { PrimaryTabs } from "@/app/components/primary-tabs";
 import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./library.module.scss";
 
@@ -158,20 +159,7 @@ export default async function LibraryPage({
         </div>
       </header>
 
-      <nav className={styles.topTabs} aria-label="Primary">
-        <div className={styles.topTabsLeft}>
-          <Link href="/library" className={styles.topTabActive}>
-            Library
-          </Link>
-          <Link href="/sources" className={styles.topTab}>
-            Sources
-          </Link>
-          <Link href="/settings" className={styles.topTab}>
-            Settings
-          </Link>
-        </div>
-        <DigestToggle />
-      </nav>
+      <PrimaryTabs active="library" right={<DigestToggle />} />
 
       <nav className={styles.filters} aria-label="Library filters">
         <div className={styles.filterGroup}>
