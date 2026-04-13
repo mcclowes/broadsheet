@@ -272,6 +272,7 @@
 }
 
 .item {
+  position: relative;
   border-bottom: 1px solid var(--rule);
 
   &:last-child {

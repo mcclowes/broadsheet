@@ -13,6 +13,7 @@ import { SaveForm } from "./save-form";
 import { DigestToggle } from "./digest-toggle";
 import { CacheLibrary } from "./cache-library";
 import { SwipeableArticleLink } from "./swipeable-article-link";
+import { LibraryItemMenu } from "./library-item-menu";
 import { PaletteTrigger } from "@/app/components/palette-trigger";
 import { PrimaryTabs } from "@/app/components/primary-tabs";
 import { PublicationIcon } from "@/components/publication-icon";
@@ -295,6 +296,12 @@ export default async function LibraryPage({
                   </div>
                 ) : null}
               </SwipeableArticleLink>
+              <LibraryItemMenu
+                articleId={a.id}
+                articleUrl={a.url}
+                initialRead={Boolean(a.readAt)}
+                initialArchived={Boolean(a.archivedAt)}
+              />
             </li>
           ))}
         </ul>
