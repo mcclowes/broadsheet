@@ -97,7 +97,9 @@ export default async function LibraryPage({
 
   const sp = await searchParams;
   const view = parseView(sp.view);
-  const state = parseState(sp.state);
+  // Archive implies "done with it" — the read/unread distinction is
+  // cognitive noise there, so we collapse to "all".
+  const state = view === "archive" ? "all" : parseState(sp.state);
   const tag = sp.tag?.trim() || undefined;
   const source = sp.source?.trim() || undefined;
   const page = parsePage(sp.page);
@@ -183,36 +185,49 @@ export default async function LibraryPage({
             Inbox
           </Link>
           <Link
-            href={filterLink(current, { view: "archive" })}
+            href={filterLink(current, { view: "archive", state: "all" })}
             className={view === "archive" ? styles.filterActive : styles.filter}
             {...(view === "archive" && { "aria-current": "page" as const })}
           >
             Archive
           </Link>
         </div>
-        <div className={styles.filterGroup}>
-          <Link
-            href={filterLink(current, { state: "all" })}
-            className={state === "all" ? styles.filterActive : styles.filter}
-            {...(state === "all" && { "aria-current": "page" as const })}
-          >
-            All
-          </Link>
-          <Link
-            href={filterLink(current, { state: "unread" })}
-            className={state === "unread" ? styles.filterActive : styles.filter}
-            {...(state === "unread" && { "aria-current": "page" as const })}
-          >
-            Unread
-          </Link>
-          <Link
-            href={filterLink(current, { state: "read" })}
-            className={state === "read" ? styles.filterActive : styles.filter}
-            {...(state === "read" && { "aria-current": "page" as const })}
-          >
-            Read
-          </Link>
-        </div>
+        {view === "archive" ? null : (
+          <>
+            <span className={styles.filterDivider} aria-hidden="true" />
+            <div className={styles.filterGroup}>
+              <Link
+                href={filterLink(current, { state: "all" })}
+                className={
+                  state === "all" ? styles.filterActive : styles.filter
+                }
+                {...(state === "all" && { "aria-current": "page" as const })}
+              >
+                All
+              </Link>
+              <Link
+                href={filterLink(current, { state: "unread" })}
+                className={
+                  state === "unread" ? styles.filterActive : styles.filter
+                }
+                {...(state === "unread" && {
+                  "aria-current": "page" as const,
+                })}
+              >
+                Unread
+              </Link>
+              <Link
+                href={filterLink(current, { state: "read" })}
+                className={
+                  state === "read" ? styles.filterActive : styles.filter
+                }
+                {...(state === "read" && { "aria-current": "page" as const })}
+              >
+                Read
+              </Link>
+            </div>
+          </>
+        )}
         {(tag || source) && (
           <div className={styles.activeFilters}>
             {tag ? (
