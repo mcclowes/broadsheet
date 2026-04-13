@@ -728,7 +728,7 @@ describe("fetchAndParse network behaviour", () => {
   it("rejects HTTP error responses", async () => {
     mockFetch(() => new Response("fail", { status: 502 }));
     await expect(fetchAndParse("https://8.8.8.8/abc")).rejects.toMatchObject({
-      publicMessage: "Upstream returned HTTP 502",
+      publicMessage: "The site is having trouble responding — try again later",
     });
   });
 

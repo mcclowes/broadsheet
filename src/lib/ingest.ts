@@ -623,6 +623,25 @@ export function parseArticleFromHtml(html: string, url: string): ParsedArticle {
   };
 }
 
+export function publicMessageForStatus(status: number): string {
+  switch (status) {
+    case 401:
+    case 403:
+      return "The site blocked the request — it may require a login or be protecting against bots";
+    case 404:
+    case 410:
+      return "Page not found at that URL";
+    case 429:
+      return "The site is rate-limiting us — try again in a few minutes";
+    case 451:
+      return "The page is unavailable for legal reasons";
+  }
+  if (status >= 500 && status < 600) {
+    return "The site is having trouble responding — try again later";
+  }
+  return `Upstream returned HTTP ${status}`;
+}
+
 export interface FetchPublicOptions {
   accept: string;
   validateContentType: (contentType: string | null) => boolean;
@@ -711,7 +730,7 @@ export async function fetchPublicResource(
       throw new IngestError(
         `Upstream HTTP ${res.status} for ${current.toString()}`,
         undefined,
-        `Upstream returned HTTP ${res.status}`,
+        publicMessageForStatus(res.status),
       );
     }
 
