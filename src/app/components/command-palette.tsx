@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { applyTheme } from "@/lib/theme";
 import styles from "./command-palette.module.scss";
 
 interface ArticleHit {
@@ -81,6 +82,24 @@ const STATIC_COMMANDS: StaticCommand[] = [
     label: "Go to today's edition",
     hint: "/",
     run: (r) => r.push("/"),
+  },
+  {
+    id: "theme-system",
+    label: "Theme: system",
+    hint: "Follow OS preference",
+    run: () => applyTheme("system"),
+  },
+  {
+    id: "theme-light",
+    label: "Theme: light",
+    hint: "Force light mode",
+    run: () => applyTheme("light"),
+  },
+  {
+    id: "theme-dark",
+    label: "Theme: dark",
+    hint: "Force dark mode",
+    run: () => applyTheme("dark"),
   },
 ];
 

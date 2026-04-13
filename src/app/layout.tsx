@@ -5,6 +5,7 @@ import { ServiceWorkerRegister } from "./components/service-worker-register";
 import { OfflineSync } from "./components/offline-sync";
 import { OfflineIndicator } from "./components/offline-indicator";
 import { CommandPalette } from "./components/command-palette";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.scss";
 
 export const metadata: Metadata = {
@@ -49,7 +50,12 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
+        <head>
+          {/* Applies the user's saved theme before hydration to prevent
+              a flash of the wrong colour scheme. See src/lib/theme.ts. */}
+          <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        </head>
         <body>
           {children}
           <CommandPalette />

@@ -32,36 +32,53 @@
     Arial, sans-serif;
 }
 
+// Dark-mode palette. Applied in two cases:
+//   1. explicit override via `data-theme="dark"` on <html>
+//   2. system preference is dark AND the user hasn't forced light
+// The `:not([data-theme="light"])` guard lets a user pin light mode
+// even when their OS is in dark mode.
+@mixin dark-theme {
+  --bg: #131311;
+  --bg-elevated: #1f1e1b;
+  --fg: #ece9df;
+  --fg-muted: #9a968b;
+  --fg-on-accent: #131311;
+  --accent: #e8794f;
+  --rule: #2e2c27;
+  --error: #ff8a80;
+  --danger: #ff8a80;
+  --warn-bg: rgba(232, 121, 79, 0.1);
+  --warn-border: rgba(232, 121, 79, 0.35);
+  --warn-fg: #e8a685;
+  --highlight: #e4b400;
+  --highlight-bg: rgba(228, 180, 0, 0.18);
+  --diff-add-bg: rgba(46, 160, 67, 0.18);
+  --diff-add-fg: #7ee2a8;
+  --diff-remove-bg: rgba(248, 81, 73, 0.18);
+  --diff-remove-fg: #ff9ea2;
+  --overlay: rgba(0, 0, 0, 0.6);
+  --shadow-sm: rgba(0, 0, 0, 0.4);
+  --shadow-md: rgba(0, 0, 0, 0.5);
+  --shadow-lg: rgba(0, 0, 0, 0.6);
+  --skeleton-base: rgba(255, 255, 255, 0.06);
+  --skeleton-shimmer: rgba(255, 255, 255, 0.12);
+}
+
+:root[data-theme="dark"] {
+  @include dark-theme;
+}
+
+:root[data-theme="dark"] img {
+  /* Slightly damp image brightness so they don't glare against the dark canvas. */
+  filter: brightness(0.9);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #131311;
-    --bg-elevated: #1f1e1b;
-    --fg: #ece9df;
-    --fg-muted: #9a968b;
-    --fg-on-accent: #131311;
-    --accent: #e8794f;
-    --rule: #2e2c27;
-    --error: #ff8a80;
-    --danger: #ff8a80;
-    --warn-bg: rgba(232, 121, 79, 0.1);
-    --warn-border: rgba(232, 121, 79, 0.35);
-    --warn-fg: #e8a685;
-    --highlight: #e4b400;
-    --highlight-bg: rgba(228, 180, 0, 0.18);
-    --diff-add-bg: rgba(46, 160, 67, 0.18);
-    --diff-add-fg: #7ee2a8;
-    --diff-remove-bg: rgba(248, 81, 73, 0.18);
-    --diff-remove-fg: #ff9ea2;
-    --overlay: rgba(0, 0, 0, 0.6);
-    --shadow-sm: rgba(0, 0, 0, 0.4);
-    --shadow-md: rgba(0, 0, 0, 0.5);
-    --shadow-lg: rgba(0, 0, 0, 0.6);
-    --skeleton-base: rgba(255, 255, 255, 0.06);
-    --skeleton-shimmer: rgba(255, 255, 255, 0.12);
+  :root:not([data-theme="light"]) {
+    @include dark-theme;
   }
 
-  img {
-    /* Slightly damp image brightness so they don't glare against the dark canvas. */
+  :root:not([data-theme="light"]) img {
     filter: brightness(0.9);
   }
 }
