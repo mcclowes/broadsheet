@@ -108,7 +108,8 @@ export function ArticleActions({ articleId, initialTags }: Props) {
         <form onSubmit={addTag} className={styles.tagForm}>
           <input
             className={styles.tagInput}
-            placeholder="+ tag"
+            placeholder="Add a tag…"
+            aria-label="Add a tag"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             disabled={pending}

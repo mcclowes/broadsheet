@@ -192,22 +192,21 @@
 
 .tagInput {
   font-size: 0.75rem;
-  padding: 0.125rem 0.5rem;
-  border: 1px dashed var(--rule);
+  padding: 0.25rem 0.625rem;
+  border: 1px solid var(--rule);
   border-radius: 999px;
-  background: transparent;
-  color: var(--fg-muted);
-  width: 5rem;
+  background: var(--bg-elevated);
+  color: var(--fg);
+  width: 8rem;
 
   &::placeholder {
-    color: var(--rule);
+    color: var(--fg-muted);
   }
 
   &:focus {
     outline: none;
-    border-style: solid;
-    border-color: var(--fg-muted);
-    color: var(--fg);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
   }
 }
 
