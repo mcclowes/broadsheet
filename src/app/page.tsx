@@ -100,6 +100,35 @@ export default async function HomePage() {
           </div>
         </section>
 
+        <section className={styles.readerPreview} aria-label="Reader preview">
+          <h3 className={styles.sectionRule}>The reader view</h3>
+          <div className={styles.previewFrame}>
+            <div className={styles.previewChrome}>
+              <span className={styles.previewDot} />
+              <span className={styles.previewDot} />
+              <span className={styles.previewDot} />
+            </div>
+            <article className={styles.previewArticle}>
+              <p className={styles.previewKicker}>The New Yorker</p>
+              <h4 className={styles.previewHeadline}>
+                The quiet craft of reading well
+              </h4>
+              <p className={styles.previewByline}>By Jane Doe · 8 min read</p>
+              <p className={styles.previewBody}>
+                For all the devices that demand our attention, the act of
+                reading remains stubbornly analogue. A paragraph is still a
+                paragraph. A good sentence, typeset with care, does the work it
+                has always done — it carries an idea from one mind to another.
+              </p>
+              <p className={styles.previewBody}>
+                Broadsheet strips away everything that isn&apos;t the article.
+                What&apos;s left is typography, whitespace, and the piece
+                itself.
+              </p>
+            </article>
+          </div>
+        </section>
+
         <section className={styles.howItWorks}>
           <h3 className={styles.sectionRule}>How it works</h3>
           <ol className={styles.steps}>
