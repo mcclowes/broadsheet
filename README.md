@@ -4,7 +4,7 @@ Save articles from the web. Read them later, cleanly, without the clutter.
 
 Broadsheet is an open-source read-it-later app — a modern alternative to Pocket. Save any article with one click from your browser, and it's parsed into clean, readable Markdown and stored in your personal library. No ads, no algorithmic feed, just your articles.
 
-> **Status:** pre-production MVP. The web app and Chrome extension are functional. See [Contributing](#contributing) if you want to help.
+> **Status:** pre-production MVP. The web app is functional, and the [Chrome extension is published on the Chrome Web Store](https://chromewebstore.google.com/detail/broadsheet/joflmcpipjmffhgonneneafllkfppdld). See [Contributing](#contributing) if you want to help.
 
 ## Features
 
@@ -28,7 +28,7 @@ Broadsheet is an open-source read-it-later app — a modern alternative to Pocke
 
 The extension adds a toolbar button and keyboard shortcut to save the page you're viewing.
 
-1. Install the extension from the Chrome Web Store (or load it manually — see [development](#chrome-extension-1) below)
+1. Install the extension from the [Chrome Web Store](https://chromewebstore.google.com/detail/broadsheet/joflmcpipjmffhgonneneafllkfppdld) (or load it manually — see [development](#chrome-extension-1) below)
 2. Sign in to Broadsheet in the same browser profile
 3. Click the Broadsheet icon in your toolbar, or press `Ctrl+Shift+S` / `Cmd+Shift+S`
 4. The article is saved to your library — open the web app to read it

@@ -3,6 +3,8 @@
 Minimal save-current-tab extension. Manifest v3. Talks to the Broadsheet web
 app via `POST /api/articles` using the user's existing cookie session.
 
+**Published:** <https://chromewebstore.google.com/detail/broadsheet/joflmcpipjmffhgonneneafllkfppdld>
+
 ## Auth model
 
 Cookie-based. The extension calls `POST {baseUrl}/api/articles` with
