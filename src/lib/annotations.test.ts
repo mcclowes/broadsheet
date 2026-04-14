@@ -6,7 +6,9 @@ vi.hoisted(() => {
 
 import {
   addHighlight,
+  addUnanchoredHighlights,
   deleteHighlight,
+  listAllAnnotations,
   listHighlights,
   sortHighlights,
   updateHighlight,
@@ -110,5 +112,56 @@ describe("annotations storage", () => {
   it("returns false when deleting missing highlight", async () => {
     const result = await deleteHighlight(USER, ARTICLE, "no-such-id");
     expect(result).toBe(false);
+  });
+});
+
+describe("listAllAnnotations", () => {
+  const ARTICLE_B = "b".repeat(32);
+  const ARTICLE_C = "c".repeat(32);
+
+  it("returns an empty array when the user has no annotations", async () => {
+    const all = await listAllAnnotations(USER);
+    expect(all).toEqual([]);
+  });
+
+  it("aggregates anchored and unanchored highlights across articles", async () => {
+    await addHighlight(USER, ARTICLE, { start: 0, end: 5, text: "first" });
+    await addHighlight(USER, ARTICLE, { start: 10, end: 20, text: "second" });
+    await addHighlight(USER, ARTICLE_B, { start: 0, end: 3, text: "bee" });
+    await addUnanchoredHighlights(USER, ARTICLE_C, [
+      {
+        text: "pocket quote",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        source: "pocket",
+      },
+    ]);
+
+    const all = await listAllAnnotations(USER);
+    const byArticle = new Map(all.map((a) => [a.articleId, a]));
+
+    expect(all).toHaveLength(3);
+    expect(byArticle.get(ARTICLE)?.highlights).toHaveLength(2);
+    expect(byArticle.get(ARTICLE)?.highlights[0].start).toBe(0);
+    expect(byArticle.get(ARTICLE_B)?.highlights).toHaveLength(1);
+    expect(byArticle.get(ARTICLE_C)?.unanchoredHighlights).toHaveLength(1);
+    expect(byArticle.get(ARTICLE_C)?.unanchoredHighlights[0].source).toBe(
+      "pocket",
+    );
+  });
+
+  it("isolates annotations between users", async () => {
+    await addHighlight(USER, ARTICLE, { start: 0, end: 5, text: "mine" });
+    const other = await listAllAnnotations(OTHER);
+    expect(other).toEqual([]);
+  });
+
+  it("sorts by updatedAt descending", async () => {
+    await addHighlight(USER, ARTICLE, { start: 0, end: 5, text: "first" });
+    // Bump ARTICLE_B after ARTICLE so it ends up more recently updated.
+    await new Promise((r) => setTimeout(r, 5));
+    await addHighlight(USER, ARTICLE_B, { start: 0, end: 3, text: "bee" });
+
+    const all = await listAllAnnotations(USER);
+    expect(all.map((a) => a.articleId)).toEqual([ARTICLE_B, ARTICLE]);
   });
 });
