@@ -19,6 +19,8 @@ function make(
     readMinutes: 2,
     savedAt: "2026-04-10T00:00:00.000Z",
     readAt: null,
+    lastReadAt: null,
+    readProgress: null,
     archivedAt: null,
     tags: [],
     markdown: "",

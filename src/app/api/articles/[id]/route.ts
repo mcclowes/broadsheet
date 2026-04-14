@@ -40,10 +40,14 @@ const patchSchema = z
     read: z.boolean().optional(),
     archived: z.boolean().optional(),
     tags: z.array(z.string()).optional(),
+    progress: z.number().min(0).max(1).optional(),
   })
   .refine(
     (v) =>
-      v.read !== undefined || v.archived !== undefined || v.tags !== undefined,
+      v.read !== undefined ||
+      v.archived !== undefined ||
+      v.tags !== undefined ||
+      v.progress !== undefined,
     { message: "No fields to update" },
   );
 

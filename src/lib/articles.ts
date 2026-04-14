@@ -66,12 +66,18 @@ export type ArticleFrontmatter = {
   readMinutes: number;
   savedAt: string;
   readAt: string | null;
+  lastReadAt: string | null;
+  readProgress: number | null;
   archivedAt: string | null;
   tags: string[];
   pendingIngest?: boolean;
   importedFrom?: "pocket" | null;
   [key: string]: unknown;
 };
+
+// Progress ≥ this auto-completes the article (sets readAt). Matches the
+// "scrolled past the end" intuition while tolerating trailing footers.
+export const READ_COMPLETE_THRESHOLD = 0.9;
 
 export const articleFrontmatterSchema: z.ZodType<ArticleFrontmatter> = z.object(
   {
@@ -86,6 +92,8 @@ export const articleFrontmatterSchema: z.ZodType<ArticleFrontmatter> = z.object(
     readMinutes: z.number().int().positive(),
     savedAt: z.string(),
     readAt: z.string().nullable(),
+    lastReadAt: z.string().nullable().default(null),
+    readProgress: z.number().min(0).max(1).nullable().default(null),
     archivedAt: z.string().nullable().default(null),
     tags: z.array(z.string()).default([]),
     pendingIngest: z.boolean().optional(),
@@ -148,6 +156,8 @@ export async function saveArticleWithOutcome(
     readMinutes: estimateReadMinutes(parsed.wordCount),
     savedAt: new Date().toISOString(),
     readAt: null,
+    lastReadAt: null,
+    readProgress: null,
     archivedAt: null,
     tags: generateTags(parsed),
   };
@@ -190,6 +200,8 @@ export async function saveArticleStub(
     readMinutes: 1,
     savedAt: input.savedAt,
     readAt: null,
+    lastReadAt: null,
+    readProgress: null,
     archivedAt: input.archived ? input.savedAt : null,
     tags: cleanTags(input.tags),
     pendingIngest: true,
@@ -236,7 +248,7 @@ export async function rehydrateArticle(
 }
 
 export type LibraryView = "inbox" | "archive";
-export type ReadState = "all" | "read" | "unread";
+export type ReadState = "all" | "read" | "unread" | "reading";
 
 export interface ListFilters {
   view?: LibraryView;
@@ -271,9 +283,11 @@ export function parseListFilters(params: URLSearchParams): ListFilters {
       ? "read"
       : rawState === "unread"
         ? "unread"
-        : rawState === "all"
-          ? "all"
-          : undefined;
+        : rawState === "reading"
+          ? "reading"
+          : rawState === "all"
+            ? "all"
+            : undefined;
   let limit: number | undefined;
   if (rawLimit !== null) {
     const parsed = Number(rawLimit);
@@ -307,7 +321,11 @@ export function filterArticles(
     if (view === "inbox" && a.archivedAt) return false;
     if (view === "archive" && !a.archivedAt) return false;
     if (state === "read" && !a.readAt) return false;
-    if (state === "unread" && a.readAt) return false;
+    // "Unread" keeps its strict meaning: never touched. Started-but-not-
+    // finished articles live under "reading" so they don't clutter the
+    // fresh-inbox view.
+    if (state === "unread" && (a.readAt || a.lastReadAt)) return false;
+    if (state === "reading" && (a.readAt || !a.lastReadAt)) return false;
     if (filters.tag && !a.tags.includes(filters.tag)) return false;
     if (filters.source && a.source !== filters.source) return false;
     if (terms) {
@@ -416,6 +434,7 @@ export interface ArticlePatch {
   read?: boolean;
   archived?: boolean;
   tags?: string[];
+  progress?: number;
 }
 
 export async function patchArticle(
@@ -424,11 +443,36 @@ export async function patchArticle(
   patch: ArticlePatch,
 ): Promise<{ tags?: string[] }> {
   const frontmatter: Partial<ArticleFrontmatter> = {};
+  const now = new Date().toISOString();
   if (patch.read !== undefined) {
-    frontmatter.readAt = patch.read ? new Date().toISOString() : null;
+    frontmatter.readAt = patch.read ? now : null;
+    // Explicit unread also clears progress — user is starting over.
+    if (!patch.read) {
+      frontmatter.lastReadAt = null;
+      frontmatter.readProgress = null;
+    }
   }
   if (patch.archived !== undefined) {
-    frontmatter.archivedAt = patch.archived ? new Date().toISOString() : null;
+    frontmatter.archivedAt = patch.archived ? now : null;
+  }
+  if (patch.progress !== undefined) {
+    const clamped = Math.min(1, Math.max(0, patch.progress));
+    frontmatter.readProgress = clamped;
+    frontmatter.lastReadAt = now;
+    // Auto-complete when crossing the threshold. readAt is "first
+    // completed" — don't overwrite it on subsequent re-reads. Read the
+    // existing page to decide; cost is one GET per progress patch, which
+    // is acceptable since ReadingProgress throttles to once every few
+    // seconds.
+    if (
+      clamped >= READ_COMPLETE_THRESHOLD &&
+      frontmatter.readAt === undefined
+    ) {
+      const existing = await userVolume(userId).get(id);
+      if (existing && !existing.frontmatter.readAt) {
+        frontmatter.readAt = now;
+      }
+    }
   }
   let tags: string[] | undefined;
   if (patch.tags !== undefined) {

@@ -10,6 +10,7 @@ import {
   listArticles,
   getArticle,
   markRead,
+  patchArticle,
   setArchived,
   setTags,
 } from "./articles";
@@ -333,6 +334,79 @@ describe("markRead", () => {
 
     const unreadList = await listArticles(USER, { state: "unread" });
     expect(unreadList).toHaveLength(0);
+  });
+});
+
+describe("patchArticle progress", () => {
+  it("records progress and marks article as in-progress (not read)", async () => {
+    const summary = await saveArticle(
+      USER,
+      "https://example.com/progress-partial",
+      makeParsed(),
+    );
+    await patchArticle(USER, summary.id, { progress: 0.4 });
+    const article = await getArticle(USER, summary.id);
+    expect(article!.readProgress).toBe(0.4);
+    expect(article!.lastReadAt).toBeTruthy();
+    expect(article!.readAt).toBeNull();
+
+    const reading = await listArticles(USER, { state: "reading" });
+    expect(reading.map((a) => a.id)).toContain(summary.id);
+    const unread = await listArticles(USER, { state: "unread" });
+    expect(unread.map((a) => a.id)).not.toContain(summary.id);
+  });
+
+  it("auto-completes when progress crosses threshold", async () => {
+    const summary = await saveArticle(
+      USER,
+      "https://example.com/progress-complete",
+      makeParsed(),
+    );
+    await patchArticle(USER, summary.id, { progress: 0.95 });
+    const article = await getArticle(USER, summary.id);
+    expect(article!.readAt).toBeTruthy();
+    expect(article!.readProgress).toBe(0.95);
+  });
+
+  it("does not overwrite original readAt on re-read to end", async () => {
+    const summary = await saveArticle(
+      USER,
+      "https://example.com/progress-rescroll",
+      makeParsed(),
+    );
+    await patchArticle(USER, summary.id, { progress: 0.95 });
+    const first = await getArticle(USER, summary.id);
+    const firstReadAt = first!.readAt!;
+
+    await new Promise((r) => setTimeout(r, 5));
+    await patchArticle(USER, summary.id, { progress: 1 });
+    const second = await getArticle(USER, summary.id);
+    expect(second!.readAt).toBe(firstReadAt);
+  });
+
+  it("explicit mark unread clears progress", async () => {
+    const summary = await saveArticle(
+      USER,
+      "https://example.com/progress-reset",
+      makeParsed(),
+    );
+    await patchArticle(USER, summary.id, { progress: 0.5 });
+    await patchArticle(USER, summary.id, { read: false });
+    const article = await getArticle(USER, summary.id);
+    expect(article!.readAt).toBeNull();
+    expect(article!.lastReadAt).toBeNull();
+    expect(article!.readProgress).toBeNull();
+  });
+
+  it("clamps out-of-range progress", async () => {
+    const summary = await saveArticle(
+      USER,
+      "https://example.com/progress-clamp",
+      makeParsed(),
+    );
+    await patchArticle(USER, summary.id, { progress: 2 });
+    const a = await getArticle(USER, summary.id);
+    expect(a!.readProgress).toBe(1);
   });
 });
 
