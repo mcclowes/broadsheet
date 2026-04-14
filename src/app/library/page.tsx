@@ -41,7 +41,7 @@ function parseView(raw: string | undefined): LibraryView {
 }
 
 function parseState(raw: string | undefined): ReadState {
-  if (raw === "read" || raw === "all") return raw;
+  if (raw === "read" || raw === "all" || raw === "reading") return raw;
   return "unread";
 }
 
@@ -204,6 +204,17 @@ export default async function LibraryPage({
                 })}
               >
                 Unread
+              </Link>
+              <Link
+                href={filterLink(current, { state: "reading" })}
+                className={
+                  state === "reading" ? styles.filterActive : styles.filter
+                }
+                {...(state === "reading" && {
+                  "aria-current": "page" as const,
+                })}
+              >
+                Reading
               </Link>
               <Link
                 href={filterLink(current, { state: "read" })}

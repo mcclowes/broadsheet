@@ -23,6 +23,8 @@ function make(
     readMinutes: 2,
     savedAt: "2026-04-10T00:00:00.000Z",
     readAt: null,
+    lastReadAt: null,
+    readProgress: null,
     archivedAt: null,
     tags: [],
     markdown: "",
@@ -83,6 +85,25 @@ describe("filterArticles", () => {
       source: "example.com",
     });
     expect(result.map((a) => a.id)).toEqual(["a"]);
+  });
+
+  it("filters reading state: started but not finished", () => {
+    const mixed: ArticleSummary[] = [
+      make("u"), // untouched
+      make("r", { lastReadAt: "2026-04-10T01:00:00.000Z", readProgress: 0.4 }),
+      make("done", {
+        readAt: "2026-04-10T02:00:00.000Z",
+        lastReadAt: "2026-04-10T02:00:00.000Z",
+        readProgress: 0.95,
+      }),
+    ];
+    expect(
+      filterArticles(mixed, { state: "reading" }).map((a) => a.id),
+    ).toEqual(["r"]);
+    // Strict unread excludes in-progress articles too.
+    expect(filterArticles(mixed, { state: "unread" }).map((a) => a.id)).toEqual(
+      ["u"],
+    );
   });
 
   it("state 'all' returns both read and unread in inbox", () => {
