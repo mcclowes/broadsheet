@@ -91,7 +91,14 @@ export async function POST(req: Request) {
       });
       return Response.json({ error: err.publicMessage }, { status: 422 });
     }
-    console.error("[api/articles] save failed", err);
+    const e = err as { code?: unknown; name?: unknown; message?: unknown };
+    console.error("[api/articles] save failed", {
+      url: parsed.data.url,
+      errorName: err instanceof Error ? err.constructor.name : typeof err,
+      code: e?.code,
+      name: e?.name,
+      message: e?.message,
+    });
     return Response.json({ error: "Internal error" }, { status: 500 });
   }
 }
