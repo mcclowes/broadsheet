@@ -32,7 +32,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Uploads the Chrome and Firefox zips. The Safari bundle is an
+          # unzipped directory tree (fed to xcrun safari-web-extension-converter
+          # on a macOS machine) and intentionally not attached here.
           gh release create "$GITHUB_REF_NAME" \
-            apps/extension/dist/broadsheet-extension-*.zip \
+            apps/extension/dist/broadsheet-extension-chrome-*.zip \
+            apps/extension/dist/broadsheet-extension-firefox-*.zip \
             --title "Extension ${GITHUB_REF_NAME#extension-v}" \
             --generate-notes

@@ -1,0 +1,14 @@
+{
+  "_comment": "Firefox-specific overrides. Deep-merged onto manifest.json by scripts/package.mjs when --target=firefox. Firefox MV3 uses event-page background scripts (not service workers), and AMO requires a stable gecko extension id.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "broadsheet@marginalutility.dev",
+      "strict_min_version": "115.0"
+    }
+  },
+  "background": {
+    "service_worker": null,
+    "type": null,
+    "scripts": ["background.js"]
+  }
+}
