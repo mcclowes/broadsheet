@@ -75,29 +75,67 @@
   font-size: 0.875rem;
 }
 
+.section {
+  margin: 0 0 2.25rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.875rem;
+}
+
+.sectionTitle {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.sectionCount {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
 .sourceList {
   list-style: none;
   padding: 0;
-  margin: 0 0 2rem;
+  margin: 0;
   display: grid;
-  gap: 0.75rem;
+  gap: 0.625rem;
   grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
 }
 
 .sourceCard {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  display: block;
   padding: 0.75rem 0.875rem;
   border: 1px solid var(--rule);
   border-radius: 0.5rem;
   text-decoration: none;
   color: var(--fg);
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
 
   &:hover {
     border-color: var(--accent);
   }
+}
+
+.sourceCardError {
+  border-color: var(--warn-border);
+  background: var(--warn-bg);
+
+  &:hover {
+    border-color: var(--danger);
+  }
+}
+
+.sourceCardBody {
+  min-width: 0;
 }
 
 .sourceTitle {
@@ -105,19 +143,24 @@
   font-size: 0.9375rem;
   margin: 0 0 0.125rem;
   line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sourceHost {
   font-size: 0.75rem;
   color: var(--fg-muted);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.sourceErrorDot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--danger);
-  flex-shrink: 0;
+.sourceError {
+  font-size: 0.75rem;
+  color: var(--warn-fg);
+  margin: 0.375rem 0 0;
 }
 
 .itemList {

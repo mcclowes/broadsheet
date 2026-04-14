@@ -78,14 +78,33 @@ export default async function SourcesPage() {
         </p>
       ) : (
         <>
-          <SourceGrid sources={sources} />
-          <UnifiedList items={unified.items} savedIds={savedIds} />
-          {unified.errors.length > 0 ? (
-            <div className={styles.errorBanner}>
-              Could not fetch{" "}
-              {unified.errors.map((e) => e.sourceTitle).join(", ")}.
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Following</h2>
+              <span className={styles.sectionCount}>
+                {sources.length} {sources.length === 1 ? "source" : "sources"}
+              </span>
             </div>
-          ) : null}
+            <SourceGrid sources={sources} />
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Latest</h2>
+              {unified.items.length > 0 ? (
+                <span className={styles.sectionCount}>
+                  {unified.items.length}{" "}
+                  {unified.items.length === 1 ? "item" : "items"}
+                </span>
+              ) : null}
+            </div>
+            <UnifiedList
+              items={unified.items}
+              savedIds={savedIds}
+              hasErrors={unified.errors.length > 0}
+              allErrored={unified.errors.length === sources.length}
+            />
+          </section>
         </>
       )}
     </main>
@@ -97,19 +116,27 @@ function SourceGrid({ sources }: { sources: Source[] }) {
     <ul className={styles.sourceList}>
       {sources.map((s) => {
         const host = hostOf(s.siteUrl) ?? hostOf(s.feedUrl);
+        const updated = formatRelative(s.lastFetchedAt);
         return (
           <li key={s.id}>
-            <Link href={`/sources/${s.id}`} className={styles.sourceCard}>
-              <div>
+            <Link
+              href={`/sources/${s.id}`}
+              className={`${styles.sourceCard} ${
+                s.lastError ? styles.sourceCardError : ""
+              }`}
+            >
+              <div className={styles.sourceCardBody}>
                 <p className={styles.sourceTitle}>{s.title}</p>
-                {host ? <p className={styles.sourceHost}>{host}</p> : null}
+                <p className={styles.sourceHost}>
+                  {host ?? s.feedUrl}
+                  {updated ? <span> · updated {updated}</span> : null}
+                </p>
+                {s.lastError ? (
+                  <p className={styles.sourceError} title={s.lastError}>
+                    Couldn&apos;t fetch feed
+                  </p>
+                ) : null}
               </div>
-              {s.lastError ? (
-                <span
-                  className={styles.sourceErrorDot}
-                  aria-label={`Last fetch failed: ${s.lastError}`}
-                />
-              ) : null}
             </Link>
           </li>
         );
@@ -121,15 +148,22 @@ function SourceGrid({ sources }: { sources: Source[] }) {
 function UnifiedList({
   items,
   savedIds,
+  hasErrors,
+  allErrored,
 }: {
   items: UnifiedFeedItem[];
   savedIds: Set<string>;
+  hasErrors: boolean;
+  allErrored: boolean;
 }) {
   if (items.length === 0) {
     return (
       <p className={styles.empty}>
-        No items found in your sources. They might be empty, or the feeds might
-        be unreachable right now.
+        {allErrored
+          ? "Couldn't reach your feeds right now. Try again in a moment."
+          : hasErrors
+            ? "Some feeds couldn't be reached, and the rest are empty."
+            : "Nothing new yet. Articles will show up here as your sources publish."}
       </p>
     );
   }
