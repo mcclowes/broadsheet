@@ -18,6 +18,7 @@
     "format:check": "prettier --check .",
     "extension:icons": "node apps/extension/scripts/generate-icons.mjs",
     "extension:package": "node apps/extension/scripts/package.mjs",
+    "extension:release": "node apps/extension/scripts/release.mjs",
     "prepare": "husky"
   },
   "dependencies": {
