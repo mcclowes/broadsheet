@@ -31,6 +31,13 @@ async function extractPageHtml(tabId) {
   }
 }
 
+class NotSignedInError extends Error {
+  constructor() {
+    super("Not signed in — opening Broadsheet to sign in.");
+    this.name = "NotSignedInError";
+  }
+}
+
 async function saveUrl(url, html) {
   const baseUrl = await getBaseUrl();
   const body = html ? { url, html } : { url };
@@ -42,9 +49,7 @@ async function saveUrl(url, html) {
   });
 
   if (!res.ok) {
-    if (res.status === 401) {
-      throw new Error("Not signed in — open Broadsheet and sign in first.");
-    }
+    if (res.status === 401) throw new NotSignedInError();
     let message = `Save failed (${res.status})`;
     try {
       const payload = await res.json();
@@ -56,6 +61,11 @@ async function saveUrl(url, html) {
   }
 
   return res.json();
+}
+
+async function openSignIn() {
+  const baseUrl = await getBaseUrl();
+  await chrome.tabs.create({ url: `${baseUrl}/sign-in` }).catch(() => {});
 }
 
 async function notify(title, message, isError = false) {
@@ -81,11 +91,21 @@ async function saveAndNotify() {
   }
   try {
     const html = await extractPageHtml(tab?.id);
-    const { article } = await saveUrl(url, html);
-    await notify("Saved to Broadsheet", article?.title ?? url);
-    return { ok: true, article };
+    const { article, created } = await saveUrl(url, html);
+    const title = article?.title ?? url;
+    const alreadySaved = created === false;
+    await notify(
+      alreadySaved ? "Already in Broadsheet" : "Saved to Broadsheet",
+      title,
+    );
+    return { ok: true, article, created: created !== false };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    if (err instanceof NotSignedInError) {
+      await notify("Broadsheet", message, true);
+      await openSignIn();
+      return { ok: false, error: message, signedOut: true };
+    }
     await notify("Broadsheet: save failed", message, true);
     return { ok: false, error: message };
   }

@@ -3,7 +3,7 @@ import { fetchAndParse, IngestError, parseArticleFromHtml } from "@/lib/ingest";
 import {
   listArticles,
   parseListFilters,
-  saveArticle,
+  saveArticleWithOutcome,
   saveArticleRequestSchema,
 } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
@@ -73,8 +73,15 @@ export async function POST(req: Request) {
       article = result.parsed;
       saveUrl = result.finalUrl;
     }
-    const summary = await saveArticle(userId, saveUrl, article);
-    return Response.json({ article: summary }, { status: 201 });
+    const { article: summary, created } = await saveArticleWithOutcome(
+      userId,
+      saveUrl,
+      article,
+    );
+    return Response.json(
+      { article: summary, created },
+      { status: created ? 201 : 200 },
+    );
   } catch (err) {
     if (err instanceof IngestError) {
       console.error("[api/articles] ingest failed", {

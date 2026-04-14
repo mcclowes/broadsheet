@@ -6,6 +6,7 @@ vi.hoisted(() => {
 
 import {
   saveArticle,
+  saveArticleWithOutcome,
   listArticles,
   getArticle,
   markRead,
@@ -62,6 +63,23 @@ describe("saveArticle", () => {
     expect(summary.readAt).toBeNull();
     expect(summary.archivedAt).toBeNull();
     expect(summary.savedAt).toBeTruthy();
+  });
+
+  it("saveArticleWithOutcome reports created=true on first save, false on duplicate", async () => {
+    const first = await saveArticleWithOutcome(
+      USER,
+      "https://example.com/outcome",
+      makeParsed({ title: "First" }),
+    );
+    expect(first.created).toBe(true);
+    const second = await saveArticleWithOutcome(
+      USER,
+      "https://example.com/outcome",
+      makeParsed({ title: "Second" }),
+    );
+    expect(second.created).toBe(false);
+    expect(second.article.id).toBe(first.article.id);
+    expect(second.article.title).toBe("First");
   });
 
   it("is idempotent — returns existing article on duplicate URL", async () => {

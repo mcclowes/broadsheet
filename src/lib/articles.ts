@@ -125,6 +125,14 @@ export async function saveArticle(
   url: string,
   parsed: ParsedArticle,
 ): Promise<ArticleSummary> {
+  return (await saveArticleWithOutcome(userId, url, parsed)).article;
+}
+
+export async function saveArticleWithOutcome(
+  userId: AuthedUserId,
+  url: string,
+  parsed: ParsedArticle,
+): Promise<{ article: ArticleSummary; created: boolean }> {
   const canonicalUrl = canonicalizeUrl(url);
   const id = articleIdForUrl(canonicalUrl);
   const volume = userVolume(userId);
@@ -145,12 +153,12 @@ export async function saveArticle(
   };
   try {
     await volume.setIfAbsent(id, { frontmatter, body: parsed.markdown });
-    return { id, ...frontmatter };
+    return { article: { id, ...frontmatter }, created: true };
   } catch (err) {
     if (!(err instanceof ConflictError)) throw err;
     const existing = await volume.get(id);
     if (!existing) throw err; // deleted between our conflict and our re-read
-    return { id, ...existing.frontmatter };
+    return { article: { id, ...existing.frontmatter }, created: false };
   }
 }
 
