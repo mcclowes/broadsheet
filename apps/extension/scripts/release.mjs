@@ -77,7 +77,21 @@ execFileSync("node", [resolve(here, "package.mjs")], {
   stdio: "inherit",
 });
 
-const zipPath = resolve(extDir, "dist", `broadsheet-extension-${next}.zip`);
+const chromeZipPath = resolve(
+  extDir,
+  "dist",
+  `broadsheet-extension-chrome-${next}.zip`,
+);
+const firefoxZipPath = resolve(
+  extDir,
+  "dist",
+  `broadsheet-extension-firefox-${next}.zip`,
+);
+const safariStageDir = resolve(
+  extDir,
+  "dist",
+  `broadsheet-extension-safari-${next}`,
+);
 
 if (!noCommit) {
   execFileSync("git", ["add", manifestPath], {
@@ -95,15 +109,24 @@ if (!noCommit) {
   console.log(`committed and tagged extension-v${next} (not pushed)`);
 }
 
-console.log(`\n✓ packaged: ${zipPath}`);
+console.log(`\n✓ packaged:`);
+console.log(`    chrome:  ${chromeZipPath}`);
+console.log(`    firefox: ${firefoxZipPath}`);
+console.log(
+  `    safari:  ${safariStageDir}/ (feed to xcrun safari-web-extension-converter)`,
+);
 console.log("\nNext steps:");
-console.log(`  1. Upload the zip to the Chrome Web Store dashboard`);
-console.log(`  2. Submit for review`);
+console.log(`  1. Upload the Chrome zip to the Chrome Web Store dashboard`);
+console.log(`  2. Upload the Firefox zip to addons.mozilla.org`);
+console.log(
+  `  3. On macOS, wrap the Safari bundle (see apps/extension/README.md)`,
+);
+console.log(`  4. Submit each for review`);
 if (!noCommit) {
-  console.log(`  3. git push && git push origin extension-v${next}`);
+  console.log(`  5. git push && git push origin extension-v${next}`);
 }
 
 if (!noOpen && process.platform === "darwin") {
-  execFileSync("open", ["-R", zipPath]);
+  execFileSync("open", ["-R", chromeZipPath]);
   execFileSync("open", [STORE_DASHBOARD_URL]);
 }
