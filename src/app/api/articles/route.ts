@@ -6,6 +6,7 @@ import {
   saveArticleWithOutcome,
   saveArticleRequestSchema,
 } from "@/lib/articles";
+import { addUnanchoredHighlights } from "@/lib/annotations";
 import { authedUserId } from "@/lib/auth-types";
 import { checkOrigin } from "@/lib/csrf";
 import { articleIngestLimiter } from "@/lib/rate-limit";
@@ -78,6 +79,12 @@ export async function POST(req: Request) {
       saveUrl,
       article,
     );
+    const selectionText = parsed.data.selection?.text.trim();
+    if (selectionText) {
+      await addUnanchoredHighlights(userId, summary.id, [
+        { text: selectionText, createdAt: new Date().toISOString() },
+      ]);
+    }
     return Response.json(
       { article: summary, created },
       { status: created ? 201 : 200 },

@@ -26,7 +26,13 @@
     "page": "options.html",
     "open_in_tab": false
   },
-  "permissions": ["activeTab", "scripting", "storage", "notifications"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "notifications",
+    "contextMenus"
+  ],
   "host_permissions": ["https://broadsheet.marginalutility.dev/*"],
   "optional_host_permissions": [
     "http://localhost/*",

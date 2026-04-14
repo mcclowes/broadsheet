@@ -254,6 +254,11 @@ export const LIST_LIMIT_MAX = 200;
 export const saveArticleRequestSchema = z.object({
   url: z.string().url(),
   html: z.string().min(1).max(MAX_USER_HTML_BYTES).optional(),
+  selection: z
+    .object({
+      text: z.string().min(1).max(4000),
+    })
+    .optional(),
 });
 
 export function parseListFilters(params: URLSearchParams): ListFilters {
