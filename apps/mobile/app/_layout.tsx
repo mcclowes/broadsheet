@@ -39,6 +39,10 @@ export default function RootLayout() {
               options={{ presentation: "modal", title: "Sign in" }}
             />
             <Stack.Screen
+              name="add"
+              options={{ presentation: "modal", title: "Add article" }}
+            />
+            <Stack.Screen
               name="read/[id]"
               options={{ title: "", headerBackTitle: "Library" }}
             />

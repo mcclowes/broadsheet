@@ -88,9 +88,14 @@ function Library() {
       ListHeaderComponent={
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Library</Text>
-          <Pressable onPress={() => signOut()}>
-            <Text style={styles.linkText}>Sign out</Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable onPress={() => router.push("/add")}>
+              <Text style={styles.linkText}>Add</Text>
+            </Pressable>
+            <Pressable onPress={() => signOut()}>
+              <Text style={styles.linkText}>Sign out</Text>
+            </Pressable>
+          </View>
         </View>
       }
       ListEmptyComponent={
@@ -149,6 +154,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   headerTitle: { fontSize: 28, fontWeight: "700" },
+  headerActions: { flexDirection: "row", gap: 16 },
   linkText: { color: "#0a7", fontWeight: "600" },
   row: {
     paddingVertical: 14,
