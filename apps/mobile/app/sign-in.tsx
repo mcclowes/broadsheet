@@ -9,12 +9,15 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
 } from "react-native";
+
+import { fonts } from "@/lib/theme";
+import { useTheme } from "@/lib/use-theme";
 
 export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
   const router = useRouter();
+  const theme = useTheme();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [stage, setStage] = useState<"email" | "code">("email");
@@ -57,12 +60,21 @@ export default function SignInScreen() {
     }
   }
 
+  const inputStyle = [
+    styles.input,
+    {
+      borderColor: theme.rule,
+      backgroundColor: theme.bgElevated,
+      color: theme.fg,
+    },
+  ];
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.bg }]}
     >
-      <Text style={styles.title}>Sign in</Text>
+      <Text style={[styles.title, { color: theme.fg }]}>Sign in</Text>
       {stage === "email" ? (
         <>
           <TextInput
@@ -70,69 +82,82 @@ export default function SignInScreen() {
             autoComplete="email"
             keyboardType="email-address"
             placeholder="you@example.com"
+            placeholderTextColor={theme.fgMuted}
             value={email}
             onChangeText={setEmail}
-            style={styles.input}
+            style={inputStyle}
           />
           <Pressable
             disabled={pending || !email}
             onPress={sendCode}
-            style={[styles.button, pending && styles.buttonDisabled]}
+            style={[
+              styles.button,
+              { backgroundColor: theme.accent },
+              (pending || !email) && styles.buttonDisabled,
+            ]}
           >
             {pending ? (
-              <ActivityIndicator color="white" />
+              <ActivityIndicator color={theme.fgOnAccent} />
             ) : (
-              <Text style={styles.buttonText}>Send code</Text>
+              <Text style={[styles.buttonText, { color: theme.fgOnAccent }]}>
+                Send code
+              </Text>
             )}
           </Pressable>
         </>
       ) : (
         <>
-          <Text style={styles.helper}>We sent a code to {email}.</Text>
+          <Text style={[styles.helper, { color: theme.fgMuted }]}>
+            We sent a code to {email}.
+          </Text>
           <TextInput
             autoCapitalize="none"
             keyboardType="number-pad"
             placeholder="123456"
+            placeholderTextColor={theme.fgMuted}
             value={code}
             onChangeText={setCode}
-            style={styles.input}
+            style={inputStyle}
           />
           <Pressable
             disabled={pending || !code}
             onPress={verifyCode}
-            style={[styles.button, pending && styles.buttonDisabled]}
+            style={[
+              styles.button,
+              { backgroundColor: theme.accent },
+              (pending || !code) && styles.buttonDisabled,
+            ]}
           >
             {pending ? (
-              <ActivityIndicator color="white" />
+              <ActivityIndicator color={theme.fgOnAccent} />
             ) : (
-              <Text style={styles.buttonText}>Verify</Text>
+              <Text style={[styles.buttonText, { color: theme.fgOnAccent }]}>
+                Verify
+              </Text>
             )}
           </Pressable>
         </>
       )}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <Text style={[styles.error, { color: theme.accent }]}>{error}</Text>
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, gap: 12, justifyContent: "center" },
-  title: { fontSize: 28, fontWeight: "700", marginBottom: 12 },
-  helper: { fontSize: 14, opacity: 0.7 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#8886",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+  title: {
+    fontFamily: fonts.serif,
+    fontSize: 28,
+    fontWeight: "700",
+    marginBottom: 8,
+    letterSpacing: -0.3,
   },
-  button: {
-    backgroundColor: "#111",
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "white", fontWeight: "600" },
-  error: { color: "#c33", fontSize: 14 },
+  helper: { fontSize: 14 },
+  input: { borderWidth: 1, borderRadius: 6, padding: 12, fontSize: 16 },
+  button: { padding: 14, borderRadius: 6, alignItems: "center" },
+  buttonDisabled: { opacity: 0.5 },
+  buttonText: { fontWeight: "600", fontSize: 15 },
+  error: { fontSize: 14 },
 });

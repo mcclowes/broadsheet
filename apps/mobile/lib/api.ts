@@ -3,25 +3,25 @@ import Constants from "expo-constants";
 const API_BASE =
   process.env.EXPO_PUBLIC_API_URL ??
   (Constants.expoConfig?.extra?.apiUrl as string | undefined) ??
-  "https://broadsheet.app";
+  "https://broadsheet.marginalutility.dev";
 
 export type ArticleSummary = {
   id: string;
   url: string;
   title: string;
-  excerpt?: string | null;
-  siteName?: string | null;
+  source: string | null;
+  byline: string | null;
+  excerpt: string | null;
+  image: string | null;
+  wordCount: number;
+  readMinutes: number;
   savedAt: string;
-  read?: boolean;
-  archived?: boolean;
-  tags?: string[];
+  readAt: string | null;
+  archivedAt: string | null;
+  tags: string[];
 };
 
-export type Article = ArticleSummary & {
-  contentMarkdown: string;
-  byline?: string | null;
-  readingTimeMinutes?: number | null;
-};
+export type Article = ArticleSummary & { body: string };
 
 type Fetcher = (path: string, init?: RequestInit) => Promise<Response>;
 
