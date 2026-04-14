@@ -1,0 +1,19 @@
+import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
+import type { TokenCache } from "@clerk/clerk-expo/dist/cache";
+
+export const tokenCache: TokenCache = {
+  async getToken(key) {
+    if (Platform.OS === "web") return null;
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch {
+      await SecureStore.deleteItemAsync(key);
+      return null;
+    }
+  },
+  async saveToken(key, value) {
+    if (Platform.OS === "web") return;
+    await SecureStore.setItemAsync(key, value);
+  },
+};
