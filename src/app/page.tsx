@@ -44,7 +44,7 @@ export default async function HomePage() {
             <span className={styles.landingCorner}>Est. 2025</span>
             <h1 className={styles.landingTitle}>Broadsheet</h1>
             <div className={styles.auth}>
-              <SignInButton mode="modal">
+              <SignInButton mode="modal" forceRedirectUrl="/library">
                 <button className={styles.authButton}>Sign in</button>
               </SignInButton>
             </div>
@@ -63,7 +63,7 @@ export default async function HomePage() {
             distraction-free format. Keep them in your personal library forever.
           </p>
           <div className={styles.heroCta}>
-            <SignInButton mode="modal">
+            <SignInButton mode="modal" forceRedirectUrl="/library">
               <button className={styles.ctaButton}>
                 Get started &mdash; it&apos;s free
               </button>
@@ -168,7 +168,7 @@ export default async function HomePage() {
           <p className={styles.bottomTagline}>
             The reading list that respects your attention.
           </p>
-          <SignInButton mode="modal">
+          <SignInButton mode="modal" forceRedirectUrl="/library">
             <button className={styles.ctaButton}>Start reading</button>
           </SignInButton>
         </section>
