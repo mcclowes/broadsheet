@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { listArticles } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
+import { verifyCronBearer } from "@/lib/cron-auth";
 import { listDigestSubscribers, markDigestSent } from "@/lib/digest";
 import {
   buildDigestHtml,
@@ -9,15 +10,13 @@ import {
 } from "@/lib/digest-email";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const CRON_SECRET = process.env.CRON_SECRET;
 const DIGEST_FROM =
   process.env.DIGEST_FROM_EMAIL ?? "Broadsheet <digest@broadsheet.app>";
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://broadsheet.app";
 
 export async function POST(req: Request) {
-  // Verify the request is from Vercel Cron or an admin with the secret
-  const authHeader = req.headers.get("authorization");
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
+  // Verify the request is from Vercel Cron or an admin with the secret.
+  if (!verifyCronBearer(req.headers.get("authorization"))) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

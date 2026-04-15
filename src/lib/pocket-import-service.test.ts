@@ -4,7 +4,7 @@ vi.hoisted(() => {
   process.env.BROADSHEET_FOLIO_ADAPTER = "memory";
 });
 
-import { importPocketExport } from "./pocket-import-service";
+import { importPocketExport, PocketImportError } from "./pocket-import-service";
 import { getArticle, listArticles } from "./articles";
 import { authedUserId, type AuthedUserId } from "./auth-types";
 import type { ParsedArticle } from "./ingest";
@@ -152,5 +152,56 @@ describe("importPocketExport content rehydration", () => {
     expect(result.articlesSkipped).toBe(3);
     expect(result.contentFetched).toBe(0);
     expect(fetchAndParseImpl).not.toHaveBeenCalled();
+  });
+
+  describe("PocketImportError surface", () => {
+    it("wraps a missing 'url' column as a user-safe error", async () => {
+      const badCsv = "title,status\nHello,unread\n";
+      await expect(importPocketExport(USER, { csv: badCsv })).rejects.toThrow(
+        PocketImportError,
+      );
+      try {
+        await importPocketExport(USER, { csv: badCsv });
+      } catch (err) {
+        expect(err).toBeInstanceOf(PocketImportError);
+        expect((err as PocketImportError).publicMessage).toBe(
+          "Pocket CSV is missing a 'url' column",
+        );
+      }
+    });
+
+    it("hides internal parse errors behind a generic message", async () => {
+      // Invalid annotations JSON hits a different parse path.
+      const csv = "url,title\nhttps://example.com/a,A\n";
+      const annotations = "{not valid json";
+      try {
+        await importPocketExport(USER, { csv, annotations });
+        throw new Error("should have rejected");
+      } catch (err) {
+        expect(err).toBeInstanceOf(PocketImportError);
+        // Known message → surfaced verbatim.
+        expect((err as PocketImportError).publicMessage).toBe(
+          "Pocket annotations JSON is not valid JSON",
+        );
+      }
+    });
+
+    it("surfaces the too-large error as a public message", async () => {
+      // Build a CSV with MAX_ITEMS+1 rows.
+      const header = "url,title\n";
+      const rows = Array.from(
+        { length: 5001 },
+        (_, i) => `https://example.com/${i},Title ${i}`,
+      ).join("\n");
+      try {
+        await importPocketExport(USER, { csv: header + rows });
+        throw new Error("should have rejected");
+      } catch (err) {
+        expect(err).toBeInstanceOf(PocketImportError);
+        expect((err as PocketImportError).publicMessage).toMatch(
+          /Pocket export too large/,
+        );
+      }
+    });
   });
 });

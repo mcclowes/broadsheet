@@ -1,4 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Unsubscribe-link signing requires CRON_SECRET — set a test value before
+// importing the digest-email module so `generateUnsubscribeToken` doesn't
+// throw. Must run before the import.
+vi.hoisted(() => {
+  process.env.CRON_SECRET = "test-cron-secret";
+});
+
 import { buildDigestHtml, buildDigestSubject } from "./digest-email";
 import type { ArticleSummary } from "./articles";
 

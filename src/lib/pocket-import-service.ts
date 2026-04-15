@@ -14,6 +14,28 @@ import {
   type PocketItem,
 } from "./pocket-import";
 
+/**
+ * Error thrown when a Pocket import fails for a reason we're willing to
+ * surface to the client. `publicMessage` is the only field the route may
+ * return; the underlying `message`/`cause` are logged server-side.
+ */
+export class PocketImportError extends Error {
+  constructor(
+    message: string,
+    readonly publicMessage: string = message,
+    readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = "PocketImportError";
+  }
+}
+
+const KNOWN_PARSE_MESSAGES = new Set([
+  "Pocket CSV is missing a 'url' column",
+  "Pocket annotations JSON is not valid JSON",
+  "Pocket annotations JSON must be an array",
+]);
+
 export interface PocketImportResult {
   itemsTotal: number;
   articlesCreated: number;
@@ -58,11 +80,25 @@ export async function importPocketExport(
   input: PocketImportInput,
   options: PocketImportOptions = {},
 ): Promise<PocketImportResult> {
-  const parsed: ParsedPocketExport = parsePocketExport(input);
-  if (parsed.items.length > POCKET_IMPORT_MAX_ITEMS) {
-    throw new Error(
-      `Pocket export too large: ${parsed.items.length} items (max ${POCKET_IMPORT_MAX_ITEMS})`,
+  let parsed: ParsedPocketExport;
+  try {
+    parsed = parsePocketExport(input);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (KNOWN_PARSE_MESSAGES.has(msg)) {
+      throw new PocketImportError(msg, msg, err);
+    }
+    // Unknown parse errors may embed input fragments or stack info — do not
+    // surface them.
+    throw new PocketImportError(
+      `Pocket export parse failed: ${msg}`,
+      "Could not parse Pocket export — please re-download and try again.",
+      err,
     );
+  }
+  if (parsed.items.length > POCKET_IMPORT_MAX_ITEMS) {
+    const publicMsg = `Pocket export too large: ${parsed.items.length} items (max ${POCKET_IMPORT_MAX_ITEMS})`;
+    throw new PocketImportError(publicMsg, publicMsg);
   }
 
   const result: PocketImportResult = {
