@@ -2,7 +2,10 @@ import { auth } from "@clerk/nextjs/server";
 import { authedUserId } from "@/lib/auth-types";
 import { checkOrigin } from "@/lib/csrf";
 import { pocketImportLimiter } from "@/lib/rate-limit";
-import { importPocketExport } from "@/lib/pocket-import-service";
+import {
+  importPocketExport,
+  PocketImportError,
+} from "@/lib/pocket-import-service";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -73,8 +76,20 @@ export async function POST(req: Request) {
     });
     return Response.json(result, { status: 200 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Import failed";
-    console.error("[api/import/pocket] failed", err);
-    return Response.json({ error: message }, { status: 422 });
+    if (err instanceof PocketImportError) {
+      console.error("[api/import/pocket] import failed", {
+        message: err.message,
+        cause: err.cause,
+      });
+      return Response.json({ error: err.publicMessage }, { status: 422 });
+    }
+    const e = err as { code?: unknown; name?: unknown; message?: unknown };
+    console.error("[api/import/pocket] unexpected failure", {
+      errorName: err instanceof Error ? err.constructor.name : typeof err,
+      code: e?.code,
+      name: e?.name,
+      message: e?.message,
+    });
+    return Response.json({ error: "Import failed" }, { status: 500 });
   }
 }

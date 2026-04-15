@@ -1,16 +1,14 @@
 import { authedUserId } from "@/lib/auth-types";
+import { verifyCronBearer } from "@/lib/cron-auth";
 import {
   listAutoArchiveSubscribers,
   markAutoArchiveRun,
   runAutoArchiveForUser,
 } from "@/lib/auto-archive";
 
-const CRON_SECRET = process.env.CRON_SECRET;
-
 export async function POST(req: Request) {
-  // Verify the request is from Vercel Cron or an admin with the secret
-  const authHeader = req.headers.get("authorization");
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
+  // Verify the request is from Vercel Cron or an admin with the secret.
+  if (!verifyCronBearer(req.headers.get("authorization"))) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

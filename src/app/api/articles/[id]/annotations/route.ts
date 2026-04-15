@@ -4,6 +4,7 @@ import {
   deleteHighlight,
   highlightInputSchema,
   highlightPatchSchema,
+  HighlightLimitError,
   listHighlights,
   updateHighlight,
 } from "@/lib/annotations";
@@ -92,6 +93,12 @@ export async function POST(
     const highlight = await addHighlight(a.userId, id, parsed.data);
     return Response.json({ highlight }, { status: 201 });
   } catch (err) {
+    if (err instanceof HighlightLimitError) {
+      return Response.json(
+        { error: `Highlight limit reached (${err.limit} per article)` },
+        { status: 409 },
+      );
+    }
     console.error("[api/annotations/POST] failed", { id, err });
     return Response.json({ error: "Internal error" }, { status: 500 });
   }

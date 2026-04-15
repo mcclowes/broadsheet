@@ -8,10 +8,15 @@ const isProtectedPage = createRouteMatcher([
   "/import(.*)",
 ]);
 
+// Note: `/api/digest/send` (Vercel Cron) and `/api/digest/unsubscribe`
+// (one-click email links) authenticate themselves — the first with a
+// `Bearer ${CRON_SECRET}` header, the second with an HMAC'd token — so
+// they must NOT be gated by Clerk. Only `/api/digest/preferences*` is a
+// user-session endpoint.
 const isProtectedApi = createRouteMatcher([
   "/api/articles(.*)",
   "/api/sources(.*)",
-  "/api/digest(.*)",
+  "/api/digest/preferences(.*)",
   "/api/import(.*)",
 ]);
 

@@ -27,6 +27,30 @@ function getAllowedOrigins(): Set<string> {
   return origins;
 }
 
+// Browser extension origin prefixes we recognise. Chrome / Edge / Opera /
+// Brave all use `chrome-extension://`; Firefox uses `moz-extension://`;
+// Safari web extensions use `safari-web-extension://`.
+const EXTENSION_SCHEMES = [
+  "chrome-extension://",
+  "moz-extension://",
+  "safari-web-extension://",
+] as const;
+
+function extensionIdFromOrigin(origin: string): string | null {
+  for (const scheme of EXTENSION_SCHEMES) {
+    if (origin.startsWith(scheme)) return origin.slice(scheme.length);
+  }
+  return null;
+}
+
+// Environments where the extension-allowlist bypass is allowed. We only
+// trust it in local development — any hosted Vercel environment (preview,
+// production) must have `BROADSHEET_EXTENSION_IDS` configured.
+function isLocalDevEnvironment(): boolean {
+  if (process.env.VERCEL_ENV) return false; // preview/production/development on Vercel
+  return process.env.NODE_ENV !== "production";
+}
+
 /**
  * Returns null if the origin is allowed, or a 403 Response if it should be
  * rejected. Call this at the top of every mutating route handler that uses
@@ -35,7 +59,9 @@ function getAllowedOrigins(): Set<string> {
  * Allowed origins:
  * - Missing Origin header (same-origin in most browsers)
  * - Exact match against the static allowlist (production, dev, Vercel previews)
- * - Any `chrome-extension://` origin (extension ID is assigned at install time)
+ * - A browser-extension origin (chrome/moz/safari-web-extension://) whose ID
+ *   is in `BROADSHEET_EXTENSION_IDS`. In local dev only, any extension ID is
+ *   accepted so unpacked-extension workflows keep working.
  */
 export function checkOrigin(req: Request): Response | null {
   const origin = req.headers.get("origin");
@@ -45,19 +71,20 @@ export function checkOrigin(req: Request): Response | null {
 
   if (getAllowedOrigins().has(origin)) return null;
 
-  if (origin.startsWith("chrome-extension://")) {
-    const id = origin.slice("chrome-extension://".length);
+  const extensionId = extensionIdFromOrigin(origin);
+  if (extensionId !== null) {
     const allowlist = getExtensionAllowlist();
     if (allowlist) {
-      if (allowlist.has(id)) return null;
+      if (allowlist.has(extensionId)) return null;
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
-    // No allowlist configured: allow in non-production only so local dev of
-    // the unpacked extension keeps working.
-    if (process.env.VERCEL_ENV === "production") {
+    // No allowlist configured. Only permitted in local development —
+    // preview deploys share real data/sessions and must not accept an
+    // arbitrary extension.
+    if (!isLocalDevEnvironment()) {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
-    console.info("[csrf] allowed chrome-extension origin (no allowlist)", {
+    console.info("[csrf] allowed extension origin (no allowlist, local dev)", {
       origin,
     });
     return null;
