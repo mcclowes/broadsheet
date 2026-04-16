@@ -5,7 +5,18 @@ actioned upstream rather than worked around inline.
 
 ## Open
 
-_Nothing open — both tracked items shipped in `folio-db-next@0.2.0`._
+### zod 4 support
+
+`folio-db-next`'s peer/runtime dep is pinned to `zod@^3.23.8`, and the
+`Volume<T>` schema option types against `z.ZodType<T>`. Zod 4's `ZodType`
+has a different internal shape (`$ZodTypeInternals`, different generic
+arity), so passing a zod-4 schema into `getFolio().volume(name, { schema })`
+fails typecheck and at runtime the two zod versions don't share a registry.
+
+Blocks Dependabot PR #107 (zod 3.25.76 → 4.3.6). Keeping zod on 3.x in
+broadsheet until folio-db-next ships a zod-4-compatible release.
+
+**Opened:** 2026-04-16
 
 ## Resolved
 
