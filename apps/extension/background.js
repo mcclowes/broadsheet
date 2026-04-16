@@ -1,5 +1,7 @@
 const DEFAULT_BASE_URL = "https://broadsheet.marginalutility.dev";
-const MAX_HTML_LENGTH = 4_000_000;
+// Must stay below server's MAX_USER_HTML_BYTES (512 KiB = 524_288 chars)
+// in src/lib/ingest.ts. Sending more just gets rejected as a 400.
+const MAX_HTML_LENGTH = 500_000;
 
 async function getBaseUrl() {
   const { baseUrl } = await chrome.storage.sync.get("baseUrl");

@@ -211,6 +211,9 @@ export class IngestError extends Error {
 }
 
 export const FETCH_TIMEOUT_MS = 15_000;
+// Shorter budget for speculative probes (feed discovery candidates, etc.) so a
+// cascade of misses can't monopolise a 300 s serverless invocation.
+export const DISCOVERY_TIMEOUT_MS = 5_000;
 export const MAX_BODY_BYTES = 5 * 1024 * 1024;
 // User-supplied HTML (extension snapshot) is parsed synchronously with JSDOM,
 // which is a CPU DoS primitive if the cap matches remote-fetch size. Keep
@@ -647,6 +650,7 @@ export interface FetchPublicOptions {
   validateContentType: (contentType: string | null) => boolean;
   contentTypeError: string;
   extraHeaders?: Record<string, string>;
+  timeoutMs?: number;
 }
 
 export interface FetchPublicResult {
@@ -684,7 +688,7 @@ export async function fetchPublicResource(
     let res: Response;
     try {
       res = await fetch(current, {
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? FETCH_TIMEOUT_MS),
         headers: {
           "User-Agent":
             "Mozilla/5.0 (compatible; Broadsheet/0.1; +https://broadsheet.app/bot)",
