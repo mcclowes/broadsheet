@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   articleIdForUrl,
   canonicalizeUrl,
+  decodeCursor,
+  encodeCursor,
   filterArticles,
   type ArticleSummary,
 } from "./articles";
@@ -299,7 +301,13 @@ describe("parseListFilters", () => {
       source: undefined,
       limit: undefined,
       q: undefined,
+      cursor: undefined,
     });
+  });
+
+  it("parses cursor and treats empty cursor as undefined", () => {
+    expect(from("cursor=abc123").cursor).toBe("abc123");
+    expect(from("cursor=").cursor).toBeUndefined();
   });
 
   it("parses q and trims whitespace", () => {
@@ -374,5 +382,47 @@ describe("saveArticleRequestSchema", () => {
       html: "",
     });
     expect(r.success).toBe(false);
+  });
+});
+
+describe("encodeCursor / decodeCursor", () => {
+  it("round-trips (savedAt, id)", () => {
+    const entry = {
+      savedAt: "2026-04-15T12:34:56.789Z",
+      id: "a".repeat(32),
+    };
+    const encoded = encodeCursor(entry);
+    expect(decodeCursor(encoded)).toEqual(entry);
+  });
+
+  it("returns a URL-safe string (no + / = padding)", () => {
+    const encoded = encodeCursor({
+      savedAt: "2026-04-15T12:34:56.789Z",
+      id: "f".repeat(32),
+    });
+    expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/);
+  });
+
+  it("rejects malformed cursors as null", () => {
+    expect(decodeCursor("")).toBeNull();
+    expect(decodeCursor("not-base64!!!")).toBeNull();
+    // Valid base64url but wrong shape (no pipe).
+    expect(
+      decodeCursor(Buffer.from("no-pipe").toString("base64url")),
+    ).toBeNull();
+    // Pipe but id isn't a 32-char hex.
+    expect(
+      decodeCursor(
+        Buffer.from("2026-04-15T00:00:00.000Z|not-a-hex-id").toString(
+          "base64url",
+        ),
+      ),
+    ).toBeNull();
+    // Pipe but savedAt isn't a parseable timestamp.
+    expect(
+      decodeCursor(
+        Buffer.from(`not-a-timestamp|${"a".repeat(32)}`).toString("base64url"),
+      ),
+    ).toBeNull();
   });
 });
