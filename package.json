@@ -28,7 +28,7 @@
     "@vercel/blob": "^2.3.3",
     "@vercel/functions": "^3.4.3",
     "diff": "^8.0.4",
-    "dompurify": "^3.3.3",
+    "dompurify": "^3.4.0",
     "folio-db-next": "^0.2.3",
     "jsdom": "25.0.1",
     "marked": "~18.0.0",
