@@ -76,6 +76,35 @@ export async function listHighlights(
   return sortHighlights(page.frontmatter.highlights);
 }
 
+export interface ArticleAnnotations {
+  articleId: string;
+  updatedAt: string;
+  highlights: Highlight[];
+  unanchoredHighlights: UnanchoredHighlight[];
+}
+
+// Aggregates highlights across every article for a user. One frontmatter
+// read per annotated article — fine at hundreds, will want projection
+// (see FOLIO-TRACKER.md) at thousands. Skips pages with no entries at all.
+export async function listAllAnnotations(
+  userId: AuthedUserId,
+): Promise<ArticleAnnotations[]> {
+  const entries = await userVolume(userId).list({ fields: "frontmatter" });
+  const result: ArticleAnnotations[] = [];
+  for (const e of entries) {
+    const highlights = sortHighlights(e.frontmatter.highlights ?? []);
+    const unanchoredHighlights = e.frontmatter.unanchoredHighlights ?? [];
+    if (highlights.length === 0 && unanchoredHighlights.length === 0) continue;
+    result.push({
+      articleId: e.slug,
+      updatedAt: e.frontmatter.updatedAt,
+      highlights,
+      unanchoredHighlights,
+    });
+  }
+  return result.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
 export function sortHighlights(list: Highlight[]): Highlight[] {
   return [...list].sort((a, b) => a.start - b.start || a.end - b.end);
 }
