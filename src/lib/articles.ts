@@ -259,11 +259,78 @@ export interface ListFilters {
   source?: string;
   limit?: number;
   q?: string;
+  /**
+   * Opaque pagination cursor produced by {@link encodeCursor}. When present,
+   * results start *after* the referenced `(savedAt, id)` position in the
+   * sort order. Unparseable or unknown cursors are ignored (the first page
+   * is returned) rather than thrown — stale bookmarks degrade gracefully.
+   */
+  cursor?: string;
 }
 
 export const LIST_QUERY_MAX = 128;
 
 export const LIST_LIMIT_MAX = 200;
+
+/**
+ * Default page size for {@link listArticlesPage}. Matches the historical
+ * `PAGE_SIZE` used on /library so the API and the web UI agree out of the
+ * box. Callers can override up to {@link LIST_LIMIT_MAX}.
+ */
+export const LIST_PAGE_DEFAULT = 50;
+
+/**
+ * Opaque cursor for stable pagination. Encodes `(savedAt, id)` because
+ * those are both immutable for the lifetime of an article — savedAt is set
+ * once at save time and id is a content hash. Base64url so the token is
+ * URL-safe without further escaping.
+ *
+ * The delimiter `|` is safe: savedAt is always an ISO-8601 timestamp (no
+ * pipes) and id is a lowercase hex string.
+ */
+export function encodeCursor(entry: { savedAt: string; id: string }): string {
+  return Buffer.from(`${entry.savedAt}|${entry.id}`, "utf8").toString(
+    "base64url",
+  );
+}
+
+export function decodeCursor(
+  cursor: string,
+): { savedAt: string; id: string } | null {
+  try {
+    const decoded = Buffer.from(cursor, "base64url").toString("utf8");
+    const pipe = decoded.indexOf("|");
+    if (pipe <= 0 || pipe === decoded.length - 1) return null;
+    const savedAt = decoded.slice(0, pipe);
+    const id = decoded.slice(pipe + 1);
+    // Minimal shape check — cheap guard against garbage, not a schema.
+    if (!/^[a-f0-9]{32}$/.test(id)) return null;
+    if (Number.isNaN(Date.parse(savedAt))) return null;
+    return { savedAt, id };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Compare two articles in the canonical sort order: savedAt descending,
+ * with id ascending as a deterministic tie-breaker. Ties on savedAt are
+ * rare (requires two saves at the same millisecond) but the tie-break is
+ * what makes cursor pagination stable across them.
+ */
+function compareSortOrder(
+  a: { savedAt: string; id: string },
+  b: { savedAt: string; id: string },
+): number {
+  if (a.savedAt !== b.savedAt) return b.savedAt.localeCompare(a.savedAt);
+  return a.id.localeCompare(b.id);
+}
+
+export interface ArticlePage {
+  articles: ArticleSummary[];
+  /** Pass back as `cursor` to fetch the next page. Null when exhausted. */
+  nextCursor: string | null;
+}
 
 export const saveArticleRequestSchema = z.object({
   url: z.string().url(),
@@ -304,7 +371,9 @@ export function parseListFilters(params: URLSearchParams): ListFilters {
     rawQ && rawQ.trim().length > 0
       ? rawQ.trim().slice(0, LIST_QUERY_MAX)
       : undefined;
-  return { view, state, tag, source, limit, q };
+  const rawCursor = params.get("cursor");
+  const cursor = rawCursor && rawCursor.length > 0 ? rawCursor : undefined;
+  return { view, state, tag, source, limit, q, cursor };
 }
 
 export function filterArticles(
@@ -357,9 +426,60 @@ export async function listArticles(
   const entries = await userVolume(userId).list({ fields: "frontmatter" });
   const all = entries
     .map((e) => ({ id: e.slug, ...e.frontmatter }))
-    .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+    .sort(compareSortOrder);
   const filtered = filterArticles(all, filters);
-  return filters.limit ? filtered.slice(0, filters.limit) : filtered;
+  const windowed = filters.cursor
+    ? advancePastCursor(filtered, filters.cursor)
+    : filtered;
+  return filters.limit ? windowed.slice(0, filters.limit) : windowed;
+}
+
+/**
+ * Same data as {@link listArticles} but returns the page plus a
+ * `nextCursor` callers can hand back to fetch the subsequent page.
+ * Applies the default page size when `limit` is absent.
+ */
+export async function listArticlesPage(
+  userId: AuthedUserId,
+  filters: ListFilters = {},
+): Promise<ArticlePage> {
+  const rawLimit = filters.limit ?? LIST_PAGE_DEFAULT;
+  const limit = Math.max(1, Math.min(rawLimit, LIST_LIMIT_MAX));
+  // Fetch one extra to detect whether a next page exists without scanning
+  // the tail twice. The extra item is dropped before returning.
+  const overfetch = await listArticles(userId, {
+    ...filters,
+    limit: limit + 1,
+  });
+  const hasMore = overfetch.length > limit;
+  const articles = hasMore ? overfetch.slice(0, limit) : overfetch;
+  const tail = articles[articles.length - 1];
+  const nextCursor =
+    hasMore && tail
+      ? encodeCursor({ savedAt: tail.savedAt, id: tail.id })
+      : null;
+  return { articles, nextCursor };
+}
+
+/**
+ * Return the slice of `articles` strictly after the cursor's position in
+ * the canonical sort order. Unparseable cursors are treated as "no
+ * cursor" (return the full list) so stale bookmarks never 500. When the
+ * cursor's exact `(savedAt, id)` entry is still in the list we do an O(1)
+ * lookup by index; otherwise we fall back to a comparator-based scan so
+ * pages keep flowing even after the anchor article is archived/deleted.
+ */
+function advancePastCursor(
+  articles: ArticleSummary[],
+  cursor: string,
+): ArticleSummary[] {
+  const parsed = decodeCursor(cursor);
+  if (!parsed) return articles;
+  const exact = articles.findIndex(
+    (a) => a.savedAt === parsed.savedAt && a.id === parsed.id,
+  );
+  if (exact >= 0) return articles.slice(exact + 1);
+  return articles.filter((a) => compareSortOrder(a, parsed) > 0);
 }
 
 export async function getArticle(

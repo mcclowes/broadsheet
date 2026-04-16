@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { fetchAndParse, IngestError, parseArticleFromHtml } from "@/lib/ingest";
 import {
   listArticles,
+  listArticlesPage,
   parseListFilters,
   saveArticleWithOutcome,
   saveArticleRequestSchema,
@@ -18,10 +19,21 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const filters = parseListFilters(url.searchParams);
-  const articles = await listArticles(userId, filters);
+  // Cursor pagination is opt-in: callers that explicitly pass `cursor` or
+  // `limit` get bounded pages; everyone else keeps the historical
+  // "give me everything matching these filters" contract. `nextCursor` is
+  // always present in the response so clients don't need to branch.
+  const paginated =
+    url.searchParams.has("cursor") || url.searchParams.has("limit");
+  const { articles, nextCursor } = paginated
+    ? await listArticlesPage(userId, filters)
+    : {
+        articles: await listArticles(userId, filters),
+        nextCursor: null as string | null,
+      };
 
   return Response.json(
-    { articles },
+    { articles, nextCursor },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

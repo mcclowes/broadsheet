@@ -8,6 +8,8 @@ import {
   saveArticle,
   saveArticleWithOutcome,
   listArticles,
+  listArticlesPage,
+  decodeCursor,
   getArticle,
   markRead,
   patchArticle,
@@ -536,5 +538,172 @@ describe("setTags", () => {
 
     const unmatched = await listArticles(USER, { tag: "python" });
     expect(unmatched).toHaveLength(0);
+  });
+});
+
+describe("listArticlesPage", () => {
+  // Helper — saves `n` articles with distinct savedAt timestamps so the
+  // order is deterministic. Returns them newest-first (matching the sort
+  // order the list functions use) so tests can assert against it directly.
+  async function seed(user: AuthedUserId, n: number) {
+    vi.useFakeTimers();
+    try {
+      const saved = [];
+      for (let i = 0; i < n; i++) {
+        vi.setSystemTime(new Date(2026, 0, 1, 0, 0, i));
+        saved.push(
+          await saveArticle(
+            user,
+            `https://example.com/a${i}`,
+            makeParsed({ title: `Article ${i}` }),
+          ),
+        );
+      }
+      return saved.reverse();
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  it("returns a bounded page and a nextCursor when more exist", async () => {
+    const ordered = await seed(USER, 5);
+    const page = await listArticlesPage(USER, { limit: 2 });
+    expect(page.articles.map((a) => a.id)).toEqual([
+      ordered[0].id,
+      ordered[1].id,
+    ]);
+    expect(page.nextCursor).not.toBeNull();
+  });
+
+  it("exhausts pages via the returned cursor", async () => {
+    const ordered = await seed(USER, 5);
+    const collected = [];
+    let cursor: string | undefined;
+    do {
+      const { articles, nextCursor } = await listArticlesPage(USER, {
+        limit: 2,
+        cursor,
+      });
+      collected.push(...articles);
+      cursor = nextCursor ?? undefined;
+    } while (cursor);
+    expect(collected.map((a) => a.id)).toEqual(ordered.map((a) => a.id));
+  });
+
+  it("returns nextCursor=null on the final (non-full) page", async () => {
+    await seed(USER, 3);
+    const first = await listArticlesPage(USER, { limit: 2 });
+    expect(first.nextCursor).not.toBeNull();
+    const second = await listArticlesPage(USER, {
+      limit: 2,
+      cursor: first.nextCursor!,
+    });
+    expect(second.articles).toHaveLength(1);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  it("returns nextCursor=null when a full page exactly exhausts the results", async () => {
+    await seed(USER, 2);
+    const page = await listArticlesPage(USER, { limit: 2 });
+    expect(page.articles).toHaveLength(2);
+    // No overflow, so no next page.
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it("defaults to LIST_PAGE_DEFAULT (50) when no limit is given", async () => {
+    // 52 articles → first page has 50, next cursor points at item 50.
+    const ordered = await seed(USER, 52);
+    const page = await listArticlesPage(USER);
+    expect(page.articles).toHaveLength(50);
+    expect(page.articles[0].id).toBe(ordered[0].id);
+    expect(page.nextCursor).not.toBeNull();
+  });
+
+  it("applies filters before pagination", async () => {
+    const [a, b, c] = await seed(USER, 3);
+    await setArchived(USER, b.id, true);
+    const { articles } = await listArticlesPage(USER, {
+      view: "inbox",
+      limit: 10,
+    });
+    // b is archived and excluded from inbox; a and c remain in sort order.
+    expect(articles.map((x) => x.id)).toEqual([a.id, c.id]);
+  });
+
+  it("encodes an opaque cursor that decodes to the last page item", async () => {
+    const ordered = await seed(USER, 3);
+    const page = await listArticlesPage(USER, { limit: 1 });
+    expect(page.articles[0].id).toBe(ordered[0].id);
+    const decoded = decodeCursor(page.nextCursor!);
+    expect(decoded).toEqual({
+      savedAt: ordered[0].savedAt,
+      id: ordered[0].id,
+    });
+  });
+
+  it("ignores garbage cursors and returns the first page", async () => {
+    const ordered = await seed(USER, 3);
+    const page = await listArticlesPage(USER, {
+      limit: 10,
+      cursor: "not-a-real-cursor",
+    });
+    expect(page.articles.map((a) => a.id)).toEqual(ordered.map((a) => a.id));
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it("is stable when an earlier article is saved mid-pagination", async () => {
+    // Page through the initial three. Save a fourth (newer) article
+    // between pages — the cursor-based approach must not cause the
+    // reader to re-see an article they already paged past.
+    const ordered = await seed(USER, 3);
+    const first = await listArticlesPage(USER, { limit: 2 });
+    expect(first.articles.map((a) => a.id)).toEqual([
+      ordered[0].id,
+      ordered[1].id,
+    ]);
+
+    // Insert a brand-new article at the top of the sort order.
+    await saveArticle(
+      USER,
+      "https://example.com/newcomer",
+      makeParsed({ title: "Newcomer" }),
+    );
+
+    const second = await listArticlesPage(USER, {
+      limit: 2,
+      cursor: first.nextCursor!,
+    });
+    // The newcomer is newer than the cursor, so it must NOT appear here.
+    // Only ordered[2] (the oldest) is left after the cursor.
+    expect(second.articles.map((a) => a.id)).toEqual([ordered[2].id]);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  it("keeps advancing past a cursor whose anchor article has been deleted", async () => {
+    const ordered = await seed(USER, 4);
+    const first = await listArticlesPage(USER, { limit: 2 });
+    expect(first.articles.map((a) => a.id)).toEqual([
+      ordered[0].id,
+      ordered[1].id,
+    ]);
+    // Delete the anchor (ordered[1], which is the cursor). The cursor
+    // comparator must still advance past the now-missing position so the
+    // reader doesn't get stuck or see duplicates.
+    const volume = getFolio().volume(volumeNameForUser(USER));
+    await volume.delete(ordered[1].id);
+    const second = await listArticlesPage(USER, {
+      limit: 2,
+      cursor: first.nextCursor!,
+    });
+    expect(second.articles.map((a) => a.id)).toEqual([
+      ordered[2].id,
+      ordered[3].id,
+    ]);
+  });
+
+  it("returns empty page and null cursor for a user with no articles", async () => {
+    const page = await listArticlesPage(USER, { limit: 10 });
+    expect(page.articles).toEqual([]);
+    expect(page.nextCursor).toBeNull();
   });
 });
