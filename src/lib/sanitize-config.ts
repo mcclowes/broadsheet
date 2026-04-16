@@ -110,3 +110,15 @@ export const SANITIZE_CONFIG = {
   // data:text/html and other dangerous MIME types are excluded.
   ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|#|data:image\/)/i,
 };
+
+// Force external links to open in a new tab safely. Shared hook so server
+// and client render paths can't drift on this security-sensitive behaviour.
+export function safeExternalLinkHook(node: Element): void {
+  if (node.tagName === "A") {
+    const href = node.getAttribute("href") ?? "";
+    if (href.startsWith("http://") || href.startsWith("https://")) {
+      node.setAttribute("target", "_blank");
+      node.setAttribute("rel", "noreferrer noopener");
+    }
+  }
+}

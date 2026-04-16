@@ -7,12 +7,7 @@ import {
 } from "./articles";
 import { addUnanchoredHighlights } from "./annotations";
 import { fetchAndParse } from "./ingest";
-import {
-  parsePocketExport,
-  type ParsedPocketExport,
-  type PocketAnnotation,
-  type PocketItem,
-} from "./pocket-import";
+import { parsePocketExport, type ParsedPocketExport } from "./pocket-import";
 
 /**
  * Error thrown when a Pocket import fails for a reason we're willing to
@@ -253,11 +248,3 @@ function canonicalUrlSafe(url: string): string | null {
 
 // Re-exported to keep test discovery convenient.
 export { articleIdForUrl };
-
-export function pocketItemCount(items: PocketItem[]): number {
-  return items.length;
-}
-
-export function pocketAnnotationCount(anns: PocketAnnotation[]): number {
-  return anns.reduce((n, a) => n + a.highlights.length, 0);
-}

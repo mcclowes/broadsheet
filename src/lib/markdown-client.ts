@@ -8,18 +8,9 @@
 
 import { marked } from "marked";
 import DOMPurify from "dompurify";
-import { SANITIZE_CONFIG } from "./sanitize-config";
+import { SANITIZE_CONFIG, safeExternalLinkHook } from "./sanitize-config";
 
-// After sanitization, force external links to open in a new tab safely.
-DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-  if (node.tagName === "A") {
-    const href = node.getAttribute("href") ?? "";
-    if (href.startsWith("http://") || href.startsWith("https://")) {
-      node.setAttribute("target", "_blank");
-      node.setAttribute("rel", "noreferrer noopener");
-    }
-  }
-});
+DOMPurify.addHook("afterSanitizeAttributes", safeExternalLinkHook);
 
 export function renderMarkdownClient(md: string): string {
   const html = marked.parse(md, { async: false, gfm: true, breaks: false });

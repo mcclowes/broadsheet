@@ -54,6 +54,8 @@ export function articleIdForUrl(url: string): string {
   return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
 }
 
+export const ARTICLE_ID_RE = /^[a-f0-9]{32}$/;
+
 export type ArticleFrontmatter = {
   title: string;
   url: string;

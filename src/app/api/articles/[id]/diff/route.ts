@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { diffLines } from "diff";
-import { getArticle } from "@/lib/articles";
+import { ARTICLE_ID_RE, getArticle } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
 import { fetchAndParse, IngestError } from "@/lib/ingest";
 import { diffLimiter } from "@/lib/rate-limit";
@@ -21,7 +21,7 @@ export async function GET(
   const userId = authedUserId(rawUserId);
 
   const { id } = await params;
-  if (!/^[a-f0-9]{32}$/.test(id)) {
+  if (!ARTICLE_ID_RE.test(id)) {
     return Response.json({ error: "Invalid article id" }, { status: 400 });
   }
 

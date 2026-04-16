@@ -8,11 +8,10 @@ import {
   listHighlights,
   updateHighlight,
 } from "@/lib/annotations";
+import { ARTICLE_ID_RE } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
 import { checkOrigin } from "@/lib/csrf";
 import { z } from "zod";
-
-const ARTICLE_ID_RE = /^[a-f0-9]{32}$/;
 
 async function authed(
   req: Request,

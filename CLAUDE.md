@@ -48,15 +48,14 @@ Read-it-later app. Next.js 16 App Router + Clerk auth + Folio (`folio-db-next`) 
 
 ## Open pre-production blockers
 
-From `CODE_REVIEW.md`:
-
-1. **No rate limiting** on `POST /api/articles` (§3). One authenticated user can force unbounded ingest work; combine with any upstream slowness and it's a DoS/bill primitive. In-memory leaky bucket keyed on `userId` is the MVP fix; Upstash Redis via the Marketplace is the correct multi-instance answer.
+From `CODE_REVIEW.md`: none remaining. The per-instance leaky-bucket limiter in `src/lib/rate-limit.ts` (consumed by the article/source/diff/pocket-import routes) closes §3 for MVP. Moving to Upstash Redis for a true multi-instance limit is a scale-up item, not a launch blocker.
 
 Resolved since CLAUDE.md was first written (do not re-open without reading the code):
 
 - §1 SSRF — `assertPublicHost` in `src/lib/ingest.ts` resolves DNS, blocks RFC1918 / loopback / link-local / ULA / CGNAT / multicast / IPv4-mapped v6, `redirect: "manual"` re-checks on every hop, capped at `MAX_REDIRECTS = 5`.
 - §2 Timeout / body cap — `AbortSignal.timeout(FETCH_TIMEOUT_MS)` (15 s), `readBoundedBody` streams with a `MAX_BODY_BYTES` cap (5 MB), `isHtmlContentType` allowlist on `content-type`.
+- §3 Rate limiting — `articleIngestLimiter` (and siblings `sourceAddLimiter`, `diffLimiter`, `pocketImportLimiter`) in `src/lib/rate-limit.ts`; each POST/diff route `consume()`s before doing work and returns 429 + `Retry-After` on denial.
 - §5 FsAdapter silent fallback — `resolveAdapter` throws when `NODE_ENV === "production" && !BLOB_READ_WRITE_TOKEN`.
 - §13 Error leakage — `IngestError.publicMessage` is the only string returned to clients; the raw message is logged server-side in the route handler.
 
-If you're working near any of these, address the remaining blocker inline rather than growing the debt.
+If you're working near any of these, don't regress what's already fixed.
