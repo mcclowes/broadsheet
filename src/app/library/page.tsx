@@ -249,18 +249,23 @@ export default async function LibraryPage({
           </div>
         )}
         {popularTags.length > 0 ? (
-          <div className={styles.tagList}>
-            {popularTags.map((t) => (
-              <Link
-                key={t}
-                href={filterLink(current, { tag: tag === t ? null : t })}
-                className={tag === t ? styles.tagChipActive : styles.tagChip}
-                {...(tag === t && { "aria-current": "true" as const })}
-              >
-                #{t}
-              </Link>
-            ))}
-          </div>
+          <details className={styles.tagDetails} open={Boolean(tag)}>
+            <summary className={styles.tagSummary}>
+              Tags ({popularTags.length})
+            </summary>
+            <div className={styles.tagList}>
+              {popularTags.map((t) => (
+                <Link
+                  key={t}
+                  href={filterLink(current, { tag: tag === t ? null : t })}
+                  className={tag === t ? styles.tagChipActive : styles.tagChip}
+                  {...(tag === t && { "aria-current": "true" as const })}
+                >
+                  #{t}
+                </Link>
+              ))}
+            </div>
+          </details>
         ) : null}
       </nav>
 

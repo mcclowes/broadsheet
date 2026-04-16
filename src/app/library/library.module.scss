@@ -209,8 +209,44 @@
   text-decoration: none;
 }
 
-.tagList {
+.tagDetails {
   flex-basis: 100%;
+}
+
+.tagSummary {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.1875rem 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &::before {
+    content: "▸ ";
+  }
+
+  &:hover {
+    color: var(--fg);
+    border-color: var(--fg);
+  }
+
+  .tagDetails[open] > & {
+    margin-bottom: 0.5rem;
+
+    &::before {
+      content: "▾ ";
+    }
+  }
+}
+
+.tagList {
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem;
