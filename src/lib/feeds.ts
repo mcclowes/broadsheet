@@ -1,5 +1,10 @@
 import { JSDOM } from "jsdom";
-import { fetchPublicResource, IngestError, isHtmlContentType } from "./ingest";
+import {
+  DISCOVERY_TIMEOUT_MS,
+  fetchPublicResource,
+  IngestError,
+  isHtmlContentType,
+} from "./ingest";
 
 export interface FeedItem {
   title: string;
@@ -39,6 +44,11 @@ const DISCOVERY_PATHS = [
   "/index.xml",
   "/feeds/posts/default",
 ];
+
+// Upper bound on <link rel="alternate"> candidates we'll probe during
+// discovery. Sites with dozens of per-tag/per-author feeds can otherwise
+// cascade into many failed fetches.
+const MAX_DISCOVERY_CANDIDATES = 5;
 
 function textContentOf(el: Element | null): string {
   return (el?.textContent ?? "").trim();
@@ -205,7 +215,10 @@ export function parseFeedXml(xml: string, baseUrl: string): ParsedFeed {
   return feed;
 }
 
-export async function fetchFeed(feedUrl: string): Promise<{
+export async function fetchFeed(
+  feedUrl: string,
+  opts: { timeoutMs?: number } = {},
+): Promise<{
   feed: ParsedFeed;
   finalUrl: string;
 }> {
@@ -216,6 +229,7 @@ export async function fetchFeed(feedUrl: string): Promise<{
     // distinguish feeds from HTML at the parse step below.
     validateContentType: () => true,
     contentTypeError: "Upstream did not return a feed",
+    timeoutMs: opts.timeoutMs,
   });
   const feed = parseFeedXml(body, finalUrl);
   return { feed, finalUrl };
@@ -270,9 +284,14 @@ export async function discoverFeed(inputUrl: string): Promise<DiscoveredFeed> {
     throw new IngestError("Invalid URL", undefined, "Invalid URL");
   }
 
+  // Speculative probes (initial as-a-feed attempt, HTML <link> candidates,
+  // well-known paths) use a shorter timeout than a normal fetch so a cascade
+  // of misses can't wall-clock a serverless invocation.
+  const probe = { timeoutMs: DISCOVERY_TIMEOUT_MS };
+
   // Attempt 1: treat the URL as a feed directly.
   try {
-    const { feed, finalUrl } = await fetchFeed(parsed.toString());
+    const { feed, finalUrl } = await fetchFeed(parsed.toString(), probe);
     return { feedUrl: finalUrl, feed };
   } catch (err) {
     if (!(err instanceof IngestError)) throw err;
@@ -286,12 +305,16 @@ export async function discoverFeed(inputUrl: string): Promise<DiscoveredFeed> {
       accept: "text/html,application/xhtml+xml",
       validateContentType: isHtmlContentType,
       contentTypeError: "Upstream did not return HTML",
+      timeoutMs: DISCOVERY_TIMEOUT_MS,
     });
     html = fetched.body;
-    const candidates = extractFeedLinksFromHtml(html, fetched.finalUrl);
+    const candidates = extractFeedLinksFromHtml(html, fetched.finalUrl).slice(
+      0,
+      MAX_DISCOVERY_CANDIDATES,
+    );
     for (const candidate of candidates) {
       try {
-        const { feed, finalUrl } = await fetchFeed(candidate);
+        const { feed, finalUrl } = await fetchFeed(candidate, probe);
         return { feedUrl: finalUrl, feed };
       } catch {
         // try the next candidate
@@ -305,7 +328,7 @@ export async function discoverFeed(inputUrl: string): Promise<DiscoveredFeed> {
   for (const path of DISCOVERY_PATHS) {
     const candidate = new URL(path, `${parsed.protocol}//${parsed.host}`);
     try {
-      const { feed, finalUrl } = await fetchFeed(candidate.toString());
+      const { feed, finalUrl } = await fetchFeed(candidate.toString(), probe);
       return { feedUrl: finalUrl, feed };
     } catch {
       // try the next path

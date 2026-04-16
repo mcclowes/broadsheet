@@ -8,8 +8,12 @@ import {
   addHighlight,
   addUnanchoredHighlights,
   deleteHighlight,
+  HighlightLimitError,
   listAllAnnotations,
   listHighlights,
+  listUnanchoredHighlights,
+  MAX_HIGHLIGHTS_PER_ARTICLE,
+  MAX_UNANCHORED_HIGHLIGHTS_PER_ARTICLE,
   sortHighlights,
   updateHighlight,
   type Highlight,
@@ -163,5 +167,55 @@ describe("listAllAnnotations", () => {
 
     const all = await listAllAnnotations(USER);
     expect(all.map((a) => a.articleId)).toEqual([ARTICLE_B, ARTICLE]);
+  });
+});
+
+describe("annotation caps", () => {
+  it("throws HighlightLimitError once the anchored cap is reached", async () => {
+    // Seed the article with MAX highlights by writing frontmatter directly —
+    // going through addHighlight N times would be slow and is not what we're
+    // testing.
+    const vol = getFolio().volume(volumeNameForUser(USER, "annotations"));
+    const highlights: Highlight[] = Array.from(
+      { length: MAX_HIGHLIGHTS_PER_ARTICLE },
+      (_, i) => ({
+        id: `seed-${i}`,
+        start: i * 10,
+        end: i * 10 + 5,
+        text: "t",
+        note: null,
+        color: "yellow" as const,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    await vol.set(ARTICLE, {
+      frontmatter: {
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        highlights,
+        unanchoredHighlights: [],
+      },
+      body: "",
+    });
+
+    await expect(
+      addHighlight(USER, ARTICLE, { start: 0, end: 1, text: "x" }),
+    ).rejects.toBeInstanceOf(HighlightLimitError);
+  });
+
+  it("stops adding unanchored highlights once the cap is reached", async () => {
+    const inputs = Array.from(
+      { length: MAX_UNANCHORED_HIGHLIGHTS_PER_ARTICLE + 50 },
+      (_, i) => ({
+        text: `highlight-${i}`,
+        createdAt: `2026-01-01T00:00:${String(i % 60).padStart(2, "0")}.000Z`,
+        source: "pocket" as const,
+      }),
+    );
+    const added = await addUnanchoredHighlights(USER, ARTICLE, inputs);
+    expect(added).toBe(MAX_UNANCHORED_HIGHLIGHTS_PER_ARTICLE);
+
+    const stored = await listUnanchoredHighlights(USER, ARTICLE);
+    expect(stored).toHaveLength(MAX_UNANCHORED_HIGHLIGHTS_PER_ARTICLE);
   });
 });

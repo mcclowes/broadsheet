@@ -1,373 +1,530 @@
 # Broadsheet — holistic code review
 
-**Reviewer:** Incoming principal eng, first pass over the repo.
-**Scope:** Everything under `src/`, `apps/extension/`, build config, tests, repo hygiene.
-**Tone:** Direct. The goal is to make the next commits _obviously_ better, not to be nice about the current ones.
+> Reviewer persona: principal engineer onboarding to the codebase, with a bias against cleverness and a low tolerance for silent failure. Written to give junior engineers concrete patterns to repeat and to avoid.
+
+## TL;DR — the top things to fix first
+
+| #   | Finding                                                                                                                                                      | Severity     | Where                                                                                         |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ | --------------------------------------------------------------------------------------------- |
+| 1   | `deleteAllUserData` never deletes the `annotations` volume — highlights survive account deletion (GDPR leak)                                                 | **Critical** | `src/lib/user-deletion.ts:10`                                                                 |
+| 2   | Cron idempotency is broken on failure: `markDigestSent` runs _after_ `resend.emails.send`, so a crash between the two re-sends the email on retry            | **High**     | `src/app/api/digest/send/route.ts:78–97`                                                      |
+| 3   | `/api/digest/unsubscribe` mutates state on `GET`, which Gmail's "link safety" prefetcher and user-side AV proxies will follow, silently unsubscribing people | **High**     | `src/app/api/digest/unsubscribe/route.ts:12–39`                                               |
+| 4   | `/library` loads every article for every request and filters in memory (no `force-dynamic` cap, no server-side pagination)                                   | **High**     | `src/app/library/page.tsx:111`                                                                |
+| 5   | `auth()` is called per route — there is no `middleware.ts` at all. A new route that forgets it silently exposes data                                         | **High**     | Absent: `src/middleware.ts`                                                                   |
+| 6   | `patchArticle` does a full `get` before the patch on every progress tick (every ~3s while scrolling), which means N× the blob reads                          | **Medium**   | `src/lib/articles.ts:473` + `read-tracker.tsx:104`                                            |
+| 7   | SSRF check is TOCTOU: we resolve DNS to a public address, then `fetch()` resolves it _again_. DNS rebinding can flip the second resolution                   | **Medium**   | `src/lib/ingest.ts:347`                                                                       |
+| 8   | Rate limit buckets are in-process — on Vercel each serverless instance has its own bucket, so the advertised "60/min" is actually "60/min per instance"      | **Medium**   | `src/lib/rate-limit.ts:31`                                                                    |
+| 9   | Dozens of `as unknown as z.ZodType<X>` casts because hand-written types don't match zod's inferred ones. Pick one source of truth                            | **Medium**   | `articles.ts:104`, `digest.ts:30`, `sources.ts:32`, `annotations.ts:65`, `auto-archive.ts:64` |
+| 10  | Reader page runs ingest synchronously inside the SSR render for `pendingIngest` articles — user waits 15 s for a slow upstream before the page appears       | **Medium**   | `src/app/read/[id]/page.tsx:45`                                                               |
+
+Everything below expands these, adds more, and calls out anti-patterns worth _not_ repeating.
 
 ---
 
-## Resolved since this review was written
+## 1. Architecture and invariants
 
-The review below is preserved verbatim as a snapshot. The following findings have been addressed in subsequent commits and should be considered closed:
+### 1.1 The auth boundary is load-bearing but unenforced
 
-- **#1 SSRF in the ingest pipeline** — Resolved in commit `5b05e5e`. `src/lib/ingest.ts` now resolves the hostname via `dns.lookup`, rejects any address in RFC1918, loopback, link-local, ULA, CGNAT, multicast, or IPv4-mapped IPv6 ranges via `assertPublicHost`, uses `redirect: "manual"`, re-runs the address check on every hop, and caps at `MAX_REDIRECTS = 5`.
-- **#2 No timeout / size cap on the fetched body** — Resolved in commit `5b05e5e`. `fetchAndParse` uses `AbortSignal.timeout(FETCH_TIMEOUT_MS)` (15 s), a streaming `readBoundedBody` with `MAX_BODY_BYTES = 5 MB`, and `isHtmlContentType` as a content-type allowlist.
-- **#5 `FsAdapter` silent fallback in production** — Resolved in commit `5b05e5e`. `resolveAdapter` in `src/lib/folio.ts` throws when `NODE_ENV === "production" && !BLOB_READ_WRITE_TOKEN`.
-- **#7 `markRead` is dead code** — Resolved. `markRead`, `setArchived`, and `setTags` are now wired through `src/app/api/articles/[id]/route.ts` and consumed from `src/app/read/[id]/article-actions.tsx`.
-- **#11 No dedup on save** — Resolved. `src/lib/articles.ts` now implements `canonicalizeUrl` (strips tracking params, normalises host/path) and `articleIdForUrl` (sha256 of canonical URL → 32 hex chars), and `saveArticle` short-circuits when an entry already exists.
-- **#13 Error messages leak internal details** — Resolved in commit `5b05e5e`. `IngestError.publicMessage` separates user-facing text from the raw message; `src/app/api/articles/route.ts` logs the raw error server-side and returns only `publicMessage` in the 422 response.
-- **#16 `folioblob-next: file:...` workaround** — Resolved in commit `635ecf9`. `package.json` now depends on the published `folio-db-next@^0.1.0`.
-- **#16 Committed `default.profraw` / `tsconfig.tsbuildinfo`** — Resolved. `.gitignore` now excludes `*.profraw` and `*.tsbuildinfo`; files are untracked.
-- **#16 Dirty `.gitignore`** — Resolved; working tree clean.
+The codebase has a very deliberate pattern: `auth()` is only called at request-entry boundaries, and `src/lib/**` functions take a branded `AuthedUserId`. This is well-designed — `auth-types.ts` even has a great comment explaining it. I like it.
 
-Findings #3, #4, #6, #8–#10, #12, #14–#15, #17–#20 remain open as written. **#3 (rate limiting on `POST /api/articles`) is the only remaining pre-production blocker from the §20 "this week" list.**
+What's missing is the _enforcement_ side. Because there is **no `src/middleware.ts`**, every new route handler must remember to:
+
+1. Call `auth()`
+2. Branch on `!rawUserId → 401`
+3. Brand the id with `authedUserId(...)`
+4. On mutating verbs: call `checkOrigin(req)` first
+5. On mutating verbs that are expensive: call `<someLimiter>.consume(userId)`
+
+That's a five-step ritual. Clerk ships `clerkMiddleware()` for exactly this reason — put the session check once, centrally, and let route handlers focus on business logic. If somebody adds `src/app/api/admin/export/route.ts` tomorrow and forgets step 1 or 4, nothing fails loudly. Lint doesn't catch it. Types don't catch it. Tests don't catch it unless they're explicitly written for the new route.
+
+**For juniors:** when a security check depends on developer discipline at N call sites, assume it will be forgotten at call site N+1. Push it up the stack until there's exactly one place to forget.
+
+### 1.2 "Folio is our storage layer" is doing a lot of work
+
+`folio-db-next` is first-party code, but from a broadsheet-codebase perspective it's a third-party dep whose behaviour the rest of the code trusts implicitly. That trust shows up in load-bearing places:
+
+- `setIfAbsent` is the whole story for deduplication (`articles.ts:167`). If it ever has a bug where two concurrent calls both succeed, we get duplicate articles.
+- The list cache invalidation ("invalidated by Folio on writes via tag expiry" — `folio.ts:19`) is not tested here; we just trust it.
+- `volume.patch` is advertised as doing "3 retries with jittered backoff" — but we wrap it in `retryOnConflict` for another 6 attempts. If Folio's contract ever changes, our retry budget silently doubles or doesn't.
+
+None of this is wrong. But there's no integration test that stresses Folio's concurrency guarantees from broadsheet's side — the closest thing is `articles-crud.test.ts` running sequential operations. If the whole app's correctness rests on one dependency's contract, I'd want an "angry concurrent writers" test pinned to that contract.
+
+### 1.3 Per-user volume suffix registry is implicit and unenforced
+
+`folio.ts` has `volumeNameForUser(userId, suffix)` where `suffix` is an arbitrary ad-hoc string (`"sources"`, `"annotations"`, …). There is no central list of suffixes. The result is exactly the GDPR bug in §2.1 — `user-deletion.ts` had to hardcode the suffixes it knows about, and no-one updated it when `annotations` got added.
+
+**Fix shape:** export a `PER_USER_VOLUME_SUFFIXES` tuple from `folio.ts`, pass it through `volumeNameForUser`, and have `deleteAllUserData` iterate that list. Then adding a new per-user volume is a single-file change, impossible to forget.
+
+### 1.4 Next.js App Router defaults — mostly good, a couple of smells
+
+Good: Server components by default, Clerk via `auth()` at request boundaries, parallelised `Promise.all` in `read/[id]/page.tsx:36`, `revalidatePath` after mutating routes. No `getServerSideProps` ghosts. Minimal `"use client"` surface.
+
+Smells:
+
+- `ClerkProvider` wraps the entire tree in `layout.tsx`, including `/privacy` and other public pages. That's fine for Clerk — it's a thin provider — but the pattern where you can't lint "which pages are public?" means you can't cheaply audit the auth surface.
+- `force-dynamic` is set on `/library` and `/read/[id]`. That's correct given per-user content, but the two places are not the only auth-gated pages. `/settings`, `/sources`, `/import/pocket` all read per-user data too — do they have the same caching properties? (They don't have `force-dynamic`, which in Next 16 should still be fine for auth-gated pages, but it's worth a read-through to confirm none of them are caching personal data.)
 
 ---
 
-The MVP is small and the architecture is basically sound — Next.js App Router, Clerk for auth, a pluggable blob storage layer, Readability + Turndown for ingestion. That's the good news. The bad news is that a handful of these files ship behaviour that would get flagged in any half-decent security review, and the test coverage stops exactly where the interesting bugs live.
+## 2. Correctness bugs — ordered by how angry a user would be
 
-I've ordered findings by blast radius, not by file. Read top-to-bottom.
-
----
-
-## 1. Critical: server-side request forgery in the ingest pipeline
-
-**File:** `src/lib/ingest.ts:55` (`fetchAndParse`), called from `src/app/api/articles/route.ts:35`.
+### 2.1 **[Critical]** GDPR: highlights are not deleted on account deletion
 
 ```ts
-res = await fetch(url, { ... redirect: "follow" });
+// src/lib/user-deletion.ts
+const PER_USER_VOLUME_SUFFIXES = [undefined, "sources"] as const;
 ```
 
-Any authenticated user — i.e. anyone who can sign up — can POST a URL and the server will fetch it. There is:
+`annotations` is conspicuously missing. `src/lib/annotations.ts:62` writes to `volumeNameForUser(userId, "annotations")`. A deleted user's highlights — text they quoted from articles, with their notes — live on forever in blob storage.
 
-- No allowlist of schemes (so `file://`? actually `fetch` rejects it, but…).
-- No blocklist of hosts. `http://169.254.169.254/latest/meta-data/` on AWS, `http://metadata.google.internal` on GCP, `http://localhost:5432`, `http://10.0.0.1/admin`, `http://[::1]/`, your internal Grafana — all fetchable.
-- `redirect: "follow"` means an attacker can point at a benign public URL that 302s to `http://169.254.169.254/`. Blocklisting won't save you unless you also re-check after every redirect.
-- No DNS pinning, so even an allowlist/blocklist is vulnerable to DNS-rebinding if you later cache the record.
+The test (`user-deletion.test.ts`) never seeds an annotation, so it's invisible.
 
-**Why this matters:** on Vercel (Fluid Compute) the function runs inside Vercel's network. The AWS metadata endpoint specifically is less exposed than on raw EC2, but the class of attack — internal services, self-hosted DBs reachable via connected Postgres/Redis integrations, webhooks pointing at localhost — is very real.
+**Fix:** add `"annotations"` to the tuple. **Better fix:** restructure so suffix registry is the single source of truth (§1.3).
 
-**How to fix, in order of reliability:**
+**For juniors:** whenever you have a delete-all-of-X operation, write a test that creates one of _every type of thing X owns_ and asserts none survive. "Delete" tests are defensive — they catch exactly this class of "I forgot to update the list" bug. The diff to add the suffix is five keystrokes; the diff to add the test that would have caught it is the point of the exercise.
 
-1. Resolve the hostname yourself (`dns.lookup`), reject anything in `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `::1`, `fc00::/7`, `fe80::/10`, metadata IPs.
-2. `redirect: "manual"`, handle 3xx yourself, re-run the IP check on every hop, cap at ~5 hops.
-3. Connect to the _resolved IP_ with a `Host:` header (or use an HTTP agent with a DNS lookup hook) so a later DNS flip can't change the destination.
-4. Or — much simpler — route ingestion through **Vercel Sandbox** or an isolated fetch worker that has no network access to anything interesting. This is the boring-but-correct answer if you don't want to own an SSRF filter forever.
-
-**Teaching moment:** "we only fetch URLs the user gave us" is _exactly_ the mindset that ships SSRF. The rule is: if the server makes a network call to a host it didn't compile in, treat it like untrusted code until proven otherwise.
-
----
-
-## 2. Critical: no timeout, no size cap on the fetched body
-
-Same function, same lines.
-
-- No `AbortSignal.timeout(...)`. A slow-loris upstream keeps the serverless function alive to the platform ceiling (300s on Vercel now). One user, a handful of tabs, and your bill gets interesting.
-- `await res.text()` consumes whatever the upstream sends. A 2 GB response — or an infinite stream — will happily try to buffer into memory. JSDOM then tries to parse it.
-- No `Content-Type` check. Point it at a 500 MB `.iso`, the server dutifully downloads and hands to JSDOM.
-
-**Fix:**
+### 2.2 **[High]** Digest cron: duplicate sends on mid-batch failure
 
 ```ts
-const res = await fetch(url, {
-  signal: AbortSignal.timeout(15_000),
-  headers: { ... },
-  redirect: "manual",
-});
-const ct = res.headers.get("content-type") ?? "";
-if (!/^text\/html|application\/xhtml\+xml/.test(ct)) {
-  throw new IngestError(`Unsupported content-type: ${ct}`);
+// src/app/api/digest/send/route.ts
+const result = await resend.emails.send({ ... });       // ← (A) email sent
+if (result.error) { throw new Error("Resend error"); }
+await markDigestSent(sub.userId);                        // ← (B)
+```
+
+Vercel Cron retries on non-2xx. If the function crashes, times out, or the instance is killed between (A) and (B), user got the email but `lastDigestSentAt` isn't set. Next cron invocation (today — the filter uses `todayStr`) re-sends the digest because the filter at line 47 still thinks they haven't been sent today.
+
+**Two fixes, pick one:**
+
+- **Fix the order:** mark `lastDigestSentAt` _before_ `resend.emails.send`. Accept the opposite failure mode (email not sent but marked sent) — users can request a re-send if it really matters. Simpler, and the failure mode is less embarrassing.
+- **Make it truly idempotent:** use a deterministic message-id (e.g. `sha256(userId + todayStr)`) as Resend's `idempotency_key` or custom header. Resend will drop the dupe.
+
+The "mark before send" order is what most daily-digest products do in practice.
+
+### 2.3 **[High]** Unsubscribe on GET is a classic email footgun
+
+```ts
+// src/app/api/digest/unsubscribe/route.ts
+export async function GET(req: Request) {
+  return handleUnsubscribe(req);
 }
-// Read with a byte cap
-const reader = res.body!.getReader();
-const MAX = 5 * 1024 * 1024; // 5 MB
-let total = 0;
-const chunks: Uint8Array[] = [];
-for (;;) {
-  const { value, done } = await reader.read();
-  if (done) break;
-  total += value.byteLength;
-  if (total > MAX) throw new IngestError("Page too large");
-  chunks.push(value);
+export async function POST(req: Request) {
+  return handleUnsubscribe(req);
 }
-const html = new TextDecoder().decode(Buffer.concat(chunks));
 ```
 
-**Teaching moment:** every outbound call needs three bounds — _time_, _bytes_, _count_ (redirect hops). Writing a network call without them is writing a DoS primitive.
+Mutating state on `GET` via a link in an email is a known-bad pattern. Google Mail's link-safety scanner, some corporate proxies, several password managers, and iOS Messages' link-preview fetcher will pre-fetch the URL. Each of those counts as "click". Users will be silently unsubscribed they didn't ask to be.
 
----
+Worth knowing: `List-Unsubscribe-Post` headers (which this code does set — good) tell Gmail/Yahoo to use `POST`. But you're still offering the `GET` path and including the raw URL in the footer as a user-facing "Unsubscribe" link. That footer link is what the link-fetcher will follow.
 
-## 3. High: no rate limiting on `POST /api/articles`
+**Fix:** GET returns a confirmation page with a single form that `POST`s back. The current behaviour of doing the mutation inline on GET does not meet RFC 8058.
 
-One authenticated user can, right now, force the server to fetch-and-parse N URLs per second until your blob store bill is embarrassing or a slow upstream hits finding #2. Clerk gives you `userId` — that's your rate-limit key. Use Upstash Redis via the Marketplace, or even an in-memory leaky bucket per instance for the MVP.
+**For juniors:** idempotent ≠ safe. `GET` should have no side effect beyond logging. Something that flips a user's `digest.enabled` is a side effect. The first rule of HTTP semantics is the one most often broken.
 
-Combine with #1 and #2: those three findings are one vulnerability wearing a trench coat.
-
----
-
-## 4. High: Readability HTML is round-tripped through Turndown, then Markdown → HTML → DOMPurify
-
-`ingest.ts:40` HTML → Markdown (Turndown). `markdown.ts:24` Markdown → HTML (marked) → DOMPurify.
-
-This is two lossy conversions back-to-back, with a sanitise at the end. A few consequences:
-
-- **Rendering fidelity:** figures, captions, footnotes, pull quotes, `<aside>`, MathML, inline SVG — all either lost or mangled. For a "read it cleanly" product, this is the product surface, not an implementation detail.
-- **Performance:** you're loading jsdom (~40 MB of code) on every POST, marked on every GET of `/read/[id]`. Consider sanitising the Readability output once at save time and storing sanitised HTML alongside (or instead of) markdown. Storing markdown is only worth it if you can render it faithfully — right now you can't.
-- **Testing gap:** there are no round-trip tests. "HTML with a `<figure>` → stored → rendered back" is not asserted anywhere.
-
-**Recommendation:** store the sanitised HTML (what DOMPurify approves) as the canonical body. Keep the markdown if you like for portability, but don't re-render it on every read. This fixes fidelity, performance, and the sanitise-twice code smell in one go.
-
----
-
-## 5. High: `FsAdapter` in production is a silent footgun
-
-`src/lib/folio.ts:25`:
+### 2.4 **[High]** The library loads everything every time
 
 ```ts
-const baseDir = process.env.BROADSHEET_FS_DIR ?? ".broadsheet-data";
-adapter = new FsAdapter({ baseDir });
+// src/app/library/page.tsx:111
+const allArticles = await listArticles(userId, {});
+const filteredArticles = filterArticles(allArticles, current);
 ```
 
-If `BLOB_READ_WRITE_TOKEN` is unset in production, the app falls through to writing articles to `./broadsheet-data` on the serverless function's ephemeral filesystem. On Vercel (Fluid Compute), that directory _does_ persist across warm invocations on the same instance — but it does **not** persist across cold starts, deploys, or instance recycling. Users will see their library randomly empty out.
+Every render of `/library` pulls _every_ article's frontmatter (no filter pushed down, no limit), then filters and paginates in memory. Pocket CSV imports cap at 5,000 items (`pocket-import-service.ts:69`). A user with a full import hits 5,000 frontmatter reads per page view.
 
-Options:
+The cached comment on line 110 ("Single fetch — filter in-memory to avoid duplicate Blob scans") acknowledges this is intentional, but it's the wrong tradeoff. Reasons:
 
-- Fail closed: if `NODE_ENV === "production"` and there's no blob token, throw at boot. Don't silently degrade to local disk.
-- Put the check in `resolveAdapter` and surface a clear error to `/api/articles` so you get a 500 instead of ghost data.
+- The list cache in Folio caches the whole list; that's a single key per user. On invalidation (every save, read, archive, tag change), the cache is blown and the next visitor pays for the full rebuild.
+- The summary object (`summariesForCache`) is serialised into the client bundle via `<CacheLibrary articles={summariesForCache} />`. For 5,000 articles × ~400 bytes each = ~2 MB of JSON shipped to the client on every library view, parsed, stored in IndexedDB. Not every visit needs that.
+- `popularTags` is computed from the full list on every render. 5,000-article `for` loop runs on every GET.
 
-**Teaching moment:** "fall back to local disk" is always wrong in serverless. Local disk is per-invocation cache, not storage.
+**Fix shape:** push `view` and `state` into the volume-list call (Folio supports filtered listing); keep a separate small call for the "cache everything for offline" path and wire it to happen on service-worker activation, not on every page render. Or: gate `CacheLibrary` behind an explicit "sync to device" action.
 
----
-
-## 6. High: cross-user auth only works because two mistakes cancel out
-
-`src/lib/folio.ts:38` hashes the Clerk `userId` to 24 hex chars and uses it as a volume name. Everything downstream — `saveArticle`, `getArticle`, `listArticles`, `markRead` — scopes by that volume. So far so good.
-
-But there's nothing enforcing at the _API boundary_ that the caller's userId is used. Every function takes `userId` as a parameter, and the only caller is the route handler, which reads from `auth()`. One future "admin endpoint" or one accidental `getArticle(req.body.userId, id)` and you have IDOR. A thin `currentUserVolume()` helper that calls `auth()` directly, with no `userId` parameter on the public functions, would make the mistake impossible to write.
-
-Also, 96 bits of hash collision resistance is fine for any realistic user count, but truncating hashes is a code smell. If folio's volume-name regex is the only reason to hash at all, document that right next to `volumeNameForUser`, and use `.slice(0, 40)` or the full hash — 24 characters saves you nothing and reads like an arbitrary choice.
-
----
-
-## 7. High: `markRead` is dead code
-
-`src/lib/articles.ts:89` exports a `markRead` function. Grep the repo — nothing calls it. There's no API route, no UI affordance. The `readAt` field in the frontmatter is _declared_ but never _written_. The library page at `src/app/library/page.tsx:41` renders a "Read" badge conditional on `a.readAt`, which will never be truthy.
-
-Dead code is a liability:
-
-- readers assume it's load-bearing and won't delete it;
-- it'll rot the next time the `Article` schema changes;
-- it makes the surface area look bigger than it is, which makes new engineers cautious about touching things they shouldn't be cautious about.
-
-Either wire it up (a PATCH endpoint, a toggle on the reader) or delete it. Pick this week.
-
----
-
-## 8. Medium: DOMPurify config drops things real articles use
-
-`src/lib/markdown.ts:9`.
-
-- `ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|#)/i` rejects `data:` images. Plenty of news sites inline tiny images as data URIs, or use them for LQIP placeholders. Those will silently disappear.
-- `ALLOWED_ATTR` has no `class`, `id`, `target`, `rel`, `width`, `height`, `data-*`. That's fine for a locked-down reader view, but `target`/`rel` matter if you ever render an "open in new tab" link — the "Original" link in `read/[id]/page.tsx:38` is hand-written and hardcodes `rel="noreferrer noopener"`, so it's fine, but inline links inside the article body will open in the same tab with no rel attributes. Decide once and document the policy.
-- `srcset` is allowed but DOMPurify's srcset handling historically leaves URLs that slip past the URI regexp on some versions — worth confirming current `isomorphic-dompurify` behaviour and adding an explicit test.
-- No `ALLOW_DATA_ATTR: false`, no `FORBID_TAGS`, no `SAFE_FOR_TEMPLATES`. Explicit > implicit.
-
-**Test this with a real article, not a canned HTML snippet.** The existing test (`markdown.test.ts`) proves the obvious XSS vectors are dead. It does not prove real articles render correctly.
-
----
-
-## 9. Medium: privacy leak through remote images in the reader view
-
-Articles are rendered with `dangerouslySetInnerHTML` (`src/app/read/[id]/page.tsx:51`), including `<img src="https://tracker.example/...">`. Every time a user opens their library, the original publishers' image CDNs see a hit with a referrer, cookies (if any), user agent, IP. That's a meaningful privacy regression vs. "I saved this to read later" — arguably the product's whole point is that you _don't_ call home to the publisher.
-
-Two remediations:
-
-1. `<meta name="referrer" content="no-referrer">` on the layout. Cheap. Stops the referrer leak.
-2. Download images at save time, store in Vercel Blob, rewrite `src` to your own URLs. Expensive. Fixes the IP/UA leak too and makes the library work offline (well, server-side cache-y).
-
-Do (1) now. Put (2) on the roadmap if you care about this use case.
-
----
-
-## 10. Medium: `force-dynamic` everywhere and no pagination
-
-`library/page.tsx:9` and `read/[id]/page.tsx:8` both set `export const dynamic = "force-dynamic"`. That's correct for auth-gated pages, but combined with `listArticles` having no pagination or limit, every library load fetches and sorts _every_ article the user has ever saved. At 1,000 articles this is slow. At 10,000 it's a bug.
-
-Also worth noting: you're on Next 16 and this codebase doesn't use any Cache Components (`'use cache'`) or `cacheLife`. Fine — read-later apps are inherently user-specific and hard to cache — but there's no reason `renderMarkdown` for a given article body should run on every page view. Memoise by article id, or cache the rendered HTML alongside the body.
-
----
-
-## 11. Medium: no dedup on save
-
-POST the same URL twice and you get two rows with different ids. The product promise is "keep a clean library"; duplicates are a core UX failure. `saveArticle` should canonicalise the URL (strip tracking params, fragment, trailing slash, lowercase host) and check for an existing entry before writing.
-
-A hash of the canonicalised URL also makes a better article id than a random UUID — it's idempotent, cacheable, and lets the extension detect "already saved" without a round-trip. UUID is only the right answer if you _want_ duplicates.
-
----
-
-## 12. Medium: `marked.parse(..., { async: false }) as string` is a trap
-
-`src/lib/markdown.ts:24`. Two issues:
-
-- `as string` is a lie to the type system. If a future `marked` plugin or config change makes this return a `Promise<string>`, DOMPurify sanitises `"[object Promise]"` and your reader view silently goes blank. The compiler won't catch it.
-- Setting `{ async: false }` is fragile — `marked` has been moving this around across versions. Pin the version (you're on `^18.0.0` — ideally lock to `~18.0.0`) and write a test that fails if this ever returns a non-string.
+### 2.5 **[Medium]** `patchArticle` does a full page read on every progress tick
 
 ```ts
-const html = marked.parse(md);
-if (typeof html !== "string") throw new Error("marked returned a Promise");
+// src/lib/articles.ts:473 — inside patchArticle
+if (clamped >= READ_COMPLETE_THRESHOLD && frontmatter.readAt === undefined) {
+  const existing = await userVolume(userId).get(id);  // ← extra read
+  if (existing && !existing.frontmatter.readAt) { ... }
+}
 ```
 
-Ugly but correct. Or use `marked.parseSync` if your version has it.
+and the client throttles to one patch per 3 s (`read-tracker.tsx:PROGRESS_PATCH_INTERVAL_MS`). For a 20-minute read-through that's ~400 progress patches. Each one that crosses 90% does a `get(id)` + `patch(id)`.
 
----
+Even below threshold it's not free: the patch goes through Folio's read-modify-write loop. Blob reads cost real money at Vercel's rates, and serverless cold starts on patches add latency.
 
-## 13. Medium: error messages and logging leak internal details
+**Better:** accept that `readAt` may be set slightly late. Set it only when progress _transitions_ from <0.9 to ≥0.9 on the client, and send a one-off explicit "mark read" PATCH then. The server `patchArticle` doesn't need the `get` at all.
 
-`ingest.ts:67`:
+### 2.6 **[Medium]** SSRF check is TOCTOU — DNS rebinding
+
+`assertPublicHost` resolves the hostname via `dns.lookup`, checks all addresses, then `fetch(current)` resolves the hostname again. An attacker controlling their authoritative DNS server can return `8.8.8.8` (public, passes the check) and then `127.0.0.1` 10 ms later (for the actual fetch).
+
+The standard mitigations in Node are:
+
+- Use a custom `Agent` with a `lookup` callback that returns a pre-resolved public IP, and set `Host` header manually so TLS SNI / virtual-hosting still works.
+- Or use a well-hardened library (`node-fetch-safe`, `ssrf-req-filter`).
+
+Given the rest of the SSRF work is careful (v6 coverage, redirect re-check, content-type allowlist), this is the obvious remaining hole.
+
+### 2.7 **[Medium]** Rate limiter is per-instance, not per-user
+
+The comment "Per-instance leaky bucket — moving to Upstash Redis for a true multi-instance limit is a scale-up item" (in CLAUDE.md) is correctly scoped as a known limitation, so I'll only mention the _practical_ implications:
+
+- A single user sending 10 saves in the same TCP-connection-reuse window will likely all hit one instance and get throttled. Good.
+- A single user sending 10 saves with some delay or parallel fetches will fan out across instances. Each instance has capacity 10. Effective limit: 10 × (number of warm instances).
+- Attack impact: an attacker with authenticated accounts (which is the bar for POST) gets effectively unbounded ingest by pushing concurrency up. This matters for `articleIngestLimiter` (each save runs `fetchAndParse` → outbound HTTP, JSDOM parse, blob write).
+
+**Fix:** if you don't want Redis right now, at minimum move to a shared store like `@vercel/kv` (one more dep, no config needed on Vercel). Or set `maxDuration: 1` on `/api/articles` POST to keep individual save cost bounded.
+
+### 2.8 **[Medium]** The read/[id] page can stall on a slow upstream
 
 ```ts
-throw new IngestError(`Failed to fetch URL: ${(err as Error).message}`, err);
+// src/app/read/[id]/page.tsx:45
+if (article.pendingIngest) {
+  try {
+    const { parsed } = await fetchAndParse(article.url);
+    await rehydrateArticle(userId, article.id, parsed);
+    ...
 ```
 
-…which is passed straight to the user in `route.ts:40` as a 422. `err.message` here can be `"connect ECONNREFUSED 10.0.0.7:5432"`. Combine with finding #1 and you have an SSRF _scanner_ — the error messages confirm which internal hosts are reachable.
+Opening a pending-ingest article (from Pocket import, for instance) blocks the page render on `fetchAndParse`. Timeout is 15 s. That means a user clicking on an old import can wait up to 15 s for the reader to appear. On Vercel, if `maxDuration` expires, they see a 504. The catch block handles `IngestError` and shows a soft error — good — but they still paid the latency.
 
-Log the raw error server-side, return a generic `"Could not fetch the page"` to the client. Same applies to `parseArticleFromHtml` errors — the user doesn't need the Readability internals.
+**Better:** render the page immediately with a placeholder and a client component that `useEffect`s a refresh call. Or trigger rehydration on save (in the background after `saveArticleStub`) and treat `pendingIngest` as always non-blocking.
 
-Also, `console.error("[api/articles] save failed", err)` is the only observability in this file. No structured logging, no request id, no latency timer. Add a minimal structured logger (one function, `log(event, fields)`) before the codebase grows teeth.
+### 2.9 **[Medium]** Highlight anchoring is character-offset into rendered plaintext
+
+The comment at `annotations.ts:7` acknowledges this. In practice:
+
+- If the article is re-ingested (diff-replace, future content-update), offsets desync. The code doesn't detect this — highlights silently anchor to wrong text.
+- Even with stable content, `nodeOffsetToPlain` counts `textContent` of nodes in tree order. If the rendered HTML changes structurally (e.g. we add a figure caption), offsets shift.
+- `wrapCrossNode` silently skips ranges it can't surround. Users won't know why their highlight "disappeared".
+
+**Fix shape:** store a text snippet + N-context-chars as the primary anchor, with offset as a hint. CFI (EPUB Canonical Fragment Identifier)-style is the robust choice but overkill here — "find substring within a 200-char window around the hint offset" is 20 lines of code and handles 95% of drift.
+
+### 2.10 **[Medium]** `canonicalizeUrl` dedup is fragile
+
+The canonicalisation strips `www.`, a hardcoded list of tracking params, and port-80/443. What it misses:
+
+- `m.example.com` (mobile subdomain) vs `example.com` — different canonical, but often the same article.
+- `amp.example.com` / `example.com/amp/foo` vs `example.com/foo` — same article from user's POV.
+- `http` vs `https` (if port is absent) — preserved separately.
+- Trailing slash: `/foo` and `/foo/` are canonicalised to `/foo` (good), but `/foo?a=1` and `/foo/?a=1` behave differently because the slash-strip path looks only at `pathname`.
+- Fragments: stripped (good).
+- Percent-case: `%2F` vs `%2f` — both are the same URL but the hash differs.
+
+Whether any of these matter depends on product intent. If "save the same article twice" is acceptable, fine. If not, the canonicaliser needs to lowercase `http→https` for known-HTTPS domains, drop `m.`/`amp.`, and normalise percent-encoding.
+
+This one is a product decision masquerading as a library function — flag it explicitly.
 
 ---
 
-## 14. Medium: no CSRF hardening
+## 3. Concurrency and data-race subtleties
 
-The app trusts a Clerk session cookie on `POST /api/articles`. The content-type is forced to `application/json`, which triggers a CORS preflight for cross-origin requests, which a third-party site can't complete without your CORS headers — so the practical risk is low. But "low" isn't "zero", and Clerk does publish CSRF guidance for exactly this case. At minimum:
+### 3.1 Two retry loops doing almost the same thing, with different budgets
 
-- Explicitly reject requests whose `Origin` is neither `null` (same-origin) nor your allowed list.
-- Document that the extension uses `credentials: "include"` with `host_permissions: https://*/*` — that's a broad grant. The extension should only target Broadsheet's origin and the active tab.
+```ts
+// articles.ts — 6 attempts, 50ms→1.6s backoff
+const CONFLICT_RETRY_ATTEMPTS = 6;
+const CONFLICT_RETRY_BASE_MS = 50;
 
----
-
-## 15. Medium: the Chrome extension's `host_permissions`
-
-`apps/extension/manifest.json:19`:
-
-```json
-"host_permissions": ["http://localhost:3000/*", "https://*/*"]
+// annotations.ts — 3 attempts, 10ms backoff
+const CONFLICT_RETRY_ATTEMPTS = 3;
 ```
 
-`https://*/*` is the "can talk to any HTTPS site" permission. The only thing the extension actually needs is to POST to Broadsheet's API. Replace with the production domain (and `http://localhost:3000/*` for dev) and the Chrome store review gets easier too. Extensions that ask for `<all_urls>` have to justify it; yours can't — all it needs is the active tab's URL (`activeTab` already gives you that) and the Broadsheet origin.
+And both wrap `volume.patch` which Folio says already retries 3 times internally (per `articles.ts:375` comment).
 
-Side note: the extension's default base URL is `http://localhost:3000`. Ship a sensible production default before the first external tester installs it.
+So a worst-case patch conflict on articles retries 6 × 3 = 18 times over ~3 s. For annotations, 3 × 3 = 9 times. Different budgets, same primitive. Pick one policy and put it in a shared helper — `retryOnConflict` has two implementations in two files right now, drifting slowly.
 
----
+### 3.2 `articleStateMatches` is almost-but-not-quite correct for tags
 
-## 16. Low: repo hygiene
+```ts
+// articles.ts:422
+} else if (Array.isArray(v)) {
+  const sortedV = [...v].sort();
+  const sortedC = [...currentArr].sort();
+  if (sortedV.some((x, i) => x !== sortedC[i])) return false;
+}
+```
 
-Small stuff, but it adds up:
+Consider: user A sets tags = `["foo"]`, user B (same user in another tab) sets tags = `["bar"]`. Both land together. A's patch conflicts, `articleStateMatches` sees `["bar"]` ≠ `["foo"]`, returns false, throws the conflict back. Fine.
 
-- `default.profraw` (Rust coverage artifact?) and `tsconfig.tsbuildinfo` are committed. Add to `.gitignore`.
-- `.gitignore` has uncommitted modifications (`M .gitignore` in git status). Commit or revert.
-- `folioblob-next: file:../../mcclowes/folio/packages/folio-next` in `package.json`. This works on your laptop. It will fail on CI, on any other developer's machine, on a fresh Vercel build, and in two weeks when you forget you did it. Publish the package (even privately) or vendor it into this repo.
-- No `lint` script in CI (there's `next lint` in package.json but no lint config visible), no `typecheck` step wired to PRs, no `test` step. Add a GitHub Action that runs `npm run lint && npm run typecheck && npm test` on every PR. This is 30 minutes of work and catches the next six bugs on this list before they land.
-- No `eslint` config file in tree — `next lint` depends on Next's built-in rules. That's fine for now, but turn on `@typescript-eslint/no-explicit-any`, `no-floating-promises`, `@typescript-eslint/consistent-type-imports`.
-- `package.json` has no `postinstall` guard against the `file:` dependency — a fresh `npm ci` in CI will just explode.
+Now: user A sets tags = `["foo", "bar"]`, user B sets tags = `["bar", "foo"]` (same intent, different order — e.g. because clients normalise at different times). A's patch conflicts but intent _is_ the same. `articleStateMatches` sorts both sides and compares — returns true, no conflict. Good.
 
----
+The edge case: `cleanTags` already sorts and dedupes in `articles.ts:532`. So the frontmatter always holds a sorted unique list. The "array of tags" case is the only mutation that sets an array, and both writer and reader go through `cleanTags`. So the manual sort in `articleStateMatches` is belt-and-braces but not incorrect.
 
-## 17. Low: test coverage has a sharp boundary
+**What _is_ a bug:** `articleStateMatches` treats any timestamped field as "set-to-now" with `wantSet !== haveSet` logic. But `patch.archived === true` sets `archivedAt = now`; if a concurrent user cleared the archive (`archived = false` → `archivedAt = null`), our retry sees `haveSet === false`, mismatches intent, throws. That's correct — we _should_ retry or fail. No bug. Just fragile code that would benefit from enumerating the intent types explicitly (a state machine, not generic field comparison).
 
-What's tested:
+### 3.3 `annotations.mutate` uses `volume.set` not `volume.patch`
 
-- `parseArticleFromHtml` happy path + empty-body error (`ingest.test.ts`)
-- `estimateReadMinutes` (two cases)
-- `renderMarkdown` XSS vectors (`markdown.test.ts`)
+```ts
+// annotations.ts:124
+await volume.set(articleId, { frontmatter, body: "" });
+```
 
-What isn't tested, at all:
+`set` is a full overwrite. It's wrapped in read-then-write with retry, which is correct in principle, but it's less robust than Folio's optimistic patch (which uses `setIfAbsent`-style conditional writes, per the folio-improvements.md doc I saw referenced). Why the inconsistency between articles (which uses `patch`) and annotations (which uses `set`)?
 
-- `fetchAndParse` (the function that has all the SSRF/DoS exposure)
-- `saveArticle`, `listArticles`, `getArticle`, `markRead` — the entire storage layer
-- `volumeNameForUser` (easy win: assert stable hash, assert regex-safe output)
-- The route handler (auth unhappy path, bad JSON, zod reject, IngestError → 422, unknown error → 500)
-- The extension background script (it's plain JS, but `saveAndNotify` is testable)
-- Any end-to-end "save a URL, see it in the library, open it" happy path
-- Round-trip: a real article's HTML → markdown → HTML → sanitised → rendered
+If there's a reason (e.g. `patch` doesn't support full-array replacement), leave a comment. Otherwise, switch to `patch` so we get Folio's internal conditional-write logic for free.
 
-You've tested the easy 20%. The bugs live in the other 80%. As a rule of thumb: **test every function that returns a Promise and every function that touches the network**. That list would have caught findings #1, #2, #11, and #12 before review.
+### 3.4 Feed cache is a tri-state-plus-negative-cache and nobody tests it
 
-**Teaching moment for the team:** tests are not a badge. They're a lever. You write a test for the thing that scares you — and if nothing scared you when you wrote it, you weren't thinking hard enough about what could go wrong.
+```ts
+// sources.ts:211 — on fetch failure, if cached, serve cached with an error
+if (cached) {
+  feedCache.set(key, { ...cached, error: message });
+  ...
+```
 
----
+Serving stale items with an error field — good UX pattern. But `cached` can itself be stale (>15 min), and we don't check. We'll serve arbitrarily-old cache if the upstream is down for hours. For a source that goes permanently 404, we'll serve the pre-404 items forever until the instance recycles.
 
-## 18. Edge cases I don't see handled anywhere
-
-A non-exhaustive list of things that will happen in production and bite you:
-
-- **Non-UTF-8 pages.** Latin-1, Shift-JIS, GB2312. `res.text()` uses UTF-8. JSDOM may or may not detect the meta charset. Test with a real Japanese news site.
-- **Paywalls.** Readability will happily parse the paywall teaser as the article. Users will save "Subscribe now!" instead of content. At minimum, warn if `wordCount < 200`.
-- **Infinite-scroll articles / single-page apps.** Readability runs on the initial HTML. A client-rendered article on Medium, Substack (works, they SSR), NYT (works), vs. something Next.js-based with JS-only content → empty parse.
-- **Cloudflare / anti-bot walls.** Your `User-Agent` identifies as a bot. Half the news web will serve you a 403 or a JS challenge page. You'll parse the challenge page.
-- **Redirect loops.** `redirect: "follow"` has a default cap, but combined with #1 you want to own the cap.
-- **Very long titles / bylines.** The frontmatter schema has no max length. Someone's going to save an article with a 3 KB title.
-- **Unicode filenames in blob storage.** Depends on folio — probably fine because you hash — but worth asserting.
-- **Concurrent saves of the same URL from the same user.** Two tabs, two clicks, two rows. See finding #11.
-- **Clock skew between save and display.** `savedAt: new Date().toISOString()` → trust server clock, fine, but add a test that mocks Date.
-- **Clerk webhooks / user deletion.** If a Clerk user is deleted, their volume lives forever in blob storage. GDPR says you have 30 days. Wire a Clerk webhook → volume delete. Budget a week for this before you take public signups.
-- **`/read/[id]` with a malformed id.** Not tested. `getArticle` presumably returns null, you `notFound()`. Assert it.
-- **Articles with >1000 images.** `renderMarkdown` will render them all synchronously into one string. Not dangerous, just slow.
-- **An image URL that 404s.** Inline `<img>` in the reader view will render broken-image icons with no alt text fallback. Consider lazy loading + `onerror` replacement.
+Tests in `sources.test.ts` don't cover the "cached + error" branch. Any test doing `fetchSourceItems` twice, where the second call fails, would catch a regression here.
 
 ---
 
-## 19. Architectural observations
+## 4. Security
 
-Less "you are wrong" and more "things a principal would push on if this grew":
+### 4.1 DOMPurify config — solid, with two minor gaps
 
-1. **The ingest pipeline is synchronous inside the request.** Save → fetch → parse → store, all inside the POST. On a slow article this is a 5–10 second POST. UX-wise that's ugly; reliability-wise, any parse failure halfway through leaves nothing saved _and_ the user has lost their URL. Consider: the POST enqueues a job (Vercel Queues is in public beta — or a simple "pending" row), returns immediately with 202, the client polls or the UI shows "saving…" via SSE. This also lets you retry parse failures automatically.
-2. **Storage layer is abstracted but the abstraction is leaky.** `folio.ts` picks an adapter based on env vars with a cascading if-else, mutable singletons, and no clean dev-vs-prod gate. Either commit to "always blob" and delete the fs/memory adapters from the runtime (keep for tests via DI), or make the selection explicit in config, not env sniffing. The current shape is the worst of both worlds: hard to reason about _and_ easy to misconfigure (see #5).
-3. **No analytics, no error reporting.** When something breaks in prod, you'll find out from a user. Wire Sentry (or Vercel's built-in) before you ship publicly. The 30-minute version is fine.
-4. **No feature flags, no kill switch.** If the ingest pipeline starts misbehaving — a Readability bug on a popular site, say — you have to ship a revert to turn it off. A simple env-var kill switch on `/api/articles` POST gives you an abort button.
-5. **The extension and the web app live in the same repo but share nothing.** The extension hand-rolls its own "post JSON to /api/articles" logic. If the API response shape changes, the extension breaks silently. Consider extracting a tiny shared client (`src/lib/client.ts`) that both consume. Tiny, cheap, buys you safety.
+`sanitize-config.ts` is well-thought-through. The shared config between `markdown.ts` and `markdown-client.ts` is exactly the right pattern. Defence-in-depth via both `ALLOWED_TAGS` and `FORBID_TAGS` is correct; the comment at line 109 explaining why `data:image/` only is good.
+
+Gaps:
+
+- `id` is not in `ALLOWED_ATTR`. Fine, but that means markdown heading anchors (`## Foo {#foo}`) don't yield navigable anchors. If TOC / in-page navigation matters, add `id` and explicitly strip `javascript:` from it. Worth explicitly noting this is a deliberate omission (none of the files indicate it is).
+- The `afterSanitizeAttributes` hook mutates the external-link `target`/`rel`. DOMPurify hooks are module-global — `addHook` in `markdown.ts:9` registers once at module load. For the client variant, `markdown-client.ts:13` also registers unconditionally on every module import. If HMR or multiple bundles run through the same `DOMPurify` instance, hooks can stack. In practice unlikely, but `DOMPurify.removeHook('afterSanitizeAttributes', hook)` before `addHook` would be safer.
+- No test for `<a href="javascript:alert(1)">` surviving the pipeline. There's a whole `markdown.test.ts`; I'd add an explicit "javascript: URIs are stripped" expectation for every link-bearing pattern. DOMPurify handles it via `ALLOWED_URI_REGEXP`, but the test is cheap and future-proofs against config drift.
+
+### 4.2 CSRF: `checkOrigin` behaviour when `Origin` is missing
+
+```ts
+// csrf.ts:70
+if (!origin) return null; // allowed
+```
+
+Modern browsers send `Origin` on all cross-origin fetches and most same-origin fetches. A missing `Origin` header means either:
+
+- Same-origin classical form post (browsers historically skipped it, though current Chromium always sends it)
+- Non-browser client (curl, another server, something you own)
+- An attacker stripping the header via a proxy they control
+
+Combined with Clerk's session cookie (`SameSite=Lax` by default), the practical CSRF risk is: attacker tricks user into navigating to an attacker URL that submits a form to `POST /api/articles`. Browser sends cookies. Browser _does_ send `Origin` for forms, _does not_ for link clicks. So the lax-same-site cookie blocks link-click CSRF but not form-submit CSRF, and the missing-Origin bypass here allows form-submit CSRF if `Origin` got stripped.
+
+In practice, for the scenarios the app actually exposes (authenticated POSTs to `/api/articles`, etc.), the `Origin` header is always present from a real browser. The bypass exists in theory more than practice.
+
+**For juniors:** "in theory not in practice" is how real CVEs start. If the null-Origin branch is there because of same-origin compat, write a test that proves what it's compat-ing. Otherwise default-deny.
+
+### 4.3 `/api/articles/[id]/diff` is an auth'd HTTP proxy
+
+This route fetches an arbitrary URL from the auth'd user and returns the body diff. Rate-limited (`diffLimiter` — 5 burst, 1 per 10 s = 360/hour). Still:
+
+- Authenticated users can use it to probe internal HTTP infra (SSRF is gated at `assertPublicHost` — good — so the exposure is the same as `/api/articles` POST).
+- Response body can be large (body cap is 5 MB on fetch). Diff itself is unbounded. A 5 MB body split into diff chunks could produce a much larger JSON response. There's no output cap.
+
+Minor, but worth tightening: cap the diff JSON size.
+
+### 4.4 `CRON_SECRET` does double duty
+
+The same `CRON_SECRET` signs unsubscribe tokens (`digest.ts:100`) and authenticates cron calls (`cron-auth.ts:11`). Rotating it — which you'd want to do periodically, or immediately on any incident — invalidates _every_ outstanding unsubscribe token. Users clicking old unsubscribe links post-rotation will see "Invalid token", panic, and email support.
+
+Separate `CRON_SECRET` from `UNSUBSCRIBE_SIGNING_KEY`.
+
+### 4.5 Extension: captured HTML may contain auth tokens
+
+`extension/background.js:17` notes the privacy concern ("the captured HTML may contain sensitive page content"). The comment claims "the server error handler logs URL and error messages only, never the HTML body". Let me verify:
+
+- `/api/articles/route.ts:89` — on `IngestError`, logs `{url, message, cause}`. `cause` could include raw HTML depending on where the error came from.
+- `/api/articles/route.ts:97` — on unexpected error, logs `{url, errorName, code, name, message}`. No body. Good.
+- `parseArticleFromHtml` throws `IngestError("Could not extract readable content from page")` — no HTML in the message. Good.
+- `readBoundedBody` throws with no HTML. Good.
+
+So the comment is _currently_ true. But `cause` can leak. If `IngestError` wraps a JSDOM parse error that includes a snippet, it goes to server logs (and then potentially to log aggregation / Datadog / whatever). Recommend: strip `cause` from logged payloads, or stringify at the catch site with a length cap.
+
+### 4.6 Extension allows unknown `chrome-extension://` IDs in local dev
+
+```ts
+// csrf.ts:84
+if (!isLocalDevEnvironment()) {
+  return Response.json({ error: "Forbidden" }, { status: 403 });
+}
+// No allowlist configured. Only permitted in local development
+```
+
+The `isLocalDevEnvironment` check is `!VERCEL_ENV && NODE_ENV !== "production"`. That's safe on Vercel. What about a self-hosted deployment (future)? If `VERCEL_ENV` is unset and `NODE_ENV` is `development` (mistyped in a Kubernetes env), we accept any extension origin with valid Clerk cookies. Unlikely, but the check is "is this Vercel?" when we mean "is this production?". Make the check positive (`process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV`) so the default-deny is actually the default.
 
 ---
 
-## 20. What to do about all this — a triage list for the team
+## 5. Type system — where we're fighting the compiler
 
-**This week (stop-the-bleeding):**
+### 5.1 The `as unknown as z.ZodType<X>` pattern is a smell
 
-1. SSRF + timeout + body cap on `fetchAndParse` (findings #1, #2). This is a pre-production blocker.
-2. Rate limit POST `/api/articles` (finding #3).
-3. Fail closed when `NODE_ENV === "production" && !BLOB_READ_WRITE_TOKEN` (finding #5).
-4. Sanitize error messages back to the client (finding #13).
-5. Tighten Chrome extension `host_permissions` (finding #15).
+Across the codebase:
 
-**Next sprint:**
+- `articles.ts:104`
+- `sources.ts:32`
+- `annotations.ts:65`
+- `auto-archive.ts:64`
+- `digest.ts:30`
 
-6. Dedup + URL canonicalisation + idempotent save (finding #11).
-7. Delete or implement `markRead` (finding #7).
-8. Pagination + `listArticles` limit (finding #10).
-9. `no-referrer` meta tag in layout (finding #9).
-10. Tests for the route handler, the storage layer, and at least one real-world ingest fixture (finding #17).
-11. Wire lint/typecheck/test into CI (finding #16).
-12. Publish `folioblob-next` or vendor it (finding #16).
+Every one of them is because the author wrote a hand-rolled `interface` first, then a zod schema, and then had to convince TypeScript the schema produces the interface. The zod schema's inferred type differs subtly — usually `.optional()` becoming `T | undefined` vs the interface's missing property, or `.default(…)` not narrowing.
 
-**Before public launch:**
+The standard fix is to pick one source of truth:
 
-13. Async ingest pipeline (architecture point #1).
-14. User deletion via Clerk webhook + GDPR story (edge case in #18).
-15. Sentry / structured logging.
-16. Decide on and document the storage + rendering path: markdown-only, HTML-only, or both — and which is canonical (finding #4).
+```ts
+const articleFrontmatterSchema = z.object({ ... });
+export type ArticleFrontmatter = z.infer<typeof articleFrontmatterSchema>;
+```
+
+…and never hand-write the interface. Or the other way around: write the interface and use `z.object(...) satisfies z.ZodType<ArticleFrontmatter>` (a real assertion, not a cast). Casts via `as unknown as` defeat the compiler; `satisfies` keeps the check.
+
+**For juniors:** `as X` is the type-system equivalent of `// TODO: trust me`. Every one of them is a place the compiler was trying to tell you something. Write the code so the cast isn't needed.
+
+### 5.2 `ArticleFrontmatter` has `[key: string]: unknown`
+
+```ts
+// articles.ts:77
+  [key: string]: unknown;
+```
+
+This index signature is there so Folio can carry extra fields through without the type narrowing them out. But it also means any typo in a property name compiles — `frontmatter.readPrgoress = 0.5` is valid TypeScript against this interface. That's an easy hour-long bug to miss.
+
+If Folio's API needs extensibility, use a generic: `type ArticleFrontmatter<Extra = {}> = { title: ... } & Extra`. Don't poison the base type with a string index.
+
+### 5.3 `Promise<{ kind: "err"; res: Response } | { kind: "ok"; userId: ... }>` in annotations route
+
+```ts
+// annotations/route.ts:16
+async function authed(...): Promise<
+  | { kind: "err"; res: Response }
+  | { kind: "ok"; userId: ReturnType<typeof authedUserId> }
+> {
+```
+
+This is a nice tagged union. But in the other routes, the pattern is `if (!rawUserId) return 401`. Pick one and share it. Having two styles of the same thing in the same repo makes code review harder for reviewers who haven't read all of it.
+
+Side note: `ReturnType<typeof authedUserId>` is just `AuthedUserId`. Use the name directly.
 
 ---
 
-## Closing note for junior engineers on this team
+## 6. Testing — generally very good, with blind spots
 
-A few themes worth internalising, because they show up in almost every finding above:
+The test suite is serious: 5,400 lines, SSRF fuzzing, a 763-line `ingest.test.ts`, and an e2e Playwright setup. This is above-average for an app of this size. Points to call out:
 
-- **Every network call needs bounds.** Time, bytes, hops. Every one. No exceptions. If you find yourself typing `await fetch(` without a timeout, stop.
-- **Graceful degradation is not free.** "Fall back to local disk" saves you an error today and loses you a user tomorrow. Fail loudly when a critical dependency is missing, in the environment where it matters.
-- **Dead code is not neutral.** `markRead` sits there looking like it does something. Either it does, and it's tested, or it goes. Midway is the worst state.
-- **Tests are a lever, not a badge.** Don't optimise for coverage percentage; optimise for "could this silently break in production?" Write a test for that thing specifically.
-- **Sanitise at the boundary, not in the middle.** You sanitise HTML at render time (good), but only _after_ round-tripping it through markdown (which re-introduces the need to sanitise). Draw the trust boundary once, cleanly, and don't re-cross it.
-- **Type assertions (`as string`) are you lying to the compiler.** Sometimes necessary, always a smell. Every one deserves a comment explaining _why_ you're sure it's safe, and ideally a runtime check that backs it up.
-- **`force-dynamic` is not a performance strategy.** It's a correctness fallback. If you reach for it, you've given up on caching — make sure that was the right call, and that you've measured.
+**What's good:**
 
-The codebase is small enough that all of this is fixable in a couple of focused weeks. It is _not_ small enough that you can ship it to real users as-is. Fix the top five first, then the rest, then come back and re-read this file.
+- `ingest-security.test.ts` table-tests every IPv4/IPv6 edge case. This is the right pattern for security primitives.
+- `markdown.test.ts` tests sanitisation outcomes (that's what matters), not internals.
+- `cron-auth.test.ts` verifies constant-time equality behavioural properties.
+- Integration tests against the memory Folio adapter (`BROADSHEET_FOLIO_ADAPTER = "memory"` in tests) mean you test the real code path.
+
+**What's missing:**
+
+1. **Delete-all-of-X test for annotations** — directly causes the §2.1 bug.
+2. **Concurrency tests** against Folio's conflict semantics. `articles-crud.test.ts` runs patches sequentially.
+3. **XSS regression tests** for each DOMPurify config change. The config is security-critical. A test file of "scary input → sanitised output" fixtures, updated on every config edit, is table stakes.
+4. **Rate-limit integration** — `rate-limit.test.ts` tests the bucket, but not "two requests through the actual route handler with the limiter applied".
+5. **E2E** currently covers auth setup and articles. Digest send, unsubscribe, pocket import — all absent. These are the highest-blast-radius flows.
+6. **No load test / budget test** — `/library` with 5,000 articles: does it return in <1 s? No test. Easy to regress.
+7. **`route.ts` handlers** mostly untested directly. `patch-route.test.ts` tests one; the rest rely on lib tests + e2e.
+
+---
+
+## 7. Code quality grumbles (by topic)
+
+### 7.1 Magic numbers scattered
+
+`150` scroll threshold, `0.9` read-complete, `0.02` progress delta, `3000` progress interval, `8000` toast timeout — all defined near their use, most unlabelled at the call site. Most are fine; some are pretending to be constants. The `200 wpm` reading speed hardcoded in `estimateReadMinutes` (`ingest.ts:811`) is the kind of thing a user would want to configure.
+
+### 7.2 Function length and file length
+
+`ingest.ts` is 813 lines. `annotator.tsx` is 438 lines. `command-palette.tsx` is 772 lines. All three have a mix of "this is the public API" and "this is the ten internal helpers nobody outside the file needs". Extracting the helpers into `ingest-html-normalise.ts`, `annotator-offsets.ts`, etc. would reduce cognitive load for a first-time reader. None of these are wrong, all of them would be better split.
+
+The `ingest.ts` file in particular is conceptually four modules: SSRF primitives, HTTP fetch wrapper, HTML parsing, markdown emphasis promotion. Splitting would let SSRF primitives be tested in isolation (already effectively the case in `ingest-security.test.ts`) and would make the file tree tell the truth about the design.
+
+### 7.3 `truncate` in `ingest.ts` and `truncate` in `feeds.ts`
+
+```ts
+// ingest.ts:230
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1) + "…";
+}
+
+// feeds.ts:83
+function truncate(text: string, max = 280): string | null {
+  const clean = stripHtml(text);
+  if (!clean) return null;
+  if (clean.length <= max) return clean;
+  return clean.slice(0, max - 1).trimEnd() + "…";
+}
+```
+
+Different semantics (one strips HTML, one doesn't) behind the same name. Not a bug, but confusing. At minimum, different names (`truncateMarkdown` / `truncatePlain`).
+
+### 7.4 Email template HTML-escaping is hand-rolled
+
+```ts
+// digest-email.ts:21
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;")... // misses ' -> &#x27;
+```
+
+`'` isn't escaped. In attribute values inside single-quoted contexts this would be an XSS. This code outputs double-quoted attributes only, so it's safe today — but the function is named `esc`, which implies general-purpose escaping. Either fix it to be safe in all attribute contexts or rename it `escForDoubleQuotedAttr`.
+
+Also: the email template uses `esc(a.id)` — article IDs are hex so escaping is unnecessary, but it's defence in depth and probably the right default. No complaint there.
+
+### 7.5 Error messages in the UI leak stack-frame details
+
+```tsx
+// command-palette.tsx:312
+setSaveError(payload.error ?? `Save failed (${res.status})`);
+```
+
+`payload.error` is the `publicMessage` — good. But several routes fall through to `"Internal error"`, which after a minute of clicking "retry" is as informative as a wall. At least correlate with a request id surfaced in headers so user-provided bug reports can find the log. Sentry / log id + a `X-Request-Id` response header would cost a day of work and save forever.
+
+### 7.6 `'use client'` at top of files that don't need all of it
+
+`annotator.tsx` is one big client component. Fine. But the file also contains `rangeToOffsets`, `nodeOffsetToPlain`, `paintHighlights`, `wrapRange`, `wrapCrossNode` — pure functions over DOM. They could live in a separate file without `"use client"`, and be unit-testable with JSDOM. Right now they're untestable except through the React component.
+
+Same pattern: `command-palette.tsx` has `fuzzyScore`, `looksLikeUrl`, `loadRecents`, `pushRecent`, `flatten`, `coalesce` etc. Extract the pure helpers, test them.
+
+### 7.7 `Math.random()` for jitter, `crypto.randomUUID()` for IDs
+
+`articles.ts:391` uses `Math.random()` for retry jitter. Fine — it's a jitter, not security. `annotations.ts:203` uses `randomUUID()` for highlight IDs. Also fine. Good discipline on which PRNG goes where.
+
+### 7.8 The `charsetFromContentType` regex accepts quoted and unquoted values
+
+Good — that's what the RFC allows. But the function silently falls back to `"utf-8"` for anything the caller doesn't recognise. A page that claims `charset=windows-1251` (Cyrillic) decoded as UTF-8 will get mojibake'd article text. Worth logging (not failing) when the declared charset isn't one TextDecoder supports.
+
+---
+
+## 8. What junior engineers should take from this review
+
+In decreasing order of leverage:
+
+1. **"Where is the single source of truth for X?" is always a legitimate question.** When it's "a convention developers have to remember" (auth boundary, volume-suffix registry, two retry implementations), you have tech debt accruing interest. Push things up the stack until there's one.
+
+2. **Idempotency in distributed systems is a design property, not a runtime hope.** The digest-send bug comes from "what happens if this `await` throws between the side effect and the bookkeeping?" That's the question to ask on every cron/webhook/PATCH.
+
+3. **`as X` casts are bug magnets.** The TypeScript compiler is almost always right. When you find yourself reaching for `as unknown as`, the correct move is to align the shapes, not lie to the compiler.
+
+4. **GET should not mutate.** Every mailbox-prefetcher in existence will click your link. Every AV will click your link. Every workplace DLP will click your link. State changes go in POST. Always.
+
+5. **SSRF defence requires both layers: host allowlist AND bound-address check.** Resolving twice is not resolving once twice-safely.
+
+6. **Testing the happy path is the easy half.** The hard half is "what exactly does my delete-all function delete?" and "what happens when upstream is slow?" and "what's in my cache when I fail?". Those tests are the ones that prevent incidents, so they're the ones worth writing first, not last.
+
+7. **Observability is cheap, incidents are expensive.** Log request IDs, correlate them in error responses, keep a single structured logger. The current `console.error("[foo] failed", {...})` scattering is fine to start; it needs to become a single `log.error({requestId, module, err})` before the first production incident, not after.
+
+8. **Comments explain _why_, code explains _what_.** This codebase is generally good at that — lots of "we do X because Y". Keep that up, and when you find a comment saying "for performance" or "for correctness" with no elaboration, ask.
+
+9. **File length is a design signal.** If a file is a thousand lines, it's doing too much. The fix isn't always to split; sometimes the fix is to rewrite. But "this file scares me" is a real observation that should be acted on.
+
+10. **Every security property that matters should have a test that fails if it regresses.** DOMPurify config, SSRF, CSRF, cron-bearer, Clerk webhook signature — one hostile-input test per property, kept alive forever, keeps tomorrow's change from silently undoing today's hardening.
+
+---
+
+## 9. What this review is NOT saying
+
+- The codebase is bad. It isn't. It's above the median app in careful hardening (SSRF, rate-limit, sanitisation, auth branding, atomic writes). The critique tone is because the brief is "criticise as much as you can" — not "this is a dumpster fire".
+- Everything here should be fixed. Several items are product decisions (canonicalisation aggressiveness, which pages get offline cache) and need a PM call. Flag them, don't silently fix.
+- The architecture should change. The file-DB-via-Folio choice is defensible for the stated product scale. The "split into Postgres" line in the PRD is the right deferred item. None of my critiques force that call to be made sooner.
+
+The bugs to fix this week are §2.1, §2.2, §2.3. Everything else is prioritised backlog.

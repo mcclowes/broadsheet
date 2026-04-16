@@ -26,6 +26,7 @@ describe("checkOrigin", () => {
 
   afterEach(() => {
     process.env = { ...originalEnv };
+    vi.unstubAllEnvs();
   });
 
   it("allows requests with no Origin header", async () => {
@@ -45,13 +46,51 @@ describe("checkOrigin", () => {
     expect(checkOrigin(reqWithOrigin("http://localhost:3000"))).toBeNull();
   });
 
-  it("allows any chrome extension origin when no allowlist env set (dev)", async () => {
+  it("allows any chrome extension origin when no allowlist env set (local dev)", async () => {
     delete process.env.BROADSHEET_EXTENSION_IDS;
     delete process.env.VERCEL_ENV;
+    vi.stubEnv("NODE_ENV", "development");
     const checkOrigin = await loadCheckOrigin();
     expect(
       checkOrigin(
         reqWithOrigin("chrome-extension://abcdefghijklmnopqrstuvwxyz"),
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects extension origins on Vercel preview deploys with no allowlist", async () => {
+    delete process.env.BROADSHEET_EXTENSION_IDS;
+    process.env.VERCEL_ENV = "preview";
+    const checkOrigin = await loadCheckOrigin();
+    const response = checkOrigin(
+      reqWithOrigin("chrome-extension://abcdefghijklmnopqrstuvwxyz"),
+    );
+    expect(response).not.toBeNull();
+    expect(response!.status).toBe(403);
+  });
+
+  it("accepts moz-extension:// origins when in the allowlist", async () => {
+    process.env.BROADSHEET_EXTENSION_IDS =
+      "abcdefghijklmnopqrstuvwxyz,11111111-2222-3333-4444-555555555555";
+    const checkOrigin = await loadCheckOrigin();
+    expect(
+      checkOrigin(
+        reqWithOrigin("moz-extension://11111111-2222-3333-4444-555555555555"),
+      ),
+    ).toBeNull();
+    const blocked = checkOrigin(
+      reqWithOrigin("moz-extension://00000000-0000-0000-0000-000000000000"),
+    );
+    expect(blocked).not.toBeNull();
+    expect(blocked!.status).toBe(403);
+  });
+
+  it("accepts safari-web-extension:// origins when in the allowlist", async () => {
+    process.env.BROADSHEET_EXTENSION_IDS = "AAAA.com.example.broadsheet";
+    const checkOrigin = await loadCheckOrigin();
+    expect(
+      checkOrigin(
+        reqWithOrigin("safari-web-extension://AAAA.com.example.broadsheet"),
       ),
     ).toBeNull();
   });

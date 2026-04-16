@@ -171,4 +171,4 @@ See [`CLAUDE.md`](./CLAUDE.md) for conventions. In short:
 - TDD where sensible; new `src/lib/**` code lands with tests.
 - Open or reference a GitHub issue for non-trivial work; link PRs with `Fixes #N`.
 - SCSS modules for styles; sentence case in UI and docs.
-- Read [`CODE_REVIEW.md`](./CODE_REVIEW.md) before working on ingestion, storage, or auth — it lists the open security and correctness findings.
+- Before touching ingestion, storage, or auth, read the "Hardening already in place" section of [`CLAUDE.md`](./CLAUDE.md) so you don't regress load-bearing invariants.

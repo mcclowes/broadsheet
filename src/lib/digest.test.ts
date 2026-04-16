@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vi } from "vitest";
 
 vi.hoisted(() => {
@@ -9,6 +9,8 @@ import {
   getDigestPreferences,
   setDigestPreferences,
   listDigestSubscribers,
+  generateUnsubscribeToken,
+  verifyUnsubscribeToken,
 } from "./digest";
 import { authedUserId } from "./auth-types";
 
@@ -129,5 +131,41 @@ describe("listDigestSubscribers", () => {
     const subs = await listDigestSubscribers();
     expect(subs).toHaveLength(1);
     expect(subs[0].email).toBe("alice@test.com");
+  });
+});
+
+describe("unsubscribe tokens", () => {
+  const originalSecret = process.env.CRON_SECRET;
+
+  afterEach(() => {
+    if (originalSecret === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = originalSecret;
+  });
+
+  it("throws when CRON_SECRET is missing rather than using a fallback", () => {
+    delete process.env.CRON_SECRET;
+    expect(() => generateUnsubscribeToken("user_abc")).toThrow(/CRON_SECRET/);
+  });
+
+  it("verifyUnsubscribeToken returns false when secret is missing", () => {
+    // First generate a real token with a secret set...
+    process.env.CRON_SECRET = "secret-a";
+    const token = generateUnsubscribeToken("user_abc");
+    // ...then simulate the secret disappearing. verify must not crash.
+    delete process.env.CRON_SECRET;
+    expect(verifyUnsubscribeToken("user_abc", token)).toBe(false);
+  });
+
+  it("rejects tokens signed with a different secret", () => {
+    process.env.CRON_SECRET = "secret-a";
+    const token = generateUnsubscribeToken("user_abc");
+    process.env.CRON_SECRET = "secret-b";
+    expect(verifyUnsubscribeToken("user_abc", token)).toBe(false);
+  });
+
+  it("accepts tokens signed with the current secret", () => {
+    process.env.CRON_SECRET = "secret-a";
+    const token = generateUnsubscribeToken("user_abc");
+    expect(verifyUnsubscribeToken("user_abc", token)).toBe(true);
   });
 });

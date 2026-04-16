@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ConflictError, NotFoundError } from "folio-db-next";
-import { getArticle, patchArticle } from "@/lib/articles";
+import { ARTICLE_ID_RE, getArticle, patchArticle } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
 import { checkOrigin } from "@/lib/csrf";
 
@@ -16,7 +16,7 @@ export async function GET(
   const userId = authedUserId(rawUserId);
 
   const { id } = await params;
-  if (!/^[a-f0-9]{32}$/.test(id)) {
+  if (!ARTICLE_ID_RE.test(id)) {
     return Response.json({ error: "Invalid article id" }, { status: 400 });
   }
   try {
@@ -64,7 +64,7 @@ export async function PATCH(
   const userId = authedUserId(rawUserId);
 
   const { id } = await params;
-  if (!/^[a-f0-9]{32}$/.test(id)) {
+  if (!ARTICLE_ID_RE.test(id)) {
     return Response.json({ error: "Invalid article id" }, { status: 400 });
   }
 

@@ -4,14 +4,14 @@ import {
   deleteHighlight,
   highlightInputSchema,
   highlightPatchSchema,
+  HighlightLimitError,
   listHighlights,
   updateHighlight,
 } from "@/lib/annotations";
+import { ARTICLE_ID_RE } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
 import { checkOrigin } from "@/lib/csrf";
 import { z } from "zod";
-
-const ARTICLE_ID_RE = /^[a-f0-9]{32}$/;
 
 async function authed(
   req: Request,
@@ -92,6 +92,12 @@ export async function POST(
     const highlight = await addHighlight(a.userId, id, parsed.data);
     return Response.json({ highlight }, { status: 201 });
   } catch (err) {
+    if (err instanceof HighlightLimitError) {
+      return Response.json(
+        { error: `Highlight limit reached (${err.limit} per article)` },
+        { status: 409 },
+      );
+    }
     console.error("[api/annotations/POST] failed", { id, err });
     return Response.json({ error: "Internal error" }, { status: 500 });
   }

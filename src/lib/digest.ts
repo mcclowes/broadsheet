@@ -97,7 +97,14 @@ export interface DigestSubscriber {
 // ── Unsubscribe tokens ─────────────────────────────────────────────
 
 function unsubscribeSecret(): string {
-  return process.env.CRON_SECRET ?? "broadsheet-unsubscribe-fallback";
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    // Fail closed rather than signing with a guessable fallback. A missing
+    // secret would otherwise let anyone forge valid unsubscribe tokens and
+    // disable arbitrary users' digests.
+    throw new Error("CRON_SECRET is not set — cannot sign unsubscribe tokens");
+  }
+  return secret;
 }
 
 export function generateUnsubscribeToken(userId: string): string {
@@ -108,7 +115,13 @@ export function generateUnsubscribeToken(userId: string): string {
 }
 
 export function verifyUnsubscribeToken(userId: string, token: string): boolean {
-  const expected = generateUnsubscribeToken(userId);
+  let expected: string;
+  try {
+    expected = generateUnsubscribeToken(userId);
+  } catch {
+    // No secret configured → reject all tokens.
+    return false;
+  }
   if (expected.length !== token.length) return false;
   // Constant-time comparison
   let mismatch = 0;

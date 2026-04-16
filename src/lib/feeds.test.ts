@@ -1,10 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { fetchPublicResourceMock } = vi.hoisted(() => ({
+  fetchPublicResourceMock: vi.fn(),
+}));
+
+vi.mock("./ingest", async () => {
+  const actual = await vi.importActual<typeof import("./ingest")>("./ingest");
+  return {
+    ...actual,
+    fetchPublicResource: fetchPublicResourceMock,
+  };
+});
+
 import {
+  discoverFeed,
   extractFeedLinksFromHtml,
   isFeedContentType,
   parseFeedXml,
 } from "./feeds";
-import { IngestError } from "./ingest";
+import { DISCOVERY_TIMEOUT_MS, IngestError } from "./ingest";
 
 const rss2 = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
@@ -244,6 +258,61 @@ describe("extractFeedLinksFromHtml", () => {
       <link rel="alternate" href="/feed.xml" />
       </head><body></body></html>`;
     expect(extractFeedLinksFromHtml(html, "https://x.example")).toEqual([]);
+  });
+});
+
+describe("discoverFeed", () => {
+  beforeEach(() => {
+    fetchPublicResourceMock.mockReset();
+  });
+
+  const minimalFeed = `<?xml version="1.0"?><rss version="2.0"><channel><title>T</title><link>https://ex.example/</link></channel></rss>`;
+
+  it("uses the short discovery timeout for probe fetches", async () => {
+    fetchPublicResourceMock.mockResolvedValueOnce({
+      body: minimalFeed,
+      finalUrl: "https://ex.example/feed",
+      contentType: "application/rss+xml",
+    });
+
+    await discoverFeed("https://ex.example/feed");
+
+    expect(fetchPublicResourceMock).toHaveBeenCalledTimes(1);
+    expect(fetchPublicResourceMock.mock.calls[0][1]).toMatchObject({
+      timeoutMs: DISCOVERY_TIMEOUT_MS,
+    });
+  });
+
+  it("caps HTML <link rel=alternate> candidates probed during discovery", async () => {
+    const tenAlternates = Array.from(
+      { length: 10 },
+      (_, i) =>
+        `<link rel="alternate" type="application/rss+xml" href="/feed-${i}.xml" />`,
+    ).join("");
+    const html = `<!doctype html><html><head>${tenAlternates}</head><body></body></html>`;
+
+    // Attempt 1: direct-as-feed fails (HTML instead of XML).
+    fetchPublicResourceMock.mockRejectedValueOnce(
+      new IngestError("not a feed", undefined, "not a feed"),
+    );
+    // Attempt 2: HTML scan succeeds.
+    fetchPublicResourceMock.mockResolvedValueOnce({
+      body: html,
+      finalUrl: "https://site.example/",
+      contentType: "text/html",
+    });
+    // Every candidate probe fails so we exhaust the cap.
+    fetchPublicResourceMock.mockRejectedValue(
+      new IngestError("probe failed", undefined, "probe failed"),
+    );
+
+    await expect(discoverFeed("https://site.example/")).rejects.toThrow(
+      IngestError,
+    );
+
+    // 1 direct + 1 HTML + at most 5 candidates + 7 well-known paths = 14.
+    // Without the cap it would be 1 + 1 + 10 + 7 = 19.
+    expect(fetchPublicResourceMock.mock.calls.length).toBeLessThanOrEqual(14);
   });
 });
 

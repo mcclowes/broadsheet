@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { ARTICLE_ID_RE } from "@/lib/articles";
 import { removeSource } from "@/lib/sources";
 import { authedUserId } from "@/lib/auth-types";
 import { checkOrigin } from "@/lib/csrf";
@@ -16,7 +17,7 @@ export async function DELETE(
   const userId = authedUserId(rawUserId);
 
   const { id } = await params;
-  if (!/^[a-f0-9]{32}$/.test(id)) {
+  if (!ARTICLE_ID_RE.test(id)) {
     return Response.json({ error: "Invalid source id" }, { status: 400 });
   }
 

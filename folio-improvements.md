@@ -66,7 +66,7 @@ For filtered counts (`volume.count({ where: { readAt: null } })`), the manifest 
 
 ## 4. Bulk volume deletion
 
-**Problem:** GDPR user deletion (called out in CODE_REVIEW.md #18) requires deleting every page in a user's volume. Today that means `list()` → loop `delete()` one by one. No atomic "drop this volume" operation.
+**Problem:** GDPR user deletion requires deleting every page in a user's volume. Today that means `list()` → loop `delete()` one by one. No atomic "drop this volume" operation.
 
 **What Folio should do:**
 
@@ -102,7 +102,7 @@ For a personal read-it-later app with one user per volume and infrequent writes,
 
 ## 6. Derived/cached fields alongside the source page
 
-**Problem:** Broadsheet converts markdown → HTML → DOMPurify on every `/read/[id]` request. CODE_REVIEW.md #4 and #10 both flag this. The rendered HTML is a pure function of the body — it should be computed once at save time.
+**Problem:** Broadsheet converts markdown → HTML → DOMPurify on every `/read/[id]` request. The rendered HTML is a pure function of the body — it should be computed once at save time.
 
 **What Folio should do:**
 
@@ -164,7 +164,7 @@ Keep it simple — synchronous hooks that run after the write succeeds. Not a pu
 
 ## 8. Asset storage (binary blobs alongside pages)
 
-**Problem:** CODE_REVIEW.md #9 flags the privacy leak from remote images. The fix is to download images at save time and serve them from your own storage. But Folio only stores text (markdown) — there's no concept of binary assets attached to a page.
+**Problem:** serving articles via embedded `<img>` tags leaks the reader's IP to the original publisher on every view. The fix is to download images at save time and serve them from your own storage. But Folio only stores text (markdown) — there's no concept of binary assets attached to a page.
 
 **What Folio should do:**
 

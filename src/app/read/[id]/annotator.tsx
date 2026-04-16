@@ -46,30 +46,65 @@ export function Annotator({ articleId, html, initial }: Props) {
     render();
   }, [render]);
 
-  const onMouseUp = useCallback(() => {
+  // Mobile browsers don't fire `mouseup` when text is selected via the native
+  // touch selection handles, so listen to `selectionchange` on document — that
+  // fires for both mouse and touch. It fires on every tick while the user
+  // drags a selection handle, hence the debounce.
+  useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
-      setPending(null);
-      return;
-    }
-    const range = sel.getRangeAt(0);
-    if (!el.contains(range.commonAncestorContainer)) {
-      setPending(null);
-      return;
-    }
-    const offsets = rangeToOffsets(el, range);
-    if (!offsets) return;
-    const text = sel.toString().trim();
-    if (!text) return;
-    setPending({
-      start: offsets.start,
-      end: offsets.end,
-      text,
-      rect: range.getBoundingClientRect(),
-    });
-    setActive(null);
+
+    const readSelection = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+        setPending(null);
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      if (!el.contains(range.commonAncestorContainer)) {
+        setPending(null);
+        return;
+      }
+      const offsets = rangeToOffsets(el, range);
+      if (!offsets) return;
+      const text = sel.toString().trim();
+      if (!text) return;
+      setPending({
+        start: offsets.start,
+        end: offsets.end,
+        text,
+        rect: range.getBoundingClientRect(),
+      });
+      setActive(null);
+    };
+
+    let timer: number | null = null;
+    const onSelectionChange = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = null;
+        readSelection();
+      }, 250);
+    };
+    // pointerup covers both mouse-up and touch-end, giving us an immediate
+    // read once the user releases — the debounced selectionchange is the
+    // safety net for cases where pointerup is suppressed (e.g. iOS handles).
+    const onPointerUp = () => {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+      // Defer one frame so the selection has settled before we measure it.
+      window.requestAnimationFrame(readSelection);
+    };
+
+    document.addEventListener("selectionchange", onSelectionChange);
+    document.addEventListener("pointerup", onPointerUp);
+    return () => {
+      document.removeEventListener("selectionchange", onSelectionChange);
+      document.removeEventListener("pointerup", onPointerUp);
+      if (timer !== null) window.clearTimeout(timer);
+    };
   }, []);
 
   const clearSelection = () => {
@@ -155,7 +190,6 @@ export function Annotator({ articleId, html, initial }: Props) {
           containerRef.current = el;
         }}
         className="reader-body"
-        onMouseUp={onMouseUp}
         onClick={onClick}
         dangerouslySetInnerHTML={{ __html: html }}
       />
@@ -164,8 +198,16 @@ export function Annotator({ articleId, html, initial }: Props) {
         <div
           className={styles.toolbar}
           style={{
-            top: pending.rect.top + window.scrollY - 44,
-            left: pending.rect.left + window.scrollX,
+            // Prefer above the selection; flip below when there isn't room
+            // (e.g. selection near the top of the viewport on mobile).
+            top:
+              pending.rect.top < 56
+                ? pending.rect.bottom + window.scrollY + 8
+                : pending.rect.top + window.scrollY - 44,
+            left: Math.max(
+              8 + window.scrollX,
+              pending.rect.left + window.scrollX,
+            ),
           }}
           role="toolbar"
           aria-label="Create highlight"

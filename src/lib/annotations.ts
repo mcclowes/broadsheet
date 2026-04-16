@@ -32,11 +32,23 @@ export const unanchoredHighlightSchema = z.object({
 
 export type UnanchoredHighlight = z.infer<typeof unanchoredHighlightSchema>;
 
+// Caps bound the per-article annotation document. Each anchored highlight is
+// ≤ ~6 KB on disk; 500 gives a comfortable working set without allowing a
+// single article's frontmatter to balloon past a megabyte. Unanchored
+// highlights (Pocket imports) are capped separately because a single Pocket
+// article can legitimately carry many more.
+export const MAX_HIGHLIGHTS_PER_ARTICLE = 500;
+export const MAX_UNANCHORED_HIGHLIGHTS_PER_ARTICLE = 1000;
+
 export const annotationsFrontmatterSchema = z.object({
   updatedAt: z.string(),
-  highlights: z.array(highlightSchema).default([]),
+  highlights: z
+    .array(highlightSchema)
+    .max(MAX_HIGHLIGHTS_PER_ARTICLE)
+    .default([]),
   unanchoredHighlights: z
     .array(unanchoredHighlightSchema)
+    .max(MAX_UNANCHORED_HIGHLIGHTS_PER_ARTICLE)
     .optional()
     .default([]),
 });
@@ -174,6 +186,7 @@ export async function addUnanchoredHighlights(
     const merged: UnanchoredHighlight[] = [...existing];
     added = 0;
     for (const input of inputs) {
+      if (merged.length >= MAX_UNANCHORED_HIGHLIGHTS_PER_ARTICLE) break;
       const text = input.text.trim();
       if (!text) continue;
       const key = `${text}\u0000${input.createdAt}`;
@@ -199,6 +212,13 @@ export async function addUnanchoredHighlights(
   return added;
 }
 
+export class HighlightLimitError extends Error {
+  constructor(readonly limit: number) {
+    super(`Highlight limit reached (${limit} per article)`);
+    this.name = "HighlightLimitError";
+  }
+}
+
 export async function addHighlight(
   userId: AuthedUserId,
   articleId: string,
@@ -218,7 +238,12 @@ export async function addHighlight(
     createdAt: now,
     updatedAt: now,
   };
-  await mutate(userId, articleId, (list) => [...list, highlight]);
+  await mutate(userId, articleId, (list) => {
+    if (list.length >= MAX_HIGHLIGHTS_PER_ARTICLE) {
+      throw new HighlightLimitError(MAX_HIGHLIGHTS_PER_ARTICLE);
+    }
+    return [...list, highlight];
+  });
   return highlight;
 }
 
