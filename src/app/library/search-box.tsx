@@ -2,14 +2,15 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { filterLink, type CurrentFilters } from "./filters";
 import styles from "./library.module.scss";
 
 export function SearchBox({
   initialValue,
-  buildHref,
+  current,
 }: {
   initialValue: string;
-  buildHref: (q: string | null) => string;
+  current: CurrentFilters;
 }) {
   const router = useRouter();
   const [value, setValue] = useState(initialValue);
@@ -20,7 +21,9 @@ export function SearchBox({
   function submit(next: string) {
     if (next === lastSubmittedRef.current) return;
     lastSubmittedRef.current = next;
-    const href = buildHref(next.trim() === "" ? null : next.trim());
+    const href = filterLink(current, {
+      q: next.trim() === "" ? null : next.trim(),
+    });
     startTransition(() => router.replace(href));
   }
 
