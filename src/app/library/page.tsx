@@ -14,8 +14,8 @@ import { SaveForm } from "./save-form";
 import { DigestToggle } from "./digest-toggle";
 import { CacheLibrary } from "./cache-library";
 import { SwipeableArticleLink } from "./swipeable-article-link";
-import { LibraryItemMenu } from "./library-item-menu";
-import { Masthead } from "./masthead";
+import { LibraryItemActions } from "./library-item-actions";
+import { LibrarySidebar } from "./library-sidebar";
 import { FilterMenu, type FilterMenuOption } from "./filter-menu";
 import { SearchBox } from "./search-box";
 import {
@@ -26,7 +26,8 @@ import {
 } from "./filters";
 import { PaletteTrigger } from "@/app/components/palette-trigger";
 import { PrimaryTabs } from "@/app/components/primary-tabs";
-import { PublicationIcon } from "@/components/publication-icon";
+import { SourceMark } from "@/components/source-mark";
+import { getHighlightCounts } from "@/lib/annotations";
 import styles from "./library.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -199,8 +200,12 @@ export default async function LibraryPage({
     page,
   };
 
-  // Single fetch — filter in-memory to avoid duplicate Blob scans
-  const allArticles = await listArticles(userId, {});
+  // Single fetch — filter in-memory to avoid duplicate Blob scans.
+  // Highlight counts run in parallel — same volume scan style as listArticles.
+  const [allArticles, highlightCounts] = await Promise.all([
+    listArticles(userId, {}),
+    getHighlightCounts(userId),
+  ]);
 
   // Counts for the masthead — whole-library snapshot, unaffected by current filters.
   const inboxArticles = allArticles.filter((a) => !a.archivedAt);
@@ -238,16 +243,6 @@ export default async function LibraryPage({
   const safePage = Math.min(page, totalPages);
   const pageStart = (safePage - 1) * PAGE_SIZE;
   const articles = filteredArticles.slice(pageStart, pageStart + PAGE_SIZE);
-
-  const tagCounts = new Map<string, number>();
-  for (const a of allArticles) {
-    if (a.archivedAt) continue;
-    for (const t of a.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
-  }
-  const popularTags = Array.from(tagCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 12)
-    .map(([name]) => name);
 
   const summariesForCache = allArticles.map((a) => ({
     id: a.id,
@@ -328,8 +323,6 @@ export default async function LibraryPage({
 
       <PrimaryTabs active="library" right={<DigestToggle />} />
 
-      <Masthead counts={counts} />
-
       <nav className={styles.filters} aria-label="Library filters">
         <div className={styles.viewSegmented} role="tablist">
           <Link
@@ -394,13 +387,16 @@ export default async function LibraryPage({
             summary={lengthLabel}
             options={lengthOptions}
           />
-          <FilterMenu
-            label="Sort articles"
-            summary={sortLabelMap[sort]}
-            options={sortOptions}
-          />
         </div>
       </nav>
+
+      <div className={styles.sortRow}>
+        <FilterMenu
+          label="Sort articles"
+          summary={sortLabelMap[sort]}
+          options={sortOptions}
+        />
+      </div>
 
       {tag || source || length !== "any" ? (
         <div className={styles.activeFilters}>
@@ -434,183 +430,214 @@ export default async function LibraryPage({
         </div>
       ) : null}
 
-      {popularTags.length > 0 ? (
-        <div className={styles.tagList}>
-          {popularTags.map((t) => (
-            <Link
-              key={t}
-              href={filterLink(current, { tag: tag === t ? null : t })}
-              className={tag === t ? styles.tagChipActive : styles.tagChip}
-              {...(tag === t && { "aria-current": "true" as const })}
-            >
-              #{t}
-            </Link>
-          ))}
-        </div>
-      ) : null}
+      <div className={styles.layout}>
+        <div className={styles.feed}>
+          <p className={styles.summaryLine}>
+            <span>
+              Showing {filteredArticles.length} of {allArticles.length}
+            </span>
+            <span aria-hidden>·</span>
+            <span>Est. {formatReadingBudget(totalReadMin)} of reading</span>
+            <span aria-hidden>·</span>
+            <span>{view === "archive" ? "Archive" : "Inbox"}</span>
+          </p>
 
-      <p className={styles.summaryLine}>
-        <span>
-          Showing {filteredArticles.length} of {allArticles.length}
-        </span>
-        <span aria-hidden>·</span>
-        <span>Est. {formatReadingBudget(totalReadMin)} of reading</span>
-        <span aria-hidden>·</span>
-        <span>{view === "archive" ? "Archive" : "Inbox"}</span>
-      </p>
-
-      {articles.length === 0 ? (
-        <EmptyState
-          mode={
-            allArticles.length === 0
-              ? "empty"
-              : view === "archive"
-                ? "archive"
-                : q
-                  ? "search"
-                  : "filters"
-          }
-          q={q}
-        />
-      ) : (
-        <div className={styles.groups}>
-          {grouped.map((bucket) => (
-            <section key={bucket.label} className={styles.group}>
-              <h2 className={styles.groupLabel}>
-                <span>{bucket.label}</span>
-                <span aria-hidden className={styles.groupRule} />
-                <span className={styles.groupCount}>{bucket.items.length}</span>
-              </h2>
-              <ul className={styles.list}>
-                {bucket.items.map((a) => {
-                  const status = articleStatus(a);
-                  const href = `/read/${a.id}?from=${encodeURIComponent(filterLink(current, {}))}`;
-                  return (
-                    <li key={a.id} className={styles.item}>
-                      <SwipeableArticleLink
-                        articleId={a.id}
-                        href={href}
-                        initialRead={Boolean(a.readAt)}
-                        linkClassName={styles.link}
-                      >
-                        <div className={styles.itemMeta}>
-                          {a.source ? (
-                            <span className={styles.source}>
-                              <PublicationIcon url={a.url} />
-                              <span className={styles.sourceName}>
-                                {a.source}
-                              </span>
-                            </span>
-                          ) : null}
-                          {a.source ? (
-                            <span aria-hidden className={styles.metaSep}>
-                              ·
-                            </span>
-                          ) : null}
-                          <span>{a.readMinutes} min</span>
-                          <span aria-hidden className={styles.metaSep}>
-                            ·
-                          </span>
-                          <span>{relTime(a.savedAt)}</span>
-                        </div>
-                        <h3 className={styles.title}>{a.title}</h3>
-                        {a.excerpt ? (
-                          <p className={styles.excerpt}>
-                            {a.byline ? (
-                              <em className={styles.byline}>{a.byline}. </em>
-                            ) : null}
-                            {a.excerpt}
-                          </p>
-                        ) : null}
-                        {status?.kind === "reading" ? (
-                          <div
-                            className={styles.progressTrack}
-                            aria-label={`${Math.round((status.pct ?? 0) * 100)}% read`}
-                          >
-                            <span
-                              className={styles.progressFill}
-                              style={{
-                                width: `${Math.round((status.pct ?? 0) * 100)}%`,
-                              }}
+          {articles.length === 0 ? (
+            <EmptyState
+              mode={
+                allArticles.length === 0
+                  ? "empty"
+                  : view === "archive"
+                    ? "archive"
+                    : q
+                      ? "search"
+                      : "filters"
+              }
+              q={q}
+            />
+          ) : (
+            <div className={styles.groups}>
+              {grouped.map((bucket) => (
+                <section key={bucket.label} className={styles.group}>
+                  <h2 className={styles.groupLabel}>
+                    <span>{bucket.label}</span>
+                    <span aria-hidden className={styles.groupRule} />
+                    <span className={styles.groupCount}>
+                      {bucket.items.length}
+                    </span>
+                  </h2>
+                  <ul className={styles.list}>
+                    {bucket.items.map((a) => {
+                      const status = articleStatus(a);
+                      const href = `/read/${a.id}?from=${encodeURIComponent(filterLink(current, {}))}`;
+                      const noteCount = highlightCounts.get(a.id) ?? 0;
+                      return (
+                        <li key={a.id} className={styles.item}>
+                          <div className={styles.itemThumb}>
+                            <SourceMark
+                              source={a.source}
+                              showSourceLabel
+                              meta={`${a.readMinutes}'`}
                             />
                           </div>
-                        ) : null}
-                      </SwipeableArticleLink>
-                      {status || a.tags.length > 0 ? (
-                        <div className={styles.itemFooter}>
-                          {status?.kind === "read" ? (
-                            <span className={styles.badgeOk}>Read</span>
-                          ) : null}
-                          {status?.kind === "reading" ? (
-                            <span className={styles.badgeAccent}>
-                              Reading · {Math.round((status.pct ?? 0) * 100)}%
-                            </span>
-                          ) : null}
-                          {status?.kind === "archived" ? (
-                            <span className={styles.badgeMuted}>Archived</span>
-                          ) : null}
-                          {a.tags.length > 0 ? (
-                            <span className={styles.itemTags}>
-                              {a.tags.map((t) => (
-                                <Link
-                                  key={t}
-                                  href={filterLink(current, {
-                                    tag: tag === t ? null : t,
-                                  })}
-                                  className={styles.itemTag}
+                          <SwipeableArticleLink
+                            articleId={a.id}
+                            href={href}
+                            initialRead={Boolean(a.readAt)}
+                            linkClassName={styles.link}
+                          >
+                            <div className={styles.itemMeta}>
+                              {a.source ? (
+                                <>
+                                  <span className={styles.sourceName}>
+                                    {a.source}
+                                  </span>
+                                  <span aria-hidden className={styles.metaSep}>
+                                    ·
+                                  </span>
+                                </>
+                              ) : null}
+                              <span>{a.readMinutes} min</span>
+                              <span aria-hidden className={styles.metaSep}>
+                                ·
+                              </span>
+                              <span>{relTime(a.savedAt)}</span>
+                            </div>
+                            <h3 className={styles.title}>{a.title}</h3>
+                            {a.excerpt ? (
+                              <p className={styles.excerpt}>
+                                {a.byline ? (
+                                  <em className={styles.byline}>
+                                    {a.byline}.{" "}
+                                  </em>
+                                ) : null}
+                                {a.excerpt}
+                              </p>
+                            ) : null}
+                            {status?.kind === "reading" ? (
+                              <div
+                                className={styles.progressTrack}
+                                aria-label={`${Math.round((status.pct ?? 0) * 100)}% read`}
+                              >
+                                <span
+                                  className={styles.progressFill}
+                                  style={{
+                                    width: `${Math.round((status.pct ?? 0) * 100)}%`,
+                                  }}
+                                />
+                              </div>
+                            ) : null}
+                          </SwipeableArticleLink>
+                          {status || noteCount > 0 || a.tags.length > 0 ? (
+                            <div className={styles.itemFooter}>
+                              {status?.kind === "read" ? (
+                                <span className={styles.badgeOk}>Read</span>
+                              ) : null}
+                              {status?.kind === "reading" ? (
+                                <span className={styles.badgeAccent}>
+                                  Reading ·{" "}
+                                  {Math.round((status.pct ?? 0) * 100)}%
+                                </span>
+                              ) : null}
+                              {status?.kind === "archived" ? (
+                                <span className={styles.badgeMuted}>
+                                  Archived
+                                </span>
+                              ) : null}
+                              {noteCount > 0 ? (
+                                <span
+                                  className={styles.noteCount}
+                                  aria-label={`${noteCount} highlight${noteCount === 1 ? "" : "s"}`}
                                 >
-                                  #{t}
-                                </Link>
-                              ))}
-                            </span>
+                                  <PencilIcon /> {noteCount}
+                                </span>
+                              ) : null}
+                              {a.tags.length > 0 ? (
+                                <span className={styles.itemTags}>
+                                  {a.tags.map((t) => (
+                                    <Link
+                                      key={t}
+                                      href={filterLink(current, {
+                                        tag: tag === t ? null : t,
+                                      })}
+                                      className={styles.itemTag}
+                                    >
+                                      #{t}
+                                    </Link>
+                                  ))}
+                                </span>
+                              ) : null}
+                            </div>
                           ) : null}
-                        </div>
-                      ) : null}
-                      <LibraryItemMenu
-                        articleId={a.id}
-                        articleUrl={a.url}
-                        initialRead={Boolean(a.readAt)}
-                        initialArchived={Boolean(a.archivedAt)}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
-        </div>
-      )}
+                          <LibraryItemActions
+                            articleId={a.id}
+                            articleUrl={a.url}
+                            initialRead={Boolean(a.readAt)}
+                            initialArchived={Boolean(a.archivedAt)}
+                          />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
 
-      {totalPages > 1 ? (
-        <nav className={styles.pagination} aria-label="Pagination">
-          {safePage > 1 ? (
-            <Link
-              href={filterLink(current, { page: safePage - 1 })}
-              className={styles.paginationLink}
-              rel="prev"
-            >
-              ← Previous
-            </Link>
-          ) : (
-            <span className={styles.paginationDisabled}>← Previous</span>
-          )}
-          <span className={styles.paginationStatus}>
-            Page {safePage} of {totalPages}
-          </span>
-          {safePage < totalPages ? (
-            <Link
-              href={filterLink(current, { page: safePage + 1 })}
-              className={styles.paginationLink}
-              rel="next"
-            >
-              Next →
-            </Link>
-          ) : (
-            <span className={styles.paginationDisabled}>Next →</span>
-          )}
-        </nav>
-      ) : null}
+          {totalPages > 1 ? (
+            <nav className={styles.pagination} aria-label="Pagination">
+              {safePage > 1 ? (
+                <Link
+                  href={filterLink(current, { page: safePage - 1 })}
+                  className={styles.paginationLink}
+                  rel="prev"
+                >
+                  ← Previous
+                </Link>
+              ) : (
+                <span className={styles.paginationDisabled}>← Previous</span>
+              )}
+              <span className={styles.paginationStatus}>
+                Page {safePage} of {totalPages}
+              </span>
+              {safePage < totalPages ? (
+                <Link
+                  href={filterLink(current, { page: safePage + 1 })}
+                  className={styles.paginationLink}
+                  rel="next"
+                >
+                  Next →
+                </Link>
+              ) : (
+                <span className={styles.paginationDisabled}>Next →</span>
+              )}
+            </nav>
+          ) : null}
+        </div>
+
+        <LibrarySidebar articles={allArticles} current={current} />
+      </div>
     </main>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 12 12"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M2 10l1.5-.5 6-6L8 2 2 8l-.5 1.5L2 10z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
