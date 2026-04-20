@@ -14,10 +14,14 @@ export function LibraryThumb({ image, source, readMinutes }: Props) {
   const [failed, setFailed] = useState(false);
 
   if (image && !failed) {
+    // Route through /api/image so the upstream is SSRF-checked, size-capped,
+    // and cached at the edge — a library with 50 items would otherwise pull
+    // dozens of multi-MB hero images straight from publisher CDNs.
+    const proxied = `/api/image?url=${encodeURIComponent(image)}`;
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={image}
+        src={proxied}
         alt=""
         className={styles.thumbImage}
         loading="lazy"

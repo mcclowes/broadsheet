@@ -214,7 +214,11 @@ export const FETCH_TIMEOUT_MS = 15_000;
 // Shorter budget for speculative probes (feed discovery candidates, etc.) so a
 // cascade of misses can't monopolise a 300 s serverless invocation.
 export const DISCOVERY_TIMEOUT_MS = 5_000;
+// Images proxied for library thumbnails are often multi-MB hero images but
+// render at 6×4rem — keep the cap tight to bound bandwidth per request.
+export const IMAGE_FETCH_TIMEOUT_MS = 10_000;
 export const MAX_BODY_BYTES = 5 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 // User-supplied HTML (extension snapshot) is parsed synchronously with JSDOM,
 // which is a CPU DoS primitive if the cap matches remote-fetch size. Keep
 // this an order of magnitude lower.
@@ -240,6 +244,18 @@ const HTML_CONTENT_TYPE = /^(?:text\/html|application\/xhtml\+xml)\b/i;
 export function isHtmlContentType(contentType: string | null): boolean {
   if (!contentType) return false;
   return HTML_CONTENT_TYPE.test(contentType);
+}
+
+// Allow common raster + SVG. svg+xml is intentionally listed: publisher CDNs
+// return it for logos / placeholders, and DOMPurify never touches the
+// proxied body (we just forward bytes), so the browser's image decoder
+// treats it as inert.
+const IMAGE_CONTENT_TYPE =
+  /^image\/(?:png|jpe?g|webp|gif|avif|svg\+xml|bmp|x-icon|vnd\.microsoft\.icon)\b/i;
+
+export function isImageContentType(contentType: string | null): boolean {
+  if (!contentType) return false;
+  return IMAGE_CONTENT_TYPE.test(contentType);
 }
 
 export function isPrivateIPv4(ip: string): boolean {
@@ -396,10 +412,11 @@ export function charsetFromContentType(
   return match?.[1];
 }
 
-export async function readBoundedBody(
+async function readBoundedBytes(
   res: Response,
-  contentType?: string | null | undefined,
-): Promise<string> {
+  maxBytes: number,
+  tooLargeMessage: string,
+): Promise<Buffer> {
   if (!res.body) {
     throw new IngestError(
       "Response had no body",
@@ -416,11 +433,11 @@ export async function readBoundedBody(
       if (done) break;
       if (!value) continue;
       total += value.byteLength;
-      if (total > MAX_BODY_BYTES) {
+      if (total > maxBytes) {
         throw new IngestError(
-          `Body exceeded ${MAX_BODY_BYTES} bytes`,
+          `Body exceeded ${maxBytes} bytes`,
           undefined,
-          "Page is too large to save",
+          tooLargeMessage,
         );
       }
       chunks.push(value);
@@ -428,7 +445,18 @@ export async function readBoundedBody(
   } finally {
     reader.cancel().catch(() => {});
   }
-  const buf = Buffer.concat(chunks.map((c) => Buffer.from(c)));
+  return Buffer.concat(chunks.map((c) => Buffer.from(c)));
+}
+
+export async function readBoundedBody(
+  res: Response,
+  contentType?: string | null | undefined,
+): Promise<string> {
+  const buf = await readBoundedBytes(
+    res,
+    MAX_BODY_BYTES,
+    "Page is too large to save",
+  );
   const charset = charsetFromContentType(contentType ?? null) ?? "utf-8";
   try {
     const decoder = new TextDecoder(charset, { fatal: false });
@@ -437,6 +465,13 @@ export async function readBoundedBody(
     // Unknown charset — fall back to utf-8
     return buf.toString("utf8");
   }
+}
+
+export async function readBoundedBinaryBody(
+  res: Response,
+  maxBytes: number = MAX_IMAGE_BYTES,
+): Promise<Buffer> {
+  return readBoundedBytes(res, maxBytes, "Image is too large to proxy");
 }
 
 /**
@@ -659,15 +694,21 @@ export interface FetchPublicResult {
   contentType: string | null;
 }
 
+interface ConnectResult {
+  response: Response;
+  finalUrl: string;
+  contentType: string | null;
+}
+
 /**
- * Fetches a URL with the full SSRF / timeout / body-cap / redirect protections.
- * Shared between article ingestion and feed subscriptions so hardening only
- * has to be audited once.
+ * Shared SSRF-hardened redirect-following fetch loop. Returns a validated
+ * Response with an unread body; callers are responsible for reading it via
+ * a bounded reader (readBoundedBody / readBoundedBinaryBody).
  */
-export async function fetchPublicResource(
+async function connectPublicResource(
   url: string,
   opts: FetchPublicOptions,
-): Promise<FetchPublicResult> {
+): Promise<ConnectResult> {
   let current: URL;
   try {
     current = new URL(url);
@@ -747,8 +788,7 @@ export async function fetchPublicResource(
       );
     }
 
-    const body = await readBoundedBody(res, contentType);
-    return { body, finalUrl: current.toString(), contentType };
+    return { response: res, finalUrl: current.toString(), contentType };
   }
 
   throw new IngestError(
@@ -756,6 +796,53 @@ export async function fetchPublicResource(
     undefined,
     "Too many redirects",
   );
+}
+
+/**
+ * Fetches a URL with the full SSRF / timeout / body-cap / redirect protections.
+ * Shared between article ingestion and feed subscriptions so hardening only
+ * has to be audited once.
+ */
+export async function fetchPublicResource(
+  url: string,
+  opts: FetchPublicOptions,
+): Promise<FetchPublicResult> {
+  const { response, finalUrl, contentType } = await connectPublicResource(
+    url,
+    opts,
+  );
+  const body = await readBoundedBody(response, contentType);
+  return { body, finalUrl, contentType };
+}
+
+export interface FetchImageResult {
+  bytes: Buffer;
+  contentType: string;
+  finalUrl: string;
+}
+
+/**
+ * Binary variant of fetchPublicResource — shares the SSRF / redirect / timeout
+ * hardening but reads raw bytes instead of decoding to text. Caller gets back
+ * the validated content-type (guaranteed to match IMAGE_CONTENT_TYPE).
+ */
+export async function fetchPublicImage(
+  url: string,
+  maxBytes: number = MAX_IMAGE_BYTES,
+): Promise<FetchImageResult> {
+  const { response, finalUrl, contentType } = await connectPublicResource(url, {
+    accept: "image/*",
+    validateContentType: isImageContentType,
+    contentTypeError: "Upstream did not return an image",
+    timeoutMs: IMAGE_FETCH_TIMEOUT_MS,
+  });
+  const bytes = await readBoundedBinaryBody(response, maxBytes);
+  return {
+    bytes,
+    // connectPublicResource's validateContentType guard guarantees non-null.
+    contentType: contentType ?? "application/octet-stream",
+    finalUrl,
+  };
 }
 
 export interface FetchAndParseResult {

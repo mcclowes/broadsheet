@@ -145,3 +145,14 @@ export const pocketImportLimiter = new RateLimiter({
   capacity: 2,
   refillRate: 1 / 300, // ~1 every 5 minutes
 });
+
+/**
+ * Singleton limiter for GET /api/image.
+ * A single library page render can fan out to ~50 concurrent proxy fetches,
+ * and the edge cache soaks up repeats, so allow a generous burst but cap the
+ * sustained rate to discourage use as an open image proxy.
+ */
+export const imageProxyLimiter = new RateLimiter({
+  capacity: 60,
+  refillRate: 10, // 600/min sustained
+});
