@@ -8,7 +8,6 @@ import {
   saveArticleRequestSchema,
 } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
-import { checkOrigin } from "@/lib/csrf";
 import { articleIngestLimiter } from "@/lib/rate-limit";
 
 export async function GET(req: Request) {
@@ -39,9 +38,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const originError = checkOrigin(req);
-  if (originError) return originError;
-
+  // Origin check + auth are enforced by `src/proxy.ts`. Handler still
+  // re-reads `auth()` because we need `userId` as a value, not just
+  // "is there one".
   const { userId: rawUserId } = await auth();
   if (!rawUserId)
     return Response.json({ error: "Unauthorized" }, { status: 401 });

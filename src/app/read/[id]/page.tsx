@@ -83,7 +83,6 @@ export default async function ReadPage({
           archivedAt: article.archivedAt,
           tags: article.tags,
           body: article.body,
-          cachedAt: new Date().toISOString(),
         }}
       />
 

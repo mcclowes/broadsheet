@@ -4,7 +4,6 @@ import { z } from "zod";
 import { ConflictError, NotFoundError } from "folio-db-next";
 import { ARTICLE_ID_RE, getArticle, patchArticle } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
-import { checkOrigin } from "@/lib/csrf";
 
 export async function GET(
   _req: Request,
@@ -55,9 +54,7 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const originError = checkOrigin(req);
-  if (originError) return originError;
-
+  // Origin check + auth are enforced by `src/proxy.ts`.
   const { userId: rawUserId } = await auth();
   if (!rawUserId)
     return Response.json({ error: "Unauthorized" }, { status: 401 });

@@ -97,12 +97,17 @@ export interface DigestSubscriber {
 // ── Unsubscribe tokens ─────────────────────────────────────────────
 
 function unsubscribeSecret(): string {
-  const secret = process.env.CRON_SECRET;
+  // Separate from CRON_SECRET so rotating the cron bearer doesn't silently
+  // invalidate every unsubscribe link sitting in every user's inbox. If
+  // DIGEST_UNSUBSCRIBE_SECRET is unset we fall back to CRON_SECRET for
+  // backwards-compat, but both fail closed rather than signing with a
+  // guessable default.
+  const secret =
+    process.env.DIGEST_UNSUBSCRIBE_SECRET ?? process.env.CRON_SECRET;
   if (!secret) {
-    // Fail closed rather than signing with a guessable fallback. A missing
-    // secret would otherwise let anyone forge valid unsubscribe tokens and
-    // disable arbitrary users' digests.
-    throw new Error("CRON_SECRET is not set — cannot sign unsubscribe tokens");
+    throw new Error(
+      "DIGEST_UNSUBSCRIBE_SECRET (or CRON_SECRET fallback) is not set — cannot sign unsubscribe tokens",
+    );
   }
   return secret;
 }

@@ -19,6 +19,32 @@ const config = [
   ...nextCoreWebVitals,
   ...nextTypescript,
   prettier,
+  {
+    // Structural enforcement of the CLAUDE.md rule: "Every function in
+    // src/lib/** that touches user data takes userId as a parameter.
+    // auth() is only called at request-entry boundaries." Rules that live
+    // only in docs decay — this one fails the build if someone regresses.
+    files: ["src/lib/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@clerk/nextjs/server",
+              message:
+                "Auth must flow via the userId parameter. Don't call auth() from src/lib/**; call it at the route-handler / page-component boundary and pass the resulting AuthedUserId down.",
+            },
+            {
+              name: "@clerk/nextjs",
+              message:
+                "Client-side Clerk hooks belong in components, not in src/lib/**.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ];
 
 export default config;

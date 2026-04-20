@@ -36,13 +36,36 @@ export async function handleClerkWebhook(
     return Response.json({ error: "Malformed event" }, { status: 400 });
   }
 
-  if (event.type === "user.deleted") {
-    const id = event.data.id;
-    if (!id) {
-      return Response.json({ error: "Missing user id" }, { status: 400 });
+  switch (event.type) {
+    case "user.deleted": {
+      const id = event.data.id;
+      if (!id) {
+        return Response.json({ error: "Missing user id" }, { status: 400 });
+      }
+      try {
+        await deps.deleteUser(id);
+      } catch (err) {
+        // Partial failure or transient storage error. Returning 5xx so
+        // Svix retries — deletion is idempotent on success paths, and
+        // we'd rather re-run than silently skip GDPR-relevant cleanup.
+        console.error("[webhooks/clerk] user deletion failed", {
+          userId: id,
+          err,
+        });
+        return Response.json({ error: "Deletion failed" }, { status: 500 });
+      }
+      console.info("[webhooks/clerk] deleted user data", { userId: id });
+      break;
     }
-    await deps.deleteUser(id);
-    console.info("[webhooks/clerk] deleted user data", { userId: id });
+    default: {
+      // We intentionally 200 unhandled event types so Clerk doesn't retry
+      // forever, but we log them so we notice if Clerk starts sending
+      // something we ought to handle.
+      console.info("[webhooks/clerk] unhandled event type", {
+        type: event.type,
+      });
+      break;
+    }
   }
 
   return Response.json({ ok: true });

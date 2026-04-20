@@ -10,21 +10,16 @@ import {
 } from "@/lib/annotations";
 import { ARTICLE_ID_RE } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
-import { checkOrigin } from "@/lib/csrf";
 import { z } from "zod";
 
+// Origin check + auth are enforced by `src/proxy.ts`. This helper just
+// re-reads `auth()` for the userId value and validates the path param.
 async function authed(
-  req: Request,
   id: string,
-  requireOrigin: boolean,
 ): Promise<
   | { kind: "err"; res: Response }
   | { kind: "ok"; userId: ReturnType<typeof authedUserId> }
 > {
-  if (requireOrigin) {
-    const originError = checkOrigin(req);
-    if (originError) return { kind: "err", res: originError };
-  }
   const { userId: rawUserId } = await auth();
   if (!rawUserId)
     return {
@@ -41,11 +36,11 @@ async function authed(
 }
 
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const a = await authed(req, id, false);
+  const a = await authed(id);
   if (a.kind === "err") return a.res;
 
   try {
@@ -65,7 +60,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const a = await authed(req, id, true);
+  const a = await authed(id);
   if (a.kind === "err") return a.res;
 
   let body: unknown;
@@ -113,7 +108,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const a = await authed(req, id, true);
+  const a = await authed(id);
   if (a.kind === "err") return a.res;
 
   let body: unknown;
@@ -151,7 +146,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const a = await authed(req, id, true);
+  const a = await authed(id);
   if (a.kind === "err") return a.res;
 
   const url = new URL(req.url);

@@ -220,7 +220,16 @@ export async function fetchSourceItems(
     }
     await userVolume(userId)
       .patch(source.id, { frontmatter: { lastError: message } })
-      .catch(() => {});
+      .catch((patchErr) => {
+        // Not fatal — we still want to return the fetched error below.
+        // But don't silently eat it: logging preserves the trail when
+        // Folio itself is degraded.
+        console.warn("[sources] failed to persist lastError", {
+          sourceId: source.id,
+          feedErr: message,
+          patchErr,
+        });
+      });
     return {
       feed: { title: source.title, siteUrl: source.siteUrl, items: [] },
       items: [],

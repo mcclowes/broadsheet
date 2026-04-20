@@ -1,6 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
 import { authedUserId } from "@/lib/auth-types";
-import { checkOrigin } from "@/lib/csrf";
 import { pocketImportLimiter } from "@/lib/rate-limit";
 import {
   importPocketExport,
@@ -14,9 +13,7 @@ const MAX_CSV_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_ANNOTATIONS_BYTES = 5 * 1024 * 1024;
 
 export async function POST(req: Request) {
-  const originError = checkOrigin(req);
-  if (originError) return originError;
-
+  // Origin check + auth are enforced by `src/proxy.ts`.
   const { userId: rawUserId } = await auth();
   if (!rawUserId)
     return Response.json({ error: "Unauthorized" }, { status: 401 });

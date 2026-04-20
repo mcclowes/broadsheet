@@ -6,7 +6,6 @@ import {
   type AutoArchiveDays,
 } from "@/lib/auto-archive";
 import { authedUserId } from "@/lib/auth-types";
-import { checkOrigin } from "@/lib/csrf";
 
 export async function GET() {
   const { userId: rawUserId } = await auth();
@@ -35,9 +34,7 @@ const patchSchema = z.object({
 });
 
 export async function PATCH(req: Request) {
-  const originError = checkOrigin(req);
-  if (originError) return originError;
-
+  // Origin check + auth are enforced by `src/proxy.ts`.
   const { userId: rawUserId } = await auth();
   if (!rawUserId)
     return Response.json({ error: "Unauthorized" }, { status: 401 });
