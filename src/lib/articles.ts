@@ -54,7 +54,10 @@ export function articleIdForUrl(url: string): string {
   return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
 }
 
-export const ARTICLE_ID_RE = /^[a-f0-9]{32}$/;
+// Re-exported for call-sites that already import it as ARTICLE_ID_RE. Prefer
+// `isValidId` from `@/lib/ids` in new code — the shared validator makes it
+// harder for id-shape drift to silently break validation elsewhere.
+export { HEX32_ID_RE as ARTICLE_ID_RE } from "./ids";
 
 export type ArticleFrontmatter = {
   title: string;

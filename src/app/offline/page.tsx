@@ -9,14 +9,12 @@ import {
 import styles from "./offline.module.scss";
 
 export default function OfflinePage() {
-  const [articles, setArticles] = useState<OfflineArticle[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [articles, setArticles] = useState<OfflineArticle[] | null>(null);
 
   useEffect(() => {
     getAllCachedArticles().then((cached) => {
       const sorted = cached.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
       setArticles(sorted);
-      setLoaded(true);
     });
   }, []);
 
@@ -27,7 +25,7 @@ export default function OfflinePage() {
         <p className={styles.notice}>You are offline</p>
       </header>
 
-      {!loaded ? (
+      {articles === null ? (
         <p className={styles.loading}>Loading cached articles...</p>
       ) : articles.length === 0 ? (
         <p className={styles.empty}>

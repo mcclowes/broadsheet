@@ -66,7 +66,14 @@ function isLocalDevEnvironment(): boolean {
 export function checkOrigin(req: Request): Response | null {
   const origin = req.headers.get("origin");
 
-  // No Origin header → same-origin request (browsers omit it for same-origin)
+  // A missing Origin header isn't on its own a CSRF signal. Modern
+  // browsers send Origin on cross-origin *and* same-origin non-GET
+  // requests, but legitimate non-browser clients (curl, server-to-server
+  // fetchers, webhook senders, email-client one-click POSTs) often omit
+  // it. We rely on the Clerk session cookie being SameSite=lax to stop
+  // cross-site requests from carrying auth; checkOrigin is belt-and-
+  // braces for the case where the browser *does* send Origin and it's
+  // the wrong one.
   if (!origin) return null;
 
   if (getAllowedOrigins().has(origin)) return null;
@@ -84,9 +91,14 @@ export function checkOrigin(req: Request): Response | null {
     if (!isLocalDevEnvironment()) {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
-    console.info("[csrf] allowed extension origin (no allowlist, local dev)", {
-      origin,
-    });
+    // Dev-only: log at debug level to avoid noise on every reload. Gated
+    // by DEBUG_CSRF so you can opt in when diagnosing extension handshakes.
+    if (process.env.DEBUG_CSRF) {
+      console.info(
+        "[csrf] allowed extension origin (no allowlist, local dev)",
+        { origin },
+      );
+    }
     return null;
   }
 

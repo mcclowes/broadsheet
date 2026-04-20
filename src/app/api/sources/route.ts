@@ -3,7 +3,6 @@ import { z } from "zod";
 import { addSource, listSources } from "@/lib/sources";
 import { authedUserId } from "@/lib/auth-types";
 import { IngestError } from "@/lib/ingest";
-import { checkOrigin } from "@/lib/csrf";
 import { sourceAddLimiter } from "@/lib/rate-limit";
 
 const addSchema = z.object({
@@ -23,9 +22,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const originError = checkOrigin(req);
-  if (originError) return originError;
-
+  // Origin check + auth are enforced by `src/proxy.ts`.
   const { userId: rawUserId } = await auth();
   if (!rawUserId)
     return Response.json({ error: "Unauthorized" }, { status: 401 });

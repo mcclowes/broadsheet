@@ -28,11 +28,7 @@
   },
   "permissions": ["activeTab", "scripting", "storage", "notifications"],
   "host_permissions": ["https://broadsheet.marginalutility.dev/*"],
-  "optional_host_permissions": [
-    "http://localhost/*",
-    "http://127.0.0.1/*",
-    "https://*/*"
-  ],
+  "optional_host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
   "commands": {
     "save-current-tab": {
       "suggested_key": {

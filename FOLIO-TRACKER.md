@@ -5,6 +5,34 @@ actioned upstream rather than worked around inline.
 
 ## Open
 
+### Relax `Frontmatter = Record<string, unknown>` constraint
+
+`Frontmatter` is exported as `Record<string, unknown>`. Consumer types have
+to add `[key: string]: unknown` to satisfy the constraint, which defeats
+zod's inferred shape — `z.object({...})`'s `ZodType<T>` no longer matches
+the declared TS type, forcing every `volume<T>` call to use an `as unknown
+as z.ZodType<T>` double-cast (`src/lib/articles.ts:107`,
+`src/lib/sources.ts:32`, `src/lib/digest.ts:30`, `src/lib/annotations.ts:65`,
+`src/lib/auto-archive.ts:64`).
+
+Proposal: change Folio's constraint to `T extends object` (or drop the
+constraint entirely and let storage adapters stringify arbitrary objects).
+Call-sites can then use `z.infer<typeof schema>` as the source of truth and
+the double-cast disappears.
+
+**Opened:** 2026-04-20
+
+### deleteVolume for user deletion
+
+`deleteAllUserData` in `src/lib/user-deletion.ts` still walks each volume
+page-by-page (`vol.list()` + `vol.delete(slug)`) instead of using the
+`deleteVolume` primitive shipped in 0.2.0. On a user with thousands of
+articles this burns round-trips and is a GDPR-latency concern. Needs a
+call-site refactor to prefer `folio.deleteVolume(name)` with page-level
+retry only as a fallback.
+
+**Opened:** 2026-04-20
+
 ### zod 4 support
 
 `folio-db-next`'s peer/runtime dep is pinned to `zod@^3.23.8`, and the
