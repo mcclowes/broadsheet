@@ -70,16 +70,44 @@ Override the dev storage directory with `BROADSHEET_FS_DIR=/path/to/dir`.
 ### Scripts
 
 ```bash
-npm run dev          # Next.js dev server
-npm run build        # production build
-npm run start        # run built app
-npm run lint         # next lint
-npm run typecheck    # tsc --noEmit
-npm test             # vitest run
-npm run test:watch   # vitest watch
+npm run dev                   # Next.js dev server
+npm run build                 # production build
+npm run start                 # run built app
+npm run lint                  # next lint
+npm run typecheck             # tsc --noEmit
+npm test                      # vitest run
+npm run test:watch            # vitest watch
+npm run test:e2e              # Playwright e2e against `next dev`
+npm run test:e2e:prod-smoke   # Playwright auth-gated smoke against prod
 ```
 
 A husky pre-commit hook runs `typecheck` + `lint`. GitHub Actions (`.github/workflows/ci.yml`) additionally runs `test`, `build`, and `npm audit` on push and PR to `main`.
+
+### Uptime monitoring
+
+`.github/workflows/prod-smoke.yml` runs the `e2e/prod-smoke.spec.ts` Playwright check every 15 minutes against the production deployment. It signs in as a dedicated Clerk test user and asserts `/library` still renders — catching the "auth broke and nobody noticed" failure mode. GitHub's default scheduled-workflow failure notification emails the repo owner when the job fails.
+
+Secrets required (Settings → Secrets and variables → Actions):
+
+| Secret                       | Source                                |
+| ---------------------------- | ------------------------------------- |
+| `PROD_CLERK_PUBLISHABLE_KEY` | Clerk dashboard (production instance) |
+| `PROD_CLERK_SECRET_KEY`      | Clerk dashboard (production instance) |
+| `PROD_SMOKE_USER_USERNAME`   | Email of the dedicated test user      |
+| `PROD_SMOKE_USER_PASSWORD`   | Password of the dedicated test user   |
+
+Optional repository variable `PROD_BASE_URL` overrides the default `https://broadsheet.app`.
+
+To run the smoke check locally against prod:
+
+```bash
+E2E_BASE_URL=https://broadsheet.app \
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_… \
+CLERK_SECRET_KEY=sk_live_… \
+E2E_CLERK_USER_USERNAME=max+test@mcclowes.com \
+E2E_CLERK_USER_PASSWORD=… \
+npm run test:e2e:prod-smoke
+```
 
 ### Stack
 

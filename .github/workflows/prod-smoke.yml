@@ -1,0 +1,51 @@
+name: Prod smoke
+
+# External uptime / auth-gated smoke check. Runs a Playwright spec that
+# signs in as a dedicated test user and asserts `/library` renders. GitHub
+# emails the repo owner when a scheduled workflow fails, which is our
+# alerting channel for now. See issue #161.
+on:
+  schedule:
+    # Every 15 minutes. GitHub's scheduled workflows can drift or skip
+    # under load, so this is a floor, not a guarantee.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Don't pile up runs if one drags — if a newer tick arrives, skip it.
+concurrency:
+  group: prod-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Auth-gated smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      E2E_BASE_URL: ${{ vars.PROD_BASE_URL || 'https://broadsheet.app' }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.PROD_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.PROD_CLERK_SECRET_KEY }}
+      E2E_CLERK_USER_USERNAME: ${{ secrets.PROD_SMOKE_USER_USERNAME }}
+      E2E_CLERK_USER_PASSWORD: ${{ secrets.PROD_SMOKE_USER_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:prod-smoke
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: prod-smoke-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
