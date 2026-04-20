@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import {
   fetchUnifiedFeed,
@@ -11,6 +10,7 @@ import {
 import { articleIdForUrl, listArticles } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
 import { PrimaryTabs } from "@/app/components/primary-tabs";
+import { UserMenu } from "@/app/components/user-menu";
 import { AddSourceForm } from "./add-source-form";
 import { ItemActions } from "./item-actions";
 import styles from "./sources.module.scss";
@@ -60,7 +60,7 @@ export default async function SourcesPage() {
         <Link href="/" className={styles.brand}>
           Broadsheet
         </Link>
-        <UserButton />
+        <UserMenu />
       </header>
 
       <PrimaryTabs active="sources" />
