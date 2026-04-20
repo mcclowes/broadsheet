@@ -48,12 +48,12 @@ const CSP_DIRECTIVES = [
   "default-src 'self'",
   // Clerk loads its JS from clerk.com and the frontend-api subdomain.
   // Vercel Analytics loads /va/script.debug.js same-origin.
-  "script-src 'self' 'unsafe-inline' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.broadsheet.marginalutility.dev https://va.vercel-scripts.com",
+  "script-src 'self' 'unsafe-inline' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.marginalutility.dev https://va.vercel-scripts.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https: blob:",
   "font-src 'self' data:",
   // Clerk needs to POST to its API; everything else talks to our origin.
-  "connect-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.broadsheet.marginalutility.dev https://vitals.vercel-insights.com",
+  "connect-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.marginalutility.dev https://vitals.vercel-insights.com",
   "frame-src 'self' https://*.clerk.com https://challenges.cloudflare.com",
   "frame-ancestors 'none'",
   "form-action 'self'",
