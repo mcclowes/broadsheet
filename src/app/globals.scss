@@ -1,11 +1,16 @@
 :root {
   --bg: #fafaf7;
   --bg-elevated: #f3f1ec;
+  --bg-sunk: #f0ede6;
   --fg: #1a1a1a;
   --fg-muted: #6b6b6b;
+  --fg-faint: #9a968b;
   --fg-on-accent: #ffffff;
   --accent: #b4451f;
+  --accent-soft: #e9b89f;
   --rule: #e4e2dc;
+  --rule-strong: #cfcdc5;
+  --ok: #4a7a3a;
   --error: #a11;
   --danger: #c44;
   --warn-bg: #fff7f5;
@@ -30,6 +35,7 @@
   --font-sans:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica,
     Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
 }
 
 // Dark-mode palette. Applied in two cases:
@@ -40,11 +46,16 @@
 @mixin dark-theme {
   --bg: #131311;
   --bg-elevated: #1f1e1b;
+  --bg-sunk: #0e0e0c;
   --fg: #ece9df;
   --fg-muted: #9a968b;
+  --fg-faint: #6e6a5f;
   --fg-on-accent: #131311;
   --accent: #e8794f;
+  --accent-soft: #7a3a26;
   --rule: #2e2c27;
+  --rule-strong: #403d35;
+  --ok: #8ab773;
   --error: #ff8a80;
   --danger: #ff8a80;
   --warn-bg: rgba(232, 121, 79, 0.1);

@@ -105,6 +105,26 @@ export async function listAllAnnotations(
   return result.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+/**
+ * Total highlights (anchored + unanchored) per article. One frontmatter scan
+ * across the user's annotations volume; cheap at hundreds of articles. The
+ * library page already pays a similar full-list cost for `listArticles`, so
+ * adding this is a constant-factor extra round trip.
+ */
+export async function getHighlightCounts(
+  userId: AuthedUserId,
+): Promise<Map<string, number>> {
+  const entries = await userVolume(userId).list({ fields: "frontmatter" });
+  const out = new Map<string, number>();
+  for (const e of entries) {
+    const total =
+      (e.frontmatter.highlights?.length ?? 0) +
+      (e.frontmatter.unanchoredHighlights?.length ?? 0);
+    if (total > 0) out.set(e.slug, total);
+  }
+  return out;
+}
+
 export function sortHighlights(list: Highlight[]): Highlight[] {
   return [...list].sort((a, b) => a.start - b.start || a.end - b.end);
 }
