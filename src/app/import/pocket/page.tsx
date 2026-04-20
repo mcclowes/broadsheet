@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import { authedUserId } from "@/lib/auth-types";
+import { UserMenu } from "@/app/components/user-menu";
 import { PocketImportForm } from "./import-form";
 import styles from "./import.module.scss";
 
@@ -19,7 +19,7 @@ export default async function PocketImportPage() {
         <Link href="/" className={styles.brand}>
           Broadsheet
         </Link>
-        <UserButton />
+        <UserMenu />
       </header>
 
       <nav className={styles.tabs} aria-label="Primary">

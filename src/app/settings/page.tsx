@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import { authedUserId } from "@/lib/auth-types";
 import { DigestSettings } from "./digest-settings";
 import { ThemeSettings } from "./theme-settings";
 import { AutoArchiveSettings } from "./auto-archive-settings";
 import { PrimaryTabs } from "@/app/components/primary-tabs";
+import { UserMenu } from "@/app/components/user-menu";
 import styles from "./settings.module.scss";
 
 export const dynamic = "force-dynamic";
@@ -25,10 +25,10 @@ export default async function SettingsPage() {
         <Link href="/" className={styles.brand}>
           Broadsheet
         </Link>
-        <UserButton />
+        <UserMenu />
       </header>
 
-      <PrimaryTabs active="settings" />
+      <PrimaryTabs />
 
       <h1 className={styles.pageTitle}>Settings</h1>
 

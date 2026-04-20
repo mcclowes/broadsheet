@@ -2,20 +2,19 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import styles from "./primary-tabs.module.scss";
 
-type Section = "library" | "annotations" | "sources" | "settings";
+type Section = "library" | "annotations" | "sources";
 
 const SECTIONS: ReadonlyArray<{ key: Section; href: string; label: string }> = [
   { key: "library", href: "/library", label: "Library" },
   { key: "annotations", href: "/annotations", label: "Annotations" },
   { key: "sources", href: "/sources", label: "Sources" },
-  { key: "settings", href: "/settings", label: "Settings" },
 ];
 
 export function PrimaryTabs({
   active,
   right,
 }: {
-  active: Section;
+  active?: Section;
   right?: ReactNode;
 }) {
   return (

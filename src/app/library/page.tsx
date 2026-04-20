@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { UserButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import {
   listArticles,
@@ -27,6 +26,7 @@ import {
 } from "./filters";
 import { PaletteTrigger } from "@/app/components/palette-trigger";
 import { PrimaryTabs } from "@/app/components/primary-tabs";
+import { UserMenu } from "@/app/components/user-menu";
 import { getHighlightCounts } from "@/lib/annotations";
 import styles from "./library.module.scss";
 
@@ -317,7 +317,7 @@ export default async function LibraryPage({
         <div className={styles.headerActions}>
           <PaletteTrigger />
           <SaveForm />
-          <UserButton />
+          <UserMenu />
         </div>
       </header>
 

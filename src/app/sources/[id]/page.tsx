@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { UserButton } from "@clerk/nextjs";
 import { notFound, redirect } from "next/navigation";
 import { fetchSourceItems, getSource } from "@/lib/sources";
 import { articleIdForUrl, listArticles } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
+import { UserMenu } from "@/app/components/user-menu";
 import { ItemActions } from "../item-actions";
 import { RemoveSourceButton } from "../remove-source-button";
 import styles from "../sources.module.scss";
@@ -62,7 +62,7 @@ export default async function SourceDetailPage({
         <Link href="/" className={styles.brand}>
           Broadsheet
         </Link>
-        <UserButton />
+        <UserMenu />
       </header>
 
       <nav className={styles.tabs} aria-label="Primary">
