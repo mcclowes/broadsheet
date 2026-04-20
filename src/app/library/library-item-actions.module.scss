@@ -1,16 +1,23 @@
 .container {
   position: absolute;
-  top: 1rem;
+  /* Sit on the same baseline as the small-caps meta line at the top of the
+     row. The row uses padding-top: 1.25rem; an icon button is 1.75rem tall
+     while the meta is ~0.75rem cap-height. Centring the button against the
+     meta line lands it at top: 0.75rem. */
+  top: 0.75rem;
   right: 0;
   display: none;
+  align-items: center;
+  gap: 0.125rem;
+  z-index: 2;
 
   @media (hover: hover) and (min-width: 48rem) {
     display: inline-flex;
-    align-items: center;
   }
 }
 
-.trigger {
+.iconButton,
+.iconButtonActive {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -19,16 +26,33 @@
   padding: 0;
   border: none;
   background: none;
-  color: var(--fg-muted);
+  color: var(--fg-faint);
   border-radius: 999px;
   cursor: pointer;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
 
-  &:hover,
-  &:focus-visible,
-  &[aria-expanded="true"] {
-    color: var(--accent);
+  &:hover:not(:disabled),
+  &:focus-visible {
+    color: var(--fg);
     background: var(--rule);
     outline: none;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.iconButtonActive {
+  color: var(--accent);
+
+  &:hover:not(:disabled),
+  &:focus-visible {
+    color: var(--accent);
+    background: var(--rule);
   }
 }
 
@@ -37,7 +61,7 @@
   top: calc(100% + 0.375rem);
   right: 0;
   z-index: 20;
-  min-width: 11rem;
+  min-width: 9rem;
   padding: 0.25rem;
   background: var(--bg);
   border: 1px solid var(--rule);
@@ -47,7 +71,7 @@
   flex-direction: column;
 }
 
-.item {
+.menuItem {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -62,15 +86,10 @@
   text-decoration: none;
   cursor: pointer;
 
-  &:hover:not(:disabled),
+  &:hover,
   &:focus-visible {
     background: var(--rule);
     color: var(--accent);
     outline: none;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 }

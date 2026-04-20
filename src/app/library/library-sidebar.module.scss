@@ -1,0 +1,186 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  padding-top: 0.25rem;
+  font-size: 0.8125rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--rule);
+
+  &:first-child {
+    border-top: none;
+    padding-top: 0;
+  }
+}
+
+.sectionTitle {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--fg-muted);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ── Tag cloud ───────────────────────────────────────────────────── */
+
+.tagList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.tagPill,
+.tagPillActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.625rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  text-decoration: none;
+  background: var(--bg);
+
+  &:hover {
+    color: var(--fg);
+    border-color: var(--rule-strong);
+    text-decoration: none;
+  }
+}
+
+.tagPillActive {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+
+  &:hover {
+    color: var(--bg);
+  }
+}
+
+.tagCount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.6875rem;
+  opacity: 0.7;
+}
+
+/* ── Source list ─────────────────────────────────────────────────── */
+
+.sourceList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.sourceItem,
+.sourceItemActive {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.375rem 0.375rem;
+  border-radius: 0.375rem;
+  color: var(--fg);
+  text-decoration: none;
+
+  &:hover {
+    background: var(--bg-elevated);
+    text-decoration: none;
+  }
+}
+
+.sourceItemActive {
+  background: var(--bg-elevated);
+}
+
+.sourceName {
+  font-size: 0.8125rem;
+  font-family: var(--font-serif);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sourceCount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+/* ── Weekly chart ────────────────────────────────────────────────── */
+
+.chart {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.375rem;
+  height: 4rem;
+  align-items: end;
+}
+
+.chartCol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: center;
+  height: 100%;
+}
+
+.chartBarTrack {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.chartBar,
+.chartBarToday {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  background: var(--rule-strong);
+  border-radius: 1px;
+}
+
+.chartBarToday {
+  background: var(--accent);
+}
+
+.chartLabel {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+  letter-spacing: 0.04em;
+}
+
+.weekSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+.weekStat {
+  font-variant-numeric: tabular-nums;
+}
