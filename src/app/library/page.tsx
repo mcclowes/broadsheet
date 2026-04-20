@@ -16,6 +16,7 @@ import { CacheLibrary } from "./cache-library";
 import { SwipeableArticleLink } from "./swipeable-article-link";
 import { LibraryItemActions } from "./library-item-actions";
 import { LibrarySidebar } from "./library-sidebar";
+import { LibraryThumb } from "./library-thumb";
 import { FilterMenu, type FilterMenuOption } from "./filter-menu";
 import { SearchBox } from "./search-box";
 import {
@@ -26,7 +27,6 @@ import {
 } from "./filters";
 import { PaletteTrigger } from "@/app/components/palette-trigger";
 import { PrimaryTabs } from "@/app/components/primary-tabs";
-import { SourceMark } from "@/components/source-mark";
 import { getHighlightCounts } from "@/lib/annotations";
 import styles from "./library.module.scss";
 
@@ -474,10 +474,10 @@ export default async function LibraryPage({
                       return (
                         <li key={a.id} className={styles.item}>
                           <div className={styles.itemThumb}>
-                            <SourceMark
+                            <LibraryThumb
+                              image={a.image}
                               source={a.source}
-                              showSourceLabel
-                              meta={`${a.readMinutes}'`}
+                              readMinutes={a.readMinutes}
                             />
                           </div>
                           <SwipeableArticleLink

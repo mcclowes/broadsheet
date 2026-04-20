@@ -479,6 +479,18 @@
   grid-column: 1;
   grid-row: 1 / span 2;
   padding-top: 0.125rem;
+  width: 6rem;
+  flex-shrink: 0;
+}
+
+.thumbImage {
+  display: block;
+  width: 6rem;
+  height: 4rem;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 4px;
+  background: var(--bg-elevated);
 }
 
 .link {
