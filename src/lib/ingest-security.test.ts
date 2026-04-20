@@ -12,10 +12,13 @@ vi.mock("node:dns/promises", () => ({
 import {
   isPrivateIPv4,
   isPrivateIPv6,
+  isImageContentType,
   assertPublicHost,
   readBoundedBody,
+  readBoundedBinaryBody,
   IngestError,
   MAX_BODY_BYTES,
+  MAX_IMAGE_BYTES,
 } from "./ingest";
 
 afterEach(() => {
@@ -223,5 +226,66 @@ describe("readBoundedBody", () => {
     const res = makeResponse(unicode);
     const text = await readBoundedBody(res);
     expect(text).toBe(unicode);
+  });
+});
+
+describe("isImageContentType", () => {
+  it.each([
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+    "image/gif",
+    "image/avif",
+    "image/svg+xml",
+    "image/png; charset=binary",
+    "IMAGE/PNG",
+  ])("accepts %s", (ct) => {
+    expect(isImageContentType(ct)).toBe(true);
+  });
+
+  it.each([
+    null,
+    "",
+    "text/html",
+    "application/pdf",
+    "application/octet-stream",
+    "image/x-exotic",
+  ])("rejects %s", (ct) => {
+    expect(isImageContentType(ct)).toBe(false);
+  });
+});
+
+describe("readBoundedBinaryBody", () => {
+  function bytesResponse(body: Uint8Array): Response {
+    // TypeScript's lib.dom.d.ts narrows BlobPart to ArrayBufferView<ArrayBuffer>,
+    // which doesn't accept Uint8Array<ArrayBufferLike> despite being runtime-
+    // compatible. Round-trip through a fresh ArrayBuffer to satisfy the types.
+    const ab = new ArrayBuffer(body.byteLength);
+    new Uint8Array(ab).set(body);
+    return new Response(new Blob([ab]), { status: 200 });
+  }
+
+  it("reads raw bytes identically", async () => {
+    const src = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]);
+    const buf = await readBoundedBinaryBody(bytesResponse(src));
+    expect(Array.from(buf)).toEqual(Array.from(src));
+  });
+
+  it("throws with image-specific publicMessage when capped", async () => {
+    const oversized = new Uint8Array(8);
+    try {
+      await readBoundedBinaryBody(bytesResponse(oversized), 4);
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(IngestError);
+      expect((err as IngestError).publicMessage).toBe(
+        "Image is too large to proxy",
+      );
+    }
+  });
+
+  it("uses MAX_IMAGE_BYTES as the default cap", () => {
+    expect(MAX_IMAGE_BYTES).toBeLessThan(MAX_BODY_BYTES);
   });
 });

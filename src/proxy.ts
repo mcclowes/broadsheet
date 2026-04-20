@@ -43,6 +43,7 @@ export const PROTECTED_API_BASES = [
   "/api/digest/preferences",
   "/api/import",
   "/api/settings",
+  "/api/image",
 ];
 
 function matchesAny(pathname: string, bases: readonly string[]): boolean {
