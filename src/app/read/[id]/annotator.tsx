@@ -3,6 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./annotator.module.scss";
 
+let tempHighlightCounter = 0;
+function nextOptimisticStamp() {
+  tempHighlightCounter += 1;
+  return {
+    tempId: `tmp-${Date.now()}-${tempHighlightCounter}`,
+    now: new Date().toISOString(),
+  };
+}
+
 type HighlightColor = "yellow" | "green" | "blue" | "pink";
 
 export interface Highlight {
@@ -115,27 +124,51 @@ export function Annotator({ articleId, html, initial }: Props) {
   const createHighlight = async (color: HighlightColor) => {
     if (!pending) return;
     setError(null);
+
+    // Paint immediately with a temp id so the user sees the colour on the
+    // page as soon as they pick a swatch — reconcile with the server id once
+    // the POST resolves, and revert if it fails.
+    const { tempId, now } = nextOptimisticStamp();
+    const optimistic: Highlight = {
+      id: tempId,
+      start: pending.start,
+      end: pending.end,
+      text: pending.text,
+      note: null,
+      color,
+      createdAt: now,
+      updatedAt: now,
+    };
+    setHighlights((prev) => [...prev, optimistic]);
+    clearSelection();
+
+    const revert = () =>
+      setHighlights((prev) => prev.filter((h) => h.id !== tempId));
+
     try {
       const res = await fetch(`/api/articles/${articleId}/annotations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          start: pending.start,
-          end: pending.end,
-          text: pending.text,
+          start: optimistic.start,
+          end: optimistic.end,
+          text: optimistic.text,
           color,
         }),
       });
       if (!res.ok) {
         const p = await res.json().catch(() => ({}));
         setError(p.error ?? `Failed (${res.status})`);
+        revert();
         return;
       }
       const { highlight } = (await res.json()) as { highlight: Highlight };
-      setHighlights((prev) => [...prev, highlight]);
-      clearSelection();
+      setHighlights((prev) =>
+        prev.map((h) => (h.id === tempId ? highlight : h)),
+      );
     } catch {
       setError("Network error");
+      revert();
     }
   };
 
