@@ -6,17 +6,34 @@ import {
   getAllCachedArticles,
   type OfflineArticle,
 } from "@/lib/offline-storage";
+import { OfflineReader } from "../read/[id]/offline-reader";
+import { parseOfflineReaderPath } from "./offline-routing";
 import styles from "./offline.module.scss";
 
 export default function OfflinePage() {
+  // When the SW falls back to /offline for a /read/:id navigation, the
+  // browser URL stays at /read/:id — so switch into reader mode instead
+  // of showing the library list. Resolved once at mount via a lazy init
+  // (window is defined here because "use client" + prerendered only runs
+  // this branch in the browser).
+  const [readerId] = useState<string | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : parseOfflineReaderPath(window.location.pathname),
+  );
   const [articles, setArticles] = useState<OfflineArticle[] | null>(null);
 
   useEffect(() => {
+    if (readerId) return;
     getAllCachedArticles().then((cached) => {
       const sorted = cached.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
       setArticles(sorted);
     });
-  }, []);
+  }, [readerId]);
+
+  if (readerId) {
+    return <OfflineReader articleId={readerId} />;
+  }
 
   return (
     <main className={styles.main}>
