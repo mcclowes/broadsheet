@@ -1,5 +1,7 @@
 .toolbar {
   position: absolute;
+  top: var(--toolbar-top);
+  left: var(--toolbar-left);
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -9,6 +11,18 @@
   border-radius: 6px;
   box-shadow: 0 4px 14px var(--shadow-md);
   z-index: 60;
+
+  // On narrow viewports the native selection menu (iOS "Writing Tools",
+  // Android context bar) competes with an absolutely-positioned toolbar
+  // near the selection and can scroll the selected text off-screen. Dock
+  // to the bottom of the viewport instead so the selection stays visible.
+  @media (max-width: 640px) {
+    position: fixed;
+    top: auto;
+    left: 50%;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+  }
 }
 
 .swatch {

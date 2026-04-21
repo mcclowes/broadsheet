@@ -197,18 +197,24 @@ export function Annotator({ articleId, html, initial }: Props) {
       {pending ? (
         <div
           className={styles.toolbar}
-          style={{
-            // Prefer above the selection; flip below when there isn't room
-            // (e.g. selection near the top of the viewport on mobile).
-            top:
-              pending.rect.top < 56
-                ? pending.rect.bottom + window.scrollY + 8
-                : pending.rect.top + window.scrollY - 44,
-            left: Math.max(
-              8 + window.scrollX,
-              pending.rect.left + window.scrollX,
-            ),
-          }}
+          // Positioning is consumed via CSS vars so the narrow-viewport
+          // media query in the stylesheet can dock the toolbar to the
+          // bottom of the screen instead, without fighting inline styles.
+          style={
+            {
+              // Prefer above the selection; flip below when there isn't room
+              // (e.g. selection near the top of the viewport on mobile).
+              "--toolbar-top": `${
+                pending.rect.top < 56
+                  ? pending.rect.bottom + window.scrollY + 8
+                  : pending.rect.top + window.scrollY - 44
+              }px`,
+              "--toolbar-left": `${Math.max(
+                8 + window.scrollX,
+                pending.rect.left + window.scrollX,
+              )}px`,
+            } as React.CSSProperties
+          }
           role="toolbar"
           aria-label="Create highlight"
         >
