@@ -40,9 +40,11 @@ class NotSignedInError extends Error {
   }
 }
 
-async function saveUrl(url, html) {
+async function saveUrl(url, html, selection) {
   const baseUrl = await getBaseUrl();
-  const body = html ? { url, html } : { url };
+  const body = { url };
+  if (html) body.html = html;
+  if (selection?.text) body.selection = { text: selection.text };
   const res = await fetch(`${baseUrl}/api/articles`, {
     method: "POST",
     credentials: "include",
@@ -84,7 +86,7 @@ async function notify(title, message, isError = false) {
     .catch(() => {});
 }
 
-async function saveAndNotify() {
+async function saveAndNotify({ selection } = {}) {
   const tab = await getActiveTab();
   const url = tab?.url ?? null;
   if (!url) {
@@ -93,13 +95,13 @@ async function saveAndNotify() {
   }
   try {
     const html = await extractPageHtml(tab?.id);
-    const { article, created } = await saveUrl(url, html);
+    const { article, created } = await saveUrl(url, html, selection);
     const title = article?.title ?? url;
     const alreadySaved = created === false;
-    await notify(
-      alreadySaved ? "Already in Broadsheet" : "Saved to Broadsheet",
-      title,
-    );
+    const savedMessage = selection?.text
+      ? "Saved to Broadsheet with highlight"
+      : "Saved to Broadsheet";
+    await notify(alreadySaved ? "Already in Broadsheet" : savedMessage, title);
     return { ok: true, article, created: created !== false };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -112,6 +114,38 @@ async function saveAndNotify() {
     return { ok: false, error: message };
   }
 }
+
+const HIGHLIGHT_MENU_ID = "broadsheet-save-with-highlight";
+// Server schema caps selection text at 2000 chars — trim proactively so the
+// menu item doesn't trip the 400 at the API boundary.
+const MAX_SELECTION_CHARS = 2000;
+
+function registerContextMenu() {
+  if (!chrome.contextMenus) return;
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: HIGHLIGHT_MENU_ID,
+      title: "Save to Broadsheet with highlight",
+      contexts: ["selection"],
+    });
+  });
+}
+
+chrome.runtime.onInstalled?.addListener(registerContextMenu);
+chrome.runtime.onStartup?.addListener(registerContextMenu);
+
+chrome.contextMenus?.onClicked.addListener((info) => {
+  if (info.menuItemId !== HIGHLIGHT_MENU_ID) return;
+  const raw =
+    typeof info.selectionText === "string" ? info.selectionText.trim() : "";
+  if (!raw) {
+    void saveAndNotify();
+    return;
+  }
+  void saveAndNotify({
+    selection: { text: raw.slice(0, MAX_SELECTION_CHARS) },
+  });
+});
 
 chrome.commands?.onCommand.addListener((command) => {
   if (command === "save-current-tab") void saveAndNotify();

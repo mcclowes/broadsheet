@@ -7,7 +7,14 @@ import {
   saveArticleWithOutcome,
   saveArticleRequestSchema,
 } from "@/lib/articles";
+import {
+  addHighlight,
+  addUnanchoredHighlights,
+  HighlightLimitError,
+} from "@/lib/annotations";
+import { articlePlaintext } from "@/lib/markdown";
 import { authedUserId } from "@/lib/auth-types";
+import type { AuthedUserId } from "@/lib/auth-types";
 import { articleIngestLimiter } from "@/lib/rate-limit";
 
 export async function GET(req: Request) {
@@ -89,6 +96,16 @@ export async function POST(req: Request) {
       saveUrl,
       article,
     );
+
+    if (parsed.data.selection) {
+      await attachSelectionHighlight(
+        userId,
+        summary.id,
+        article.markdown,
+        parsed.data.selection.text,
+      );
+    }
+
     return Response.json(
       { article: summary, created },
       { status: created ? 201 : 200 },
@@ -111,5 +128,45 @@ export async function POST(req: Request) {
       message: e?.message,
     });
     return Response.json({ error: "Internal error" }, { status: 500 });
+  }
+}
+
+// Best-effort attach: anchor the selection in the rendered plaintext if we
+// can find a single occurrence, otherwise keep it as an unanchored highlight.
+// Failures here never fail the save — the article is already persisted and
+// a missing highlight is recoverable, a 500 on save is not.
+async function attachSelectionHighlight(
+  userId: AuthedUserId,
+  articleId: string,
+  markdown: string,
+  rawText: string,
+): Promise<void> {
+  const text = rawText.trim();
+  if (!text) return;
+
+  try {
+    const plaintext = articlePlaintext(markdown);
+    const first = plaintext.indexOf(text);
+    const unique = first !== -1 && plaintext.indexOf(text, first + 1) === -1;
+    if (unique) {
+      await addHighlight(userId, articleId, {
+        start: first,
+        end: first + text.length,
+        text,
+      });
+      return;
+    }
+    await addUnanchoredHighlights(userId, articleId, [
+      { text, createdAt: new Date().toISOString() },
+    ]);
+  } catch (err) {
+    if (err instanceof HighlightLimitError) {
+      // Per-article cap reached — skip silently; article save still wins.
+      return;
+    }
+    console.warn("[api/articles] attach selection failed", {
+      articleId,
+      message: err instanceof Error ? err.message : String(err),
+    });
   }
 }

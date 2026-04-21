@@ -15,3 +15,23 @@ export function renderMarkdown(md: string): string {
   }
   return DOMPurify.sanitize(html, SANITIZE_CONFIG);
 }
+
+// Walk the rendered article's DOM the way the client annotator does — a
+// TreeWalker over SHOW_TEXT nodes under the article root — so offsets
+// computed here anchor to the same positions the browser would produce.
+// Used by /api/articles when the extension attaches a context-menu selection.
+export function articlePlaintext(markdown: string): string {
+  const html = renderMarkdown(markdown);
+  const dom = new JSDOM(`<article>${html}</article>`);
+  const doc = dom.window.document;
+  const root = doc.querySelector("article");
+  if (!root) return "";
+  const walker = doc.createTreeWalker(root, dom.window.NodeFilter.SHOW_TEXT);
+  let out = "";
+  let node: Node | null = walker.nextNode();
+  while (node) {
+    out += node.textContent ?? "";
+    node = walker.nextNode();
+  }
+  return out;
+}

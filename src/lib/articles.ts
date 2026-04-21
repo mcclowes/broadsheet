@@ -338,6 +338,14 @@ export interface ArticlePage {
 export const saveArticleRequestSchema = z.object({
   url: z.string().url(),
   html: z.string().min(1).max(MAX_USER_HTML_BYTES).optional(),
+  // Opt-in from the extension's "save with highlight" context-menu entry.
+  // The server tries to anchor the text into the rendered article body; on
+  // miss it's stored as an unanchored highlight. See POST /api/articles.
+  selection: z
+    .object({
+      text: z.string().min(1).max(2000),
+    })
+    .optional(),
 });
 
 export function parseListFilters(params: URLSearchParams): ListFilters {
