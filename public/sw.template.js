@@ -25,8 +25,10 @@ const AUTH_SKIP_PREFIXES = [
   "/clerk",
 ];
 
-// Auth-gated routes — SW never serves stale HTML for these. Offline reader
-// fallback for /read/ is tracked in #132.
+// Auth-gated routes — SW never serves stale HTML for these. Offline
+// fallback is /offline, which sniffs window.location.pathname to decide
+// whether to render the cached-library list or switch into OfflineReader
+// mode for /read/:id navigations (see src/app/offline/page.tsx).
 const AUTH_GATED_PREFIXES = ["/library", "/read/", "/sources", "/settings"];
 
 self.addEventListener("install", (event) => {
