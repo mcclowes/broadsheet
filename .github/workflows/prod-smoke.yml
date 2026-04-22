@@ -6,9 +6,10 @@ name: Prod smoke
 # alerting channel for now. See issue #161.
 on:
   schedule:
-    # Every 15 minutes. GitHub's scheduled workflows can drift or skip
-    # under load, so this is a floor, not a guarantee.
-    - cron: "*/15 * * * *"
+    # 08:00 and 17:00 UTC. GitHub cron is UTC-only and doesn't track DST,
+    # so these will drift by an hour relative to UK local time twice a year
+    # — fine for an uptime check.
+    - cron: "0 8,17 * * *"
   workflow_dispatch:
 
 permissions:
