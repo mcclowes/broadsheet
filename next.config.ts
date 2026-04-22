@@ -55,6 +55,12 @@ const CSP_DIRECTIVES = [
   // Clerk needs to POST to its API; everything else talks to our origin.
   "connect-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.marginalutility.dev https://vitals.vercel-insights.com",
   "frame-src 'self' https://*.clerk.com https://challenges.cloudflare.com",
+  // ClerkJS spawns a bot-detection worker from a blob: URL, and our own
+  // service worker is same-origin. Without an explicit `worker-src`, CSP
+  // falls back to `script-src`, which does not include `blob:` — that
+  // blocks the ClerkJS worker and breaks programmatic sign-in (including
+  // the prod-smoke e2e suite).
+  "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "form-action 'self'",
   "base-uri 'self'",
