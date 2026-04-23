@@ -12,6 +12,7 @@ const config = [
       "coverage/**",
       ".broadsheet-data/**",
       "apps/extension/dist/**",
+      "apps/mobile/**",
       "next-env.d.ts",
     ],
   },

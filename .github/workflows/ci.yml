@@ -73,6 +73,26 @@ jobs:
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
 
+  mobile:
+    name: Mobile typecheck & lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    # Expo's Clerk provider throws at import time without a publishable key;
+    # the value only needs to exist, not be valid, for typecheck/lint.
+    env:
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci-dummy-key
+      EXPO_PUBLIC_API_URL: https://example.invalid
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run lint
+
   extension:
     name: Extension package
     runs-on: ubuntu-latest

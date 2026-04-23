@@ -40,9 +40,11 @@ class NotSignedInError extends Error {
   }
 }
 
-async function saveUrl(url, html) {
+async function saveUrl(url, html, selectionText) {
   const baseUrl = await getBaseUrl();
-  const body = html ? { url, html } : { url };
+  const body = { url };
+  if (html) body.html = html;
+  if (selectionText) body.selection = { text: selectionText };
   const res = await fetch(`${baseUrl}/api/articles`, {
     method: "POST",
     credentials: "include",
@@ -84,8 +86,9 @@ async function notify(title, message, isError = false) {
     .catch(() => {});
 }
 
-async function saveAndNotify() {
-  const tab = await getActiveTab();
+async function saveAndNotify(opts = {}) {
+  const { selectionText, tab: providedTab } = opts;
+  const tab = providedTab ?? (await getActiveTab());
   const url = tab?.url ?? null;
   if (!url) {
     await notify("Broadsheet", "No URL in the current tab.", true);
@@ -93,13 +96,17 @@ async function saveAndNotify() {
   }
   try {
     const html = await extractPageHtml(tab?.id);
-    const { article, created } = await saveUrl(url, html);
+    const { article, created } = await saveUrl(url, html, selectionText);
     const title = article?.title ?? url;
     const alreadySaved = created === false;
-    await notify(
-      alreadySaved ? "Already in Broadsheet" : "Saved to Broadsheet",
-      title,
-    );
+    const savedLabel = selectionText
+      ? alreadySaved
+        ? "Highlight added"
+        : "Saved with highlight"
+      : alreadySaved
+        ? "Already in Broadsheet"
+        : "Saved to Broadsheet";
+    await notify(savedLabel, title);
     return { ok: true, article, created: created !== false };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -115,6 +122,28 @@ async function saveAndNotify() {
 
 chrome.commands?.onCommand.addListener((command) => {
   if (command === "save-current-tab") void saveAndNotify();
+});
+
+const CONTEXT_MENU_ID = "broadsheet-save-highlight";
+
+function registerContextMenu() {
+  chrome.contextMenus?.removeAll(() => {
+    chrome.contextMenus?.create({
+      id: CONTEXT_MENU_ID,
+      title: "Save to Broadsheet with highlight",
+      contexts: ["selection"],
+    });
+  });
+}
+
+chrome.runtime.onInstalled.addListener(registerContextMenu);
+chrome.runtime.onStartup?.addListener(registerContextMenu);
+
+chrome.contextMenus?.onClicked.addListener((info, tab) => {
+  if (info.menuItemId !== CONTEXT_MENU_ID) return;
+  const selectionText = (info.selectionText ?? "").trim();
+  if (!selectionText) return;
+  void saveAndNotify({ selectionText, tab });
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
