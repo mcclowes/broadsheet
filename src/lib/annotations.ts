@@ -212,13 +212,17 @@ export async function addUnanchoredHighlights(
       const key = `${text}\u0000${input.createdAt}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      merged.push({
+      // Only include `source` when set — folio's YAML dumper rejects
+      // `undefined` values, and leaving the key absent is the schema-default
+      // shape for non-pocket highlights.
+      const entry: UnanchoredHighlight = {
         id: randomUUID(),
         text: text.slice(0, 4000),
         note: input.note ?? null,
         createdAt: input.createdAt,
-        source: input.source,
-      });
+      };
+      if (input.source) entry.source = input.source;
+      merged.push(entry);
       added++;
     }
     if (added === 0) return;
