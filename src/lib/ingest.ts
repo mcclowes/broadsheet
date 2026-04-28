@@ -732,7 +732,7 @@ async function connectPublicResource(
         signal: AbortSignal.timeout(opts.timeoutMs ?? FETCH_TIMEOUT_MS),
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; Broadsheet/0.1; +https://broadsheet.app/bot)",
+            "Mozilla/5.0 (compatible; Broadsheet/0.1; +https://broadsheet.marginalutility.dev/bot)",
           Accept: opts.accept,
           ...opts.extraHeaders,
         },

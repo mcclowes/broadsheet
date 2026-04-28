@@ -32,7 +32,7 @@ struct SettingsView: View {
                     header: Text("API base URL"),
                     footer: Text("The Broadsheet web app the iOS client talks to. Change to `http://localhost:3000` when running against a local dev server on the same network.")
                 ) {
-                    TextField("https://broadsheet.app", text: $baseURL)
+                    TextField("https://broadsheet.marginalutility.dev", text: $baseURL)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -66,8 +66,8 @@ struct SettingsView: View {
 
                 Section("About") {
                     LabeledContent("Version", value: Bundle.main.shortVersion)
-                    Link("broadsheet.app",
-                         destination: URL(string: "https://broadsheet.app")!)
+                    Link("broadsheet.marginalutility.dev",
+                         destination: URL(string: "https://broadsheet.marginalutility.dev")!)
                 }
             }
             .navigationTitle("Settings")

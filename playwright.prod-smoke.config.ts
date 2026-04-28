@@ -5,7 +5,7 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Separate from `playwright.config.ts` because the dev config boots
  * `next dev` with the in-memory adapter and targets localhost. Here we
- * point at an already-deployed instance (default: https://broadsheet.app)
+ * point at an already-deployed instance (default: https://broadsheet.marginalutility.dev)
  * and omit the webServer entirely. Everything else — the Clerk setup
  * chain, auth helper, storage state — is reused verbatim.
  *
@@ -15,13 +15,14 @@ import { defineConfig, devices } from "@playwright/test";
  *   CLERK_SECRET_KEY                   — production Clerk secret key
  *   E2E_CLERK_USER_USERNAME            — smoke test user email
  *   E2E_CLERK_USER_PASSWORD            — smoke test user password
- *   E2E_BASE_URL                       — defaults to https://broadsheet.app
+ *   E2E_BASE_URL                       — defaults to https://broadsheet.marginalutility.dev
  *
  * Run locally:
  *   npm run test:e2e:prod-smoke
  */
 
-const BASE_URL = process.env.E2E_BASE_URL ?? "https://broadsheet.app";
+const BASE_URL =
+  process.env.E2E_BASE_URL ?? "https://broadsheet.marginalutility.dev";
 
 export default defineConfig({
   testDir: "./e2e",
