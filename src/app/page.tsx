@@ -175,7 +175,15 @@ export default async function HomePage() {
         </section>
 
         <footer className={styles.landingFooter}>
-          <p>Free and open source</p>
+          <p>
+            Free and open source &middot;{" "}
+            <a
+              href="https://github.com/mcclowes/broadsheet/issues"
+              rel="noreferrer"
+            >
+              Feedback &amp; issues
+            </a>
+          </p>
         </footer>
       </main>
     );
