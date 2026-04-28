@@ -27,6 +27,7 @@ import {
 import { PaletteTrigger } from "@/app/components/palette-trigger";
 import { PrimaryTabs } from "@/app/components/primary-tabs";
 import { UserMenu } from "@/app/components/user-menu";
+import { WelcomeOverlay } from "@/app/components/welcome-overlay";
 import { getHighlightCounts } from "@/lib/annotations";
 import styles from "./library.module.scss";
 
@@ -41,6 +42,7 @@ type SearchParams = Promise<{
   sort?: string;
   q?: string;
   page?: string;
+  welcome?: string;
 }>;
 
 const PAGE_SIZE = 50;
@@ -189,6 +191,7 @@ export default async function LibraryPage({
   const sort = parseSort(sp.sort);
   const q = sp.q?.trim() || undefined;
   const page = parsePage(sp.page);
+  const welcome = sp.welcome === "1";
   const current: CurrentFilters = {
     view,
     state,
@@ -306,6 +309,7 @@ export default async function LibraryPage({
 
   return (
     <main className={styles.main}>
+      <WelcomeOverlay show={welcome} />
       <CacheLibrary articles={summariesForCache} />
 
       <h1 className="srOnly">Library</h1>
