@@ -32,7 +32,7 @@ This doc covers:
 > existing Google/Apple credentials if they're already configured rather
 > than creating a second OAuth client for the same Clerk instance.
 
-> **Development vs production.** Clerk's *development* instance ships with
+> **Development vs production.** Clerk's _development_ instance ships with
 > shared OAuth credentials for most social providers — you can flip Google
 > and Apple on with one click and they'll work on `localhost`. The shared
 > credentials show a generic "via Clerk" consent screen and are explicitly
@@ -46,7 +46,7 @@ This doc covers:
 
 1. Sign in to <https://dashboard.clerk.com> and pick the Broadsheet
    application. Confirm the **instance** selector at the top of the sidebar
-   (Development vs Production) — the steps below need to be done in *both*
+   (Development vs Production) — the steps below need to be done in _both_
    instances when you're ready to ship to prod.
 2. Open **User & Authentication → Social Connections**.
 3. (Optional but recommended) Under **User & Authentication → Email, Phone,
@@ -56,15 +56,13 @@ This doc covers:
 4. Toggle **Google** and **Apple** on. In development you're done — the
    `<SignIn />` component will render "Continue with Google" and "Continue
    with Apple" buttons immediately.
-5. For each provider, click the row to open its settings panel. The
-   **Authorized redirect URI** Clerk shows you is what Google and Apple
-   need:
+5. For each provider, click the row to open its settings panel and copy
+   the **Authorized redirect URI** Clerk shows you — you'll paste it into
+   Google and Apple in the next sections. The URI is:
    - **Production:** `https://accounts.marginalutility.dev/v1/oauth_callback`
    - **Development:** `https://<slug>.clerk.accounts.dev/v1/oauth_callback`
      (the `<slug>` is auto-assigned per Clerk app — copy it from the
      dashboard, don't guess).
-   Keep that tab open — you'll paste the URI into Google and Apple in the
-   next sections.
 
 The env vars in `.env.example` (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
 `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`,
@@ -90,7 +88,7 @@ This is what users see when they click "Continue with Google" — the branded
 "Broadsheet wants to access your Google account" page.
 
 1. **APIs & Services → OAuth consent screen.**
-2. **User Type:** *External*. Click **Create**.
+2. **User Type:** _External_. Click **Create**.
 3. Fill in:
    - **App name:** `Broadsheet`
    - **User support email:** an address you monitor
@@ -104,7 +102,7 @@ This is what users see when they click "Continue with Google" — the branded
    - **Developer contact:** your email.
 4. **Scopes:** click **Add or Remove Scopes** and select `openid`,
    `userinfo.email`, `userinfo.profile`. That's all Clerk needs.
-5. **Test users** (only relevant while the app is in *Testing* status): add
+5. **Test users** (only relevant while the app is in _Testing_ status): add
    any Google accounts you want to be able to sign in before the app is
    verified. Skip this if you publish straight away.
 6. **Publish app.** Until you publish, only test users can sign in and
@@ -117,7 +115,7 @@ This is what users see when they click "Continue with Google" — the branded
 ### 2.3 Create the OAuth client
 
 1. **APIs & Services → Credentials → Create credentials → OAuth client ID.**
-2. **Application type:** *Web application*.
+2. **Application type:** _Web application_.
 3. **Name:** `Broadsheet — Clerk` (free-form, for your reference).
 4. **Authorised JavaScript origins:** leave empty. Clerk handles the popup
    from its own domain, not yours.
@@ -152,9 +150,9 @@ This is what users see when they click "Continue with Google" — the branded
 
 - An **Apple Developer Program** membership ($99/year). Free Apple IDs can't
   create the Services ID and key required.
-- An **App ID** with the *Sign in with Apple* capability enabled.
+- An **App ID** with the _Sign in with Apple_ capability enabled.
 - A **Services ID** — this is the OAuth `client_id`.
-- A **Key** with *Sign in with Apple* enabled — this gives you a `.p8`
+- A **Key** with _Sign in with Apple_ enabled — this gives you a `.p8`
   private key file used to sign the client secret JWT.
 - The Clerk frontend domain you'll authenticate from
   (`accounts.marginalutility.dev` in prod, the
@@ -171,7 +169,7 @@ Even if Broadsheet doesn't ship a native iOS app, Apple still requires a
 3. **Description:** `Broadsheet`. **Bundle ID:** explicit, e.g.
    `app.broadsheet.web` (anything reverse-DNS that you control).
 4. Scroll the **Capabilities** list and tick **Sign In with Apple**. Leave
-   it as a *Primary App ID*.
+   it as a _Primary App ID_.
 5. Continue → Register.
 
 ### 3.2 Create a Services ID
@@ -215,12 +213,12 @@ The Services ID is the OAuth client ID Clerk will use.
 
 In **Clerk dashboard → Social Connections → Apple**, fill in:
 
-| Field                  | Value                                                       |
-| ---------------------- | ----------------------------------------------------------- |
-| **Apple Services ID**  | The Services ID from §3.2 (e.g. `app.broadsheet.web.signin`) |
-| **Apple Team ID**      | From §3.3.5                                                 |
-| **Apple Key ID**       | From §3.3.5                                                 |
-| **Apple Private Key**  | Paste the **entire contents** of the `.p8` file, including the `-----BEGIN PRIVATE KEY-----` / `-----END PRIVATE KEY-----` lines |
+| Field                 | Value                                                                                                                            |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Apple Services ID** | The Services ID from §3.2 (e.g. `app.broadsheet.web.signin`)                                                                     |
+| **Apple Team ID**     | From §3.3.5                                                                                                                      |
+| **Apple Key ID**      | From §3.3.5                                                                                                                      |
+| **Apple Private Key** | Paste the **entire contents** of the `.p8` file, including the `-----BEGIN PRIVATE KEY-----` / `-----END PRIVATE KEY-----` lines |
 
 Save. Clerk will use these to mint the short-lived client-secret JWT Apple
 requires on every token exchange.
@@ -238,11 +236,11 @@ requires on every token exchange.
    provider attached.
 
 > **Apple gotcha — name on first sign-in only.** Apple sends the user's
-> name *only* on the very first authorization. If sign-in fails partway
+> name _only_ on the very first authorization. If sign-in fails partway
 > through and the user retries, Apple won't re-send it; Clerk will store
 > the email but no display name. To force a re-send during testing, the
-> user can revoke Broadsheet from <https://appleid.apple.com> → *Sign in
-> with Apple* → *Stop Using Apple ID*.
+> user can revoke Broadsheet from <https://appleid.apple.com> → _Sign in
+> with Apple_ → _Stop Using Apple ID_.
 
 ---
 
@@ -259,13 +257,13 @@ again in production after promoting:
 4. Sign out (user menu → Sign out, see `src/app/components/user-menu.tsx`).
 5. Sign in via Apple with a fresh account → repeat.
 6. In Clerk dashboard → **Users**, confirm both users exist with the
-   correct OAuth provider in the *Connected accounts* column.
+   correct OAuth provider in the _Connected accounts_ column.
 
 ### Updating the Playwright e2e test
 
 `e2e/` and the `npm run test:e2e` / `test:e2e:prod-smoke` flows currently
 sign in with username + password (`E2E_CLERK_USER_USERNAME` /
-`E2E_CLERK_USER_PASSWORD` — see `.env.example` and the *Uptime monitoring*
+`E2E_CLERK_USER_PASSWORD` — see `.env.example` and the _Uptime monitoring_
 section of `README.md`). Social auth flows can't be driven headlessly in CI
 because Google and Apple block automated browsers, so **leave the e2e user
 on email/password**. Don't disable email/password auth in Clerk unless you
@@ -290,14 +288,14 @@ key contents to force it).
 **"Domain could not be verified" on Apple's Services ID.** Apple is
 fetching `https://<your-domain>/.well-known/apple-developer-domain-association.txt`
 and either getting a 404 or wrong content. The domain you put in Apple's
-*Domains and Subdomains* field must be the Clerk frontend domain (where
+_Domains and Subdomains_ field must be the Clerk frontend domain (where
 Clerk hosts the verification file) — i.e. `accounts.marginalutility.dev`,
-**not** `broadsheet.marginalutility.dev`. If you *are* using the Clerk
+**not** `broadsheet.marginalutility.dev`. If you _are_ using the Clerk
 domain and it still fails, wait a few minutes for DNS/CDN propagation
 and retry.
 
 **Google consent screen says "Google hasn't verified this app".** Your
-OAuth consent screen is in *Testing* status with sensitive scopes, or
+OAuth consent screen is in _Testing_ status with sensitive scopes, or
 publishing is in review. For `openid email profile` only, click **Publish
 App** and the warning should go away within minutes.
 
