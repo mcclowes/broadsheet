@@ -15,7 +15,7 @@ enum BroadsheetConfig {
     static let keychainAccessGroup = "com.broadsheet.ios.shared"
 
     /// Default API base URL. Overridable via the Settings screen.
-    static let defaultBaseURL = "https://broadsheet.app"
+    static let defaultBaseURL = "https://broadsheet.marginalutility.dev"
 
     private static let baseURLKey = "BROADSHEET_BASE_URL"
 
