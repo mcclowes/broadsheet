@@ -5,10 +5,14 @@ import { useEffect } from "react";
 /**
  * Registers the service worker on mount and handles updates.
  *
- * When a new SW activates (skipWaiting + clients.claim), the
- * `controllerchange` event fires.  We reload so the page picks up the
- * new app shell — but only if there was already a controller, to avoid
- * reloading on the very first install.
+ * The SW calls `skipWaiting()` in its install handler and `clients.claim()`
+ * in activate (see public/sw.template.js), so a freshly deployed SW takes
+ * control on the next navigation. That fires `controllerchange`, and we
+ * reload to drop the page state held by the old SW. The `hadController`
+ * guard prevents reloading on the very first install (when there was no
+ * prior SW to replace). Trade-off: one auto-reload per deploy — acceptable
+ * because there's no in-flight write state to lose, and the alternative
+ * (#180) was leaving users pinned to stale signed-out shells.
  */
 export function ServiceWorkerRegister() {
   useEffect(() => {
