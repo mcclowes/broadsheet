@@ -6,6 +6,18 @@
   padding: 2rem 1.5rem 4rem;
   font-family: var(--font-serif);
   color: var(--fg);
+  animation: paperEnter 320ms var(--ease-out) both;
+}
+
+@keyframes paperEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .masthead {
@@ -161,6 +173,11 @@
   letter-spacing: -0.015em;
   margin: 0 0 0.875rem;
   max-width: 22ch;
+  transition: color var(--motion-base) var(--ease-out);
+}
+
+.leadLink:hover .leadHeadline {
+  color: var(--accent);
 }
 
 .leadExcerpt {
@@ -233,6 +250,11 @@
   line-height: 1.2;
   margin: 0 0 0.5rem;
   letter-spacing: -0.01em;
+  transition: color var(--motion-base) var(--ease-out);
+}
+
+.secondaryLink:hover .secondaryHeadline {
+  color: var(--accent);
 }
 
 .secondaryExcerpt {
@@ -309,6 +331,11 @@
   line-height: 1.25;
   letter-spacing: -0.005em;
   margin: 0 0 0.25rem;
+  transition: color var(--motion-base) var(--ease-out);
+}
+
+.wireLink:hover .wireHeadline {
+  color: var(--accent);
 }
 
 .wireMeta {
@@ -461,6 +488,7 @@
   padding: 2rem 1.5rem 4rem;
   font-family: var(--font-serif);
   color: var(--fg);
+  animation: paperEnter 320ms var(--ease-out) both;
 }
 
 /* ── Landing masthead ────────────────────────────────────────────── */
@@ -512,6 +540,7 @@
   text-align: center;
   padding: 2rem 0 3.5rem;
   border-bottom: 1px solid var(--fg);
+  animation: paperEnter 480ms var(--ease-out) 80ms both;
 }
 
 .heroHeadline {
@@ -548,10 +577,20 @@
   border: none;
   padding: 0.75rem 2rem;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition:
+    background-color var(--motion-base) var(--ease-out),
+    transform var(--motion-base) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out);
 
   &:hover {
     background: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px var(--shadow-md);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px var(--shadow-sm);
   }
 }
 
@@ -621,6 +660,14 @@
   max-width: 40rem;
   margin: 0 auto;
   box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.15);
+  transition:
+    transform var(--motion-slow) var(--ease-out),
+    box-shadow var(--motion-slow) var(--ease-out);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 24px 48px -20px rgba(0, 0, 0, 0.18);
+  }
 }
 
 .previewChrome {

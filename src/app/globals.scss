@@ -36,6 +36,16 @@
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica,
     Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+  // Motion tokens. Kept gentle (≤ 240ms) and consistent across components.
+  // Reduced-motion override at the bottom of this file collapses all
+  // transitions/animations to a single tick, so don't set `transition: none`
+  // anywhere — let the override handle it.
+  --motion-quick: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 240ms;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 // Dark-mode palette. Applied in two cases:
@@ -116,6 +126,7 @@ body {
 a {
   color: var(--accent);
   text-decoration: none;
+  transition: color var(--motion-quick) var(--ease-out);
 
   &:hover {
     text-decoration: underline;
@@ -125,6 +136,11 @@ a {
 button {
   font: inherit;
   cursor: pointer;
+  transition:
+    color var(--motion-quick) var(--ease-out),
+    background-color var(--motion-quick) var(--ease-out),
+    border-color var(--motion-quick) var(--ease-out),
+    opacity var(--motion-quick) var(--ease-out);
 }
 
 .srOnly {
@@ -246,4 +262,37 @@ button {
 
 .reader-body th {
   font-weight: 600;
+}
+
+// ── Gentle page-enter animation ─────────────────────────────────────
+// Applied to top-level page wrappers via the `.pageEnter` class.
+// A short 280ms fade + 6px lift, no horizontal motion.
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pageEnter {
+  animation: pageEnter 280ms var(--ease-out) both;
+}
+
+// ── Reduced motion ──────────────────────────────────────────────────
+// Honor user preference. Collapses transitions and animations to a
+// single tick rather than zeroing them, which keeps state changes
+// (e.g. menu open/close) functional even with reduced motion.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -36,9 +36,13 @@
   border-radius: 999px;
   text-decoration: none;
   color: var(--fg-muted);
+  transition:
+    color var(--motion-quick) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out);
 
   &:hover {
     color: var(--fg);
+    background: var(--bg-elevated);
   }
 }
 
@@ -48,6 +52,7 @@
 
   &:hover {
     color: var(--bg);
+    background: var(--fg);
   }
 }
 
@@ -117,11 +122,15 @@
   text-decoration: none;
   color: var(--fg);
   transition:
-    border-color 120ms ease,
-    background-color 120ms ease;
+    border-color var(--motion-quick) var(--ease-out),
+    background-color var(--motion-quick) var(--ease-out),
+    transform var(--motion-base) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out);
 
   &:hover {
     border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--shadow-sm);
   }
 }
 
@@ -258,10 +267,15 @@
   font-size: 0.8125rem;
   color: var(--fg);
   cursor: pointer;
+  transition:
+    color var(--motion-quick) var(--ease-out),
+    border-color var(--motion-quick) var(--ease-out),
+    background-color var(--motion-quick) var(--ease-out);
 
   &:hover:not(:disabled) {
     border-color: var(--accent);
     color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
   }
 
   &:disabled {
