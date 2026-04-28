@@ -69,6 +69,19 @@
   box-shadow: 0 6px 24px var(--shadow-sm);
   display: flex;
   flex-direction: column;
+  transform-origin: top right;
+  animation: itemMenuIn var(--motion-base) var(--ease-out) both;
+}
+
+@keyframes itemMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .menuItem {
@@ -85,6 +98,9 @@
   color: var(--fg);
   text-decoration: none;
   cursor: pointer;
+  transition:
+    background-color var(--motion-quick) var(--ease-out),
+    color var(--motion-quick) var(--ease-out);
 
   &:hover,
   &:focus-visible {
