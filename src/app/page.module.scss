@@ -772,4 +772,14 @@
   p {
     margin: 0;
   }
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+
+    &:hover {
+      color: var(--fg);
+    }
+  }
 }
