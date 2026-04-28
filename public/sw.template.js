@@ -69,7 +69,7 @@ self.addEventListener("fetch", (event) => {
   // guarantee uniqueness, so stale copies are safe.
   if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
-      cacheFirst(event.request, ASSETS_CACHE, MAX_CACHED_ASSETS),
+      cacheFirst(event.request, ASSETS_CACHE, MAX_CACHED_ASSETS, self),
     );
     return;
   }
@@ -103,52 +103,14 @@ self.addEventListener("fetch", (event) => {
   // Static sub-resources (images, fonts, etc.) — stale-while-revalidate in
   // the assets bucket.
   event.respondWith(
-    staleWhileRevalidate(event.request, ASSETS_CACHE, MAX_CACHED_ASSETS),
+    staleWhileRevalidate(event.request, ASSETS_CACHE, MAX_CACHED_ASSETS, self),
   );
 });
 
-async function cacheFirst(request, cacheName, maxEntries) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok) {
-    const cache = await caches.open(cacheName);
-    cache.put(request, response.clone());
-    trimCache(cache, maxEntries);
-  }
-  return response;
-}
-
-async function staleWhileRevalidate(request, cacheName, maxEntries) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-
-  const fetchPromise = fetch(request)
-    .then((response) => {
-      if (response.ok) {
-        cache.put(request, response.clone());
-        trimCache(cache, maxEntries);
-      }
-      return response;
-    })
-    .catch(() => null);
-
-  return (
-    cached || (await fetchPromise) || new Response("Offline", { status: 503 })
-  );
-}
-
-// Cache.keys() returns requests in insertion order in all major browsers.
-// Fire-and-forget — never blocks the response.
-function trimCache(cache, maxEntries) {
-  cache.keys().then((keys) => {
-    if (keys.length <= maxEntries) return;
-    const surplus = keys.length - maxEntries;
-    for (let i = 0; i < surplus; i++) {
-      cache.delete(keys[i]);
-    }
-  });
-}
+// Cache-strategy helpers live in public/sw-strategies.js (single source of
+// truth, tested by src/lib/sw-strategies.test.ts). scripts/build-sw.mjs
+// strips the `export` keyword and substitutes them at the sentinel below.
+// @@INLINE_STRATEGIES
 
 // Kept as a manual escape hatch — the install handler already calls
 // `skipWaiting()` so new SWs activate on next navigation, but a client
