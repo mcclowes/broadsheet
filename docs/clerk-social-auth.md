@@ -14,12 +14,30 @@ This doc covers:
 3. Apple Developer (Services ID + signing key for "Sign in with Apple")
 4. Verifying the flow end-to-end and troubleshooting
 
+### Domains used in this guide
+
+- **Web app:** <https://broadsheet.marginalutility.dev/>
+- **Clerk frontend / OAuth callback host (production):**
+  `accounts.marginalutility.dev` — the shared Marginal Utility account
+  system. The OAuth callback URL Google and Apple need is therefore
+  `https://accounts.marginalutility.dev/v1/oauth_callback`.
+- **Clerk dev frontend:** `<slug>.clerk.accounts.dev` (auto-assigned;
+  shown in the Clerk dashboard's **API Keys** / provider panels).
+
+> **Shared Clerk instance — heads-up.** `accounts.marginalutility.dev` is
+> the root of a Clerk instance shared across multiple Marginal Utility
+> sites, not a Broadsheet-only instance. Toggling a social provider or
+> rotating its credentials affects every app on that instance. Coordinate
+> with whoever owns the other apps before disabling a provider, and reuse
+> existing Google/Apple credentials if they're already configured rather
+> than creating a second OAuth client for the same Clerk instance.
+
 > **Development vs production.** Clerk's *development* instance ships with
-> shared OAuth credentials for most social providers — you can flip Google and
-> Apple on with one click and they'll work on `localhost`. The shared
+> shared OAuth credentials for most social providers — you can flip Google
+> and Apple on with one click and they'll work on `localhost`. The shared
 > credentials show a generic "via Clerk" consent screen and are explicitly
-> **not allowed in production**. Everything in §2 and §3 is required when you
-> promote your Clerk instance to production (or any time you want a branded
+> **not allowed in production**. Everything in §2 and §3 is required when
+> you promote to the production instance (or any time you want a branded
 > consent screen in dev).
 
 ---
@@ -38,12 +56,15 @@ This doc covers:
 4. Toggle **Google** and **Apple** on. In development you're done — the
    `<SignIn />` component will render "Continue with Google" and "Continue
    with Apple" buttons immediately.
-5. For each provider, click the row to open its settings panel. You'll need
-   the **Authorized redirect URI** Clerk shows you (it's of the form
-   `https://<your-frontend-api>.clerk.accounts.dev/v1/oauth_callback` in dev,
-   and `https://clerk.<your-domain>/v1/oauth_callback` in production once
-   you've added a custom domain). Keep that tab open — you'll paste it into
-   Google and Apple in the next sections.
+5. For each provider, click the row to open its settings panel. The
+   **Authorized redirect URI** Clerk shows you is what Google and Apple
+   need:
+   - **Production:** `https://accounts.marginalutility.dev/v1/oauth_callback`
+   - **Development:** `https://<slug>.clerk.accounts.dev/v1/oauth_callback`
+     (the `<slug>` is auto-assigned per Clerk app — copy it from the
+     dashboard, don't guess).
+   Keep that tab open — you'll paste the URI into Google and Apple in the
+   next sections.
 
 The env vars in `.env.example` (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
 `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`,
@@ -74,10 +95,12 @@ This is what users see when they click "Continue with Google" — the branded
    - **App name:** `Broadsheet`
    - **User support email:** an address you monitor
    - **App logo:** optional but recommended (square PNG ≤1 MB).
-   - **App domain → Application home page:** `https://broadsheet.app`
-   - **Authorised domains:** `broadsheet.app` *and* the Clerk frontend
-     domain shown in the Clerk panel (e.g. `clerk.broadsheet.app` for prod, or
-     `clerk.accounts.dev` for the shared dev domain).
+   - **App domain → Application home page:**
+     `https://broadsheet.marginalutility.dev`
+   - **Authorised domains:** `marginalutility.dev` covers both
+     `broadsheet.marginalutility.dev` and the Clerk frontend
+     `accounts.marginalutility.dev` in one entry. (For the shared Clerk dev
+     instance, also add `clerk.accounts.dev`.)
    - **Developer contact:** your email.
 4. **Scopes:** click **Add or Remove Scopes** and select `openid`,
    `userinfo.email`, `userinfo.profile`. That's all Clerk needs.
@@ -98,10 +121,11 @@ This is what users see when they click "Continue with Google" — the branded
 3. **Name:** `Broadsheet — Clerk` (free-form, for your reference).
 4. **Authorised JavaScript origins:** leave empty. Clerk handles the popup
    from its own domain, not yours.
-5. **Authorised redirect URIs:** paste the URL Clerk gave you in §1.5.
-   Example for production: `https://clerk.broadsheet.app/v1/oauth_callback`.
-   Example for the shared dev instance:
-   `https://<slug>.clerk.accounts.dev/v1/oauth_callback`.
+5. **Authorised redirect URIs:** paste the URL Clerk gave you in §1.5. Add
+   both if you want the same OAuth client to cover dev and prod:
+   - Production: `https://accounts.marginalutility.dev/v1/oauth_callback`
+   - Development (shared Clerk dev frontend):
+     `https://<slug>.clerk.accounts.dev/v1/oauth_callback`
 6. **Create.** Copy the **Client ID** and **Client secret**.
 
 ### 2.4 Paste credentials into Clerk
@@ -132,8 +156,10 @@ This is what users see when they click "Continue with Google" — the branded
 - A **Services ID** — this is the OAuth `client_id`.
 - A **Key** with *Sign in with Apple* enabled — this gives you a `.p8`
   private key file used to sign the client secret JWT.
-- The frontend domain you'll authenticate from (e.g. `clerk.broadsheet.app`)
-  verified via a `.well-known` file Apple asks you to host.
+- The Clerk frontend domain you'll authenticate from
+  (`accounts.marginalutility.dev` in prod, the
+  `<slug>.clerk.accounts.dev` host in dev) verified via a `.well-known`
+  file Apple asks you to host — Clerk hosts this for you, see §3.2.7.
 
 ### 3.1 Create an App ID (Identifier)
 
@@ -158,12 +184,13 @@ The Services ID is the OAuth client ID Clerk will use.
 3. Open the new Services ID from the list and tick **Sign In with Apple →
    Configure**.
 4. **Primary App ID:** the one from §3.1.
-5. **Domains and Subdomains:** the Clerk frontend host without scheme. For
-   production, that's the Clerk custom domain you've configured (e.g.
-   `clerk.broadsheet.app`). For the shared dev instance, use the
-   `<slug>.clerk.accounts.dev` host shown in Clerk's Apple panel.
-6. **Return URLs:** the full redirect URI from Clerk's panel, e.g.
-   `https://clerk.broadsheet.app/v1/oauth_callback`.
+5. **Domains and Subdomains:** the Clerk frontend host without scheme.
+   - Production: `accounts.marginalutility.dev`
+   - Development: the `<slug>.clerk.accounts.dev` host shown in Clerk's
+     Apple panel.
+6. **Return URLs:** the full redirect URI from Clerk's panel.
+   - Production: `https://accounts.marginalutility.dev/v1/oauth_callback`
+   - Development: `https://<slug>.clerk.accounts.dev/v1/oauth_callback`
 7. Apple will generate a domain verification file
    (`apple-developer-domain-association.txt`) and tell you to host it at
    `/.well-known/apple-developer-domain-association.txt` on each domain.
@@ -264,9 +291,10 @@ key contents to force it).
 fetching `https://<your-domain>/.well-known/apple-developer-domain-association.txt`
 and either getting a 404 or wrong content. The domain you put in Apple's
 *Domains and Subdomains* field must be the Clerk frontend domain (where
-Clerk hosts the verification file), not `broadsheet.app` itself. If you
-*are* using the Clerk domain and it still fails, wait a few minutes for
-DNS/CDN propagation and retry.
+Clerk hosts the verification file) — i.e. `accounts.marginalutility.dev`,
+**not** `broadsheet.marginalutility.dev`. If you *are* using the Clerk
+domain and it still fails, wait a few minutes for DNS/CDN propagation
+and retry.
 
 **Google consent screen says "Google hasn't verified this app".** Your
 OAuth consent screen is in *Testing* status with sensitive scopes, or

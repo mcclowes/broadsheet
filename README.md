@@ -96,12 +96,12 @@ Secrets required (Settings → Secrets and variables → Actions):
 | `PROD_SMOKE_USER_USERNAME`   | Email of the dedicated test user      |
 | `PROD_SMOKE_USER_PASSWORD`   | Password of the dedicated test user   |
 
-Optional repository variable `PROD_BASE_URL` overrides the default `https://broadsheet.app`.
+Optional repository variable `PROD_BASE_URL` overrides the default `https://broadsheet.marginalutility.dev`.
 
 To run the smoke check locally against prod:
 
 ```bash
-E2E_BASE_URL=https://broadsheet.app \
+E2E_BASE_URL=https://broadsheet.marginalutility.dev \
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_… \
 CLERK_SECRET_KEY=sk_live_… \
 E2E_CLERK_USER_USERNAME=max+test@mcclowes.com \
