@@ -26,6 +26,23 @@ function isTrackingParam(name: string): boolean {
   return TRACKING_PARAM_PATTERNS.some((re) => re.test(name));
 }
 
+// Paths are RFC-3986 case-sensitive, but in practice publisher slugs almost
+// always come from a case-insensitive CMS — so `/Foo-Bar` and `/foo-bar` are
+// the same article and should dedup. Risk: lowercasing a genuinely
+// case-sensitive path (camelCase IDs like `/AbC123`, GitHub usernames like
+// `/JohnDoe`) creates a *false* dedup that returns the wrong article on
+// save. False dedup is data loss; missed dedup is a duplicate row. Bias
+// toward not lowercasing when the path looks case-sensitive.
+//
+// Heuristic: lowercase only if there's no lowercase-followed-by-uppercase
+// transition. That preserves camelCase and PascalCase IDs (where lowercase
+// letters are followed by capitals mid-token) while still folding
+// title-cased slugs like `/Some-Article-Title` (capitals only at word
+// boundaries) into their canonical lowercase form.
+function shouldLowercasePath(path: string): boolean {
+  return !/[a-z][A-Z]/.test(path);
+}
+
 export function canonicalizeUrl(input: string): string {
   const u = new URL(input);
   u.hash = "";
@@ -45,6 +62,9 @@ export function canonicalizeUrl(input: string): string {
   for (const [k, v] of keep) u.searchParams.append(k, v);
   if (u.pathname !== "/" && u.pathname.endsWith("/")) {
     u.pathname = u.pathname.replace(/\/+$/, "");
+  }
+  if (shouldLowercasePath(u.pathname)) {
+    u.pathname = u.pathname.toLowerCase();
   }
   return u.toString();
 }
