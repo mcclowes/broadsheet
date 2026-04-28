@@ -32,6 +32,13 @@ const AUTH_SKIP_PREFIXES = [
 const AUTH_GATED_PREFIXES = ["/library", "/read/", "/sources", "/settings"];
 
 self.addEventListener("install", (event) => {
+  // skipWaiting + clients.claim (in activate) means a freshly deployed SW
+  // takes control on the user's next navigation, instead of waiting until
+  // every PWA window closes. Without this, users sit on a stale SW for
+  // days — and an old SW that cached nav HTML keeps them pinned to a
+  // signed-out shell across deploys (#180). The reload after takeover is
+  // handled by `controllerchange` in service-worker-register.tsx.
+  self.skipWaiting();
   event.waitUntil(
     caches.open(SHELL_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)),
   );
@@ -143,9 +150,10 @@ function trimCache(cache, maxEntries) {
   });
 }
 
-// Client can request an immediate activation (used by the future update
-// toast — #131). Default is to let the new SW wait until all tabs close,
-// so we don't silently reload and lose user state.
+// Kept as a manual escape hatch — the install handler already calls
+// `skipWaiting()` so new SWs activate on next navigation, but a client
+// can still send "skipWaiting" if we ever bring back the update toast
+// from #131 (for now superseded by auto-skipWaiting; see #180).
 self.addEventListener("message", (event) => {
   event.waitUntil(
     (async () => {
