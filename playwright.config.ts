@@ -6,8 +6,8 @@ import { defineConfig, devices } from "@playwright/test";
  * Boots `next dev` with `BROADSHEET_FOLIO_ADAPTER=memory` so tests run against
  * ephemeral in-memory storage and never touch `.broadsheet-data/` or Vercel
  * Blob. Auth is real Clerk — the suite signs in with a dedicated Clerk test
- * user (see E2E_CLERK_USER_USERNAME / E2E_CLERK_USER_PASSWORD in
- * `.env.example`) and reuses the session via storageState.
+ * user (see E2E_CLERK_USER_USERNAME in `.env.example`) via a backend-issued
+ * sign-in token, and reuses the session via storageState.
  *
  * Run:
  *   npm run test:e2e        # headless

@@ -14,7 +14,6 @@ import { defineConfig, devices } from "@playwright/test";
  *   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY  — production Clerk publishable key
  *   CLERK_SECRET_KEY                   — production Clerk secret key
  *   E2E_CLERK_USER_USERNAME            — smoke test user email
- *   E2E_CLERK_USER_PASSWORD            — smoke test user password
  *   E2E_BASE_URL                       — defaults to https://broadsheet.app
  *
  * Run locally:
