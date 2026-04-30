@@ -212,13 +212,16 @@ export async function addUnanchoredHighlights(
       const key = `${text}\u0000${input.createdAt}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      merged.push({
+      // Build without an explicit `source` key when undefined — including
+      // `source: undefined` makes the YAML serializer throw.
+      const entry: UnanchoredHighlight = {
         id: randomUUID(),
         text: text.slice(0, 4000),
         note: input.note ?? null,
         createdAt: input.createdAt,
-        source: input.source,
-      });
+        ...(input.source ? { source: input.source } : {}),
+      };
+      merged.push(entry);
       added++;
     }
     if (added === 0) return;
