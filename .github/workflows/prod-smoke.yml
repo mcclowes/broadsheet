@@ -29,8 +29,11 @@ jobs:
       E2E_BASE_URL: ${{ vars.PROD_BASE_URL || 'https://broadsheet.app' }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.PROD_CLERK_PUBLISHABLE_KEY }}
       CLERK_SECRET_KEY: ${{ secrets.PROD_CLERK_SECRET_KEY }}
+      # The auth helper mints a sign-in token via the Clerk Backend API
+      # (using CLERK_SECRET_KEY) and exchanges it for a session — no
+      # password is needed, and 2FA / Cloudflare bot challenge in front of
+      # the Clerk frontend are both bypassed.
       E2E_CLERK_USER_USERNAME: ${{ secrets.PROD_SMOKE_USER_USERNAME }}
-      E2E_CLERK_USER_PASSWORD: ${{ secrets.PROD_SMOKE_USER_PASSWORD }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6

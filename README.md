@@ -94,7 +94,8 @@ Secrets required (Settings → Secrets and variables → Actions):
 | `PROD_CLERK_PUBLISHABLE_KEY` | Clerk dashboard (production instance) |
 | `PROD_CLERK_SECRET_KEY`      | Clerk dashboard (production instance) |
 | `PROD_SMOKE_USER_USERNAME`   | Email of the dedicated test user      |
-| `PROD_SMOKE_USER_PASSWORD`   | Password of the dedicated test user   |
+
+The auth helper mints a sign-in token via the Clerk Backend API (using `CLERK_SECRET_KEY`) and exchanges it for a session, so no password is needed and 2FA / Cloudflare bot challenges are bypassed. The legacy `PROD_SMOKE_USER_PASSWORD` secret is no longer used — safe to delete from the repo's Actions secrets.
 
 Optional repository variable `PROD_BASE_URL` overrides the default `https://broadsheet.app`.
 
@@ -105,7 +106,6 @@ E2E_BASE_URL=https://broadsheet.app \
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_… \
 CLERK_SECRET_KEY=sk_live_… \
 E2E_CLERK_USER_USERNAME=max+test@mcclowes.com \
-E2E_CLERK_USER_PASSWORD=… \
 npm run test:e2e:prod-smoke
 ```
 
