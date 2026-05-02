@@ -185,9 +185,51 @@ describe("canonicalizeUrl", () => {
   });
 
   it("lowercases host and drops www", () => {
-    expect(canonicalizeUrl("https://WWW.Example.COM/Path")).toBe(
-      "https://example.com/Path",
+    expect(canonicalizeUrl("https://WWW.Example.COM/some-post")).toBe(
+      "https://example.com/some-post",
     );
+  });
+
+  describe("path case normalisation", () => {
+    it("lowercases title-cased slugs (caps only at word boundaries)", () => {
+      expect(canonicalizeUrl("https://example.com/Foo")).toBe(
+        "https://example.com/foo",
+      );
+      expect(canonicalizeUrl("https://example.com/Some-Article-Title")).toBe(
+        "https://example.com/some-article-title",
+      );
+      expect(canonicalizeUrl("https://example.com/2024/Jan/Headline")).toBe(
+        "https://example.com/2024/jan/headline",
+      );
+    });
+
+    it("preserves camelCase / PascalCase mid-word capitals", () => {
+      // Mid-word capital → likely a case-sensitive ID. False dedup is worse
+      // than missed dedup, so leave these alone.
+      expect(canonicalizeUrl("https://example.com/p/AbC123")).toBe(
+        "https://example.com/p/AbC123",
+      );
+      expect(canonicalizeUrl("https://github.com/JohnDoe/Repo")).toBe(
+        "https://github.com/JohnDoe/Repo",
+      );
+      expect(canonicalizeUrl("https://example.com/users/JohnMcCarthy")).toBe(
+        "https://example.com/users/JohnMcCarthy",
+      );
+    });
+
+    it("dedup: case-insensitive slugs hash to the same id", () => {
+      expect(articleIdForUrl("https://example.com/Foo-Bar")).toBe(
+        articleIdForUrl("https://example.com/foo-bar"),
+      );
+    });
+
+    it("dedup: camelCase paths still hash distinctly", () => {
+      // Belt-and-braces — preserving case has to actually be preserved by
+      // the id hash, not just the canonical string.
+      expect(articleIdForUrl("https://example.com/p/AbC")).not.toBe(
+        articleIdForUrl("https://example.com/p/abc"),
+      );
+    });
   });
 
   it("strips utm and other tracking params", () => {
