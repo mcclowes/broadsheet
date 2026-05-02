@@ -11,7 +11,6 @@ import {
 import { authedUserId } from "@/lib/auth-types";
 import { SaveForm } from "./save-form";
 import { DigestToggle } from "./digest-toggle";
-import { CacheLibrary } from "./cache-library";
 import { SwipeableArticleLink } from "./swipeable-article-link";
 import { LibraryItemActions } from "./library-item-actions";
 import { LibrarySidebar } from "./library-sidebar";
@@ -247,23 +246,6 @@ export default async function LibraryPage({
   const pageStart = (safePage - 1) * PAGE_SIZE;
   const articles = filteredArticles.slice(pageStart, pageStart + PAGE_SIZE);
 
-  const summariesForCache = allArticles.map((a) => ({
-    id: a.id,
-    title: a.title,
-    url: a.url,
-    source: a.source,
-    byline: a.byline,
-    excerpt: a.excerpt,
-    lang: a.lang,
-    image: a.image ?? null,
-    wordCount: a.wordCount,
-    readMinutes: a.readMinutes,
-    savedAt: a.savedAt,
-    readAt: a.readAt,
-    archivedAt: a.archivedAt,
-    tags: a.tags,
-  }));
-
   const grouped = bucketByDate(articles);
 
   const lengthOptions: FilterMenuOption[] = (
@@ -310,7 +292,6 @@ export default async function LibraryPage({
   return (
     <main className={styles.main}>
       <WelcomeOverlay show={welcome} />
-      <CacheLibrary articles={summariesForCache} />
 
       <h1 className="srOnly">Library</h1>
 

@@ -2,10 +2,6 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  updateCachedArticleMeta,
-  patchCachedArticleMeta,
-} from "@/lib/offline-storage";
 import styles from "./quick-actions.module.scss";
 
 interface Props {
@@ -49,26 +45,12 @@ export function QuickActions({
   }, []);
 
   async function patch(body: Record<string, unknown>) {
-    if (!navigator.onLine) {
-      await updateCachedArticleMeta(
-        articleId,
-        body as { read?: boolean; archived?: boolean },
-      );
-      return body;
-    }
-
     const res = await fetch(`/api/articles/${articleId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     if (!res.ok) return null;
-
-    patchCachedArticleMeta(
-      articleId,
-      body as { read?: boolean; archived?: boolean },
-    ).catch(() => {});
-
     return res.json();
   }
 

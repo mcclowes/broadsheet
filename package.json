@@ -3,9 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "predev": "node scripts/build-sw.mjs",
     "dev": "next dev",
-    "prebuild": "node scripts/build-sw.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

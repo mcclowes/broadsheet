@@ -10,7 +10,6 @@ import { Annotator } from "./annotator";
 import { ArticleActions } from "./article-actions";
 import { ArticleMenu } from "./article-menu";
 import { ReadTracker } from "./read-tracker";
-import { CacheArticle } from "./cache-article";
 import { ReadingProgress } from "./reading-progress";
 import { QuickActions } from "./quick-actions";
 import { ScrollNav } from "./scroll-nav";
@@ -66,25 +65,6 @@ export default async function ReadPage({
   return (
     <main className={styles.main}>
       <ReadingProgress />
-      <CacheArticle
-        article={{
-          id: article.id,
-          title: article.title,
-          url: article.url,
-          source: article.source,
-          byline: article.byline,
-          excerpt: article.excerpt,
-          lang: article.lang,
-          image: article.image ?? null,
-          wordCount: article.wordCount,
-          readMinutes: article.readMinutes,
-          savedAt: article.savedAt,
-          readAt: article.readAt,
-          archivedAt: article.archivedAt,
-          tags: article.tags,
-          body: article.body,
-        }}
-      />
 
       <ScrollNav>
         <nav className={styles.nav}>
