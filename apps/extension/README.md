@@ -36,8 +36,11 @@ Broadsheet and sign in first."
   supports MV3 service workers.
 - `background.js` — reads active tab URL, injects a content script to grab the
   rendered DOM, POSTs `{ url, html }` to `/api/articles`, surfaces a browser
-  notification. Uses the `chrome.*` namespace, which is polyfilled by both
-  Firefox and Safari, so the same file runs unchanged in all three browsers.
+  notification. Also registers a "Save to Broadsheet with highlight" right-click
+  menu item on selected text — the selection is sent alongside the save and
+  anchored as a highlight on the article. Uses the `chrome.*` namespace, which
+  is polyfilled by both Firefox and Safari, so the same file runs unchanged in
+  all three browsers.
 - `popup.html` / `popup.js` — one-click save button + status.
 - `options.html` / `options.js` — set Broadsheet base URL (default: production;
   change for dev or self-hosted instances).
@@ -174,9 +177,10 @@ First-time checklist:
    - Screenshots: 1280×800 or 640×400 PNG/JPEG, at least one.
    - Icon: the 128×128 from `icons/icon128.png` is used automatically.
 5. **Justify permissions** in the privacy practices tab:
-   - `activeTab` + `scripting` — read the active tab's URL and rendered HTML on explicit user action (click / keyboard shortcut) to save it to the user's library.
+   - `activeTab` + `scripting` — read the active tab's URL and rendered HTML on explicit user action (click / keyboard shortcut / right-click menu) to save it to the user's library.
    - `storage` — persist the `baseUrl` preference.
    - `notifications` — show save-result toasts.
+   - `contextMenus` — add a "Save to Broadsheet with highlight" entry to the right-click menu when text is selected.
    - Host permission for `broadsheet.marginalutility.dev` — deliver the save request with the user's existing cookie session.
    - Remote code: **none**.
 6. **Link the privacy policy URL** from step 2.

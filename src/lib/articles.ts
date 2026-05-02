@@ -358,6 +358,14 @@ export interface ArticlePage {
 export const saveArticleRequestSchema = z.object({
   url: z.string().url(),
   html: z.string().min(1).max(MAX_USER_HTML_BYTES).optional(),
+  // Optional selection captured at save time (e.g. extension right-click).
+  // The server tries to anchor `text` to a character range in the rendered
+  // article; on miss it falls back to an unanchored highlight.
+  selection: z
+    .object({
+      text: z.string().min(1).max(2000),
+    })
+    .optional(),
 });
 
 export function parseListFilters(params: URLSearchParams): ListFilters {

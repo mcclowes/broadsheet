@@ -425,6 +425,30 @@ describe("saveArticleRequestSchema", () => {
     });
     expect(r.success).toBe(false);
   });
+
+  it("accepts an optional selection.text", () => {
+    const r = saveArticleRequestSchema.safeParse({
+      url: "https://example.com/a",
+      selection: { text: "the quick brown fox" },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects empty selection.text", () => {
+    const r = saveArticleRequestSchema.safeParse({
+      url: "https://example.com/a",
+      selection: { text: "" },
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects selection.text longer than 2000 chars", () => {
+    const r = saveArticleRequestSchema.safeParse({
+      url: "https://example.com/a",
+      selection: { text: "a".repeat(2001) },
+    });
+    expect(r.success).toBe(false);
+  });
 });
 
 describe("encodeCursor / decodeCursor", () => {
