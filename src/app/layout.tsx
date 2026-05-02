@@ -1,9 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/next";
-import { ServiceWorkerRegister } from "./components/service-worker-register";
-import { OfflineSync } from "./components/offline-sync";
-import { OfflineIndicator } from "./components/offline-indicator";
 import { CommandPalette } from "./components/command-palette";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.scss";
@@ -12,7 +9,6 @@ export const metadata: Metadata = {
   title: "Broadsheet",
   description: "Save articles. Read them cleanly. Keep them.",
   referrer: "no-referrer",
-  manifest: "/manifest.json",
   icons: {
     icon: [
       { url: "/icons/favicon.ico", sizes: "any" },
@@ -27,11 +23,6 @@ export const metadata: Metadata = {
         type: "image/png",
       },
     ],
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Broadsheet",
   },
 };
 
@@ -59,9 +50,6 @@ export default function RootLayout({
         <body>
           {children}
           <CommandPalette />
-          <ServiceWorkerRegister />
-          <OfflineSync />
-          <OfflineIndicator />
           <Analytics />
         </body>
       </html>
