@@ -21,16 +21,16 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.2.7",
+    "@clerk/nextjs": "^7.3.0",
     "@mozilla/readability": "^0.6.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.3.3",
-    "@vercel/functions": "^3.4.4",
+    "@vercel/functions": "^3.5.0",
     "diff": "^8.0.4",
-    "dompurify": "^3.4.1",
+    "dompurify": "^3.4.2",
     "folio-db-next": "^0.2.3",
     "jsdom": "25.0.1",
-    "marked": "~18.0.2",
+    "marked": "~18.0.3",
     "next": "^16.2.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
@@ -41,7 +41,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@clerk/testing": "^2.0.21",
+    "@clerk/testing": "^2.0.24",
     "@eslint/eslintrc": "^3.3.5",
     "@playwright/test": "^1.59.1",
     "@types/diff": "^8.0.0",
