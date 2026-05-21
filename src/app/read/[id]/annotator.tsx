@@ -46,13 +46,21 @@ export function Annotator({ articleId, html, initial }: Props) {
     render();
   }, [render]);
 
-  // Mobile browsers don't fire `mouseup` when text is selected via the native
-  // touch selection handles, so listen to `selectionchange` on document — that
-  // fires for both mouse and touch. It fires on every tick while the user
-  // drags a selection handle, hence the debounce.
+  // `pointerup` (mouse-up / touch-end) is the real trigger: it tells us a
+  // drag-selection has finished. `selectionchange` is kept only as a fallback
+  // for selections made without a pointer drag — keyboard (shift+arrows) or
+  // native touch handles that don't surface DOM pointer events.
+  //
+  // Critically, we must NOT call `setPending` — which mounts the toolbar and
+  // mutates the DOM — while a pointer is still pressed. Inserting a node
+  // during an in-progress drag-selection makes Chrome re-anchor the live
+  // selection to the start of the article and stop painting it. So the
+  // debounced selectionchange handler bails out whenever a pointer is down.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+
+    let pointerDown = false;
 
     const readSelection = () => {
       const sel = window.getSelection();
@@ -83,13 +91,17 @@ export function Annotator({ articleId, html, initial }: Props) {
       if (timer !== null) window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         timer = null;
+        // Never read mid-drag — the re-render would corrupt the live
+        // selection. pointerup triggers the read once the pointer is up.
+        if (pointerDown) return;
         readSelection();
       }, 250);
     };
-    // pointerup covers both mouse-up and touch-end, giving us an immediate
-    // read once the user releases — the debounced selectionchange is the
-    // safety net for cases where pointerup is suppressed (e.g. iOS handles).
+    const onPointerDown = () => {
+      pointerDown = true;
+    };
     const onPointerUp = () => {
+      pointerDown = false;
       if (timer !== null) {
         window.clearTimeout(timer);
         timer = null;
@@ -99,10 +111,16 @@ export function Annotator({ articleId, html, initial }: Props) {
     };
 
     document.addEventListener("selectionchange", onSelectionChange);
+    document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("pointerup", onPointerUp);
+    // A pointerup may never arrive if the gesture is stolen by the UA;
+    // pointercancel resets the flag so the fallback path isn't wedged off.
+    document.addEventListener("pointercancel", onPointerUp);
     return () => {
       document.removeEventListener("selectionchange", onSelectionChange);
+      document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerUp);
       if (timer !== null) window.clearTimeout(timer);
     };
   }, []);
