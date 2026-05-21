@@ -1,22 +1,30 @@
 version: 2
 updates:
-  # npm deps at the repo root. Group non-major bumps so review load stays low;
-  # majors still come in as individual PRs so they get real attention.
+  # npm deps at the repo root. Both routine version bumps and security fixes
+  # are grouped so they arrive as one PR each instead of a flood of patch PRs.
+  # Majors still come in as individual PRs so they get real attention.
   - package-ecosystem: npm
     directory: "/"
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "06:00"
       timezone: Etc/UTC
     open-pull-requests-limit: 5
     labels:
       - dependencies
     groups:
+      # Routine minor/patch version bumps -> one PR per run.
       minor-and-patch:
+        applies-to: version-updates
         update-types:
           - minor
           - patch
+      # Security advisories ignore the group above by default, so they need
+      # their own group or each one lands as a separate PR.
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     ignore:
       # React + Next major bumps deserve a manual migration PR, not a
       # Dependabot one. Minor/patch still flow through the group above.
@@ -28,14 +36,23 @@ updates:
         update-types: [version-update:semver-major]
 
   # GitHub Actions in .github/workflows. Pinning matters for supply-chain
-  # safety; weekly bumps keep action versions current.
+  # safety; monthly bumps keep action versions current. Grouped so all action
+  # bumps arrive in a single PR rather than one per action.
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "06:00"
       timezone: Etc/UTC
     labels:
       - dependencies
       - github-actions
+    groups:
+      github-actions:
+        applies-to: version-updates
+        patterns:
+          - "*"
+      github-actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
