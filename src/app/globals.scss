@@ -264,6 +264,17 @@ button {
   font-weight: 600;
 }
 
+// While the annotation toolbar is open, the text selection *is* the pending
+// highlight — so give it the highlighter look rather than the faint
+// browser-default selection (invisible on the dark theme). This makes
+// "select text" read as "highlighted" before a swatch colour is picked,
+// at which point annotator.tsx paints the committed `mark`. Pale background
+// + forced dark text mirrors the `mark[data-highlight-id]` rule.
+.reader-body ::selection {
+  background: #fde68a;
+  color: #1a1a1a;
+}
+
 // ── Gentle page-enter animation ─────────────────────────────────────
 // Applied to top-level page wrappers via the `.pageEnter` class.
 // A short 280ms fade + 6px lift, no horizontal motion.
