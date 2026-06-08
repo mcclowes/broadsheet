@@ -11,8 +11,10 @@ import {
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const DIGEST_FROM =
-  process.env.DIGEST_FROM_EMAIL ?? "Broadsheet <digest@broadsheet.app>";
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://broadsheet.app";
+  process.env.DIGEST_FROM_EMAIL ??
+  "Broadsheet <digest@broadsheet.marginalutility.dev>";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL ?? "https://broadsheet.marginalutility.dev";
 
 export async function POST(req: Request) {
   // Verify the request is from Vercel Cron or an admin with the secret.

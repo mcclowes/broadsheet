@@ -126,9 +126,9 @@ describe("handleProxy — public API passes through", () => {
     const auth = mockAuth(null);
     const res = await handleProxy(
       auth,
-      req(`https://broadsheet.app${path}`, {
+      req(`https://broadsheet.marginalutility.dev${path}`, {
         method,
-        origin: "https://broadsheet.app",
+        origin: "https://broadsheet.marginalutility.dev",
       }),
     );
     expect(res).toBeUndefined();
@@ -145,31 +145,43 @@ describe("handleProxy — protected pages call auth.protect()", () => {
     "/import/pocket",
   ])("calls auth.protect() on %s", async (path) => {
     const auth = mockAuth(null);
-    await handleProxy(auth, req(`https://broadsheet.app${path}`));
+    await handleProxy(
+      auth,
+      req(`https://broadsheet.marginalutility.dev${path}`),
+    );
     expect(auth.protect).toHaveBeenCalled();
   });
 
   it("does NOT gate /library-foo (segment boundary regression)", async () => {
     const auth = mockAuth(null);
-    await handleProxy(auth, req("https://broadsheet.app/library-foo"));
+    await handleProxy(
+      auth,
+      req("https://broadsheet.marginalutility.dev/library-foo"),
+    );
     expect(auth.protect).not.toHaveBeenCalled();
   });
 
   it("does NOT gate /ready (segment boundary regression)", async () => {
     const auth = mockAuth(null);
-    await handleProxy(auth, req("https://broadsheet.app/ready"));
+    await handleProxy(
+      auth,
+      req("https://broadsheet.marginalutility.dev/ready"),
+    );
     expect(auth.protect).not.toHaveBeenCalled();
   });
 
   it("does NOT gate /", async () => {
     const auth = mockAuth(null);
-    await handleProxy(auth, req("https://broadsheet.app/"));
+    await handleProxy(auth, req("https://broadsheet.marginalutility.dev/"));
     expect(auth.protect).not.toHaveBeenCalled();
   });
 
   it("does NOT gate /sign-in", async () => {
     const auth = mockAuth(null);
-    await handleProxy(auth, req("https://broadsheet.app/sign-in"));
+    await handleProxy(
+      auth,
+      req("https://broadsheet.marginalutility.dev/sign-in"),
+    );
     expect(auth.protect).not.toHaveBeenCalled();
   });
 });

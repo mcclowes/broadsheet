@@ -83,7 +83,7 @@ Then in Xcode:
 
 The share-sheet flow needs to reach your Next.js API. Three paths:
 
-- **Production:** leave base URL as `https://broadsheet.app` (or whatever you deployed).
+- **Production:** leave base URL as `https://broadsheet.marginalutility.dev` (or whatever you deployed).
 - **Local dev on the same Wi-Fi:** run `npm run dev` on your Mac, find your Mac's LAN IP (e.g. `192.168.1.42`), then in the iOS app Settings screen set the base URL to `http://192.168.1.42:3000`. You will need to tell iOS to trust plain HTTP — edit `Broadsheet/Info.plist` and add `NSAppTransportSecurity → NSAllowsArbitraryLoads = true` **for development only**. Do **not** ship this to the App Store.
 - **Tunnel:** `ngrok http 3000` → paste the HTTPS URL in Settings.
 
