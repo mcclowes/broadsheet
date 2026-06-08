@@ -14,6 +14,7 @@ import {
   isPrivateIPv6,
   isImageContentType,
   assertPublicHost,
+  resolvePublicAddresses,
   readBoundedBody,
   readBoundedBinaryBody,
   IngestError,
@@ -173,6 +174,45 @@ describe("assertPublicHost", () => {
   it("rejects when DNS returns empty results", async () => {
     lookupMock.mockResolvedValueOnce([]);
     await expect(assertPublicHost("empty.example.com")).rejects.toThrow(
+      IngestError,
+    );
+  });
+});
+
+// The connection is pinned to exactly these addresses by the SSRF dispatcher,
+// so resolvePublicAddresses is the single point where rebinding is stopped
+// (#79). assertPublicHost is now a thin void wrapper over it.
+describe("resolvePublicAddresses", () => {
+  it("returns the validated addresses for a public host", async () => {
+    lookupMock.mockResolvedValueOnce([
+      { address: "93.184.216.34", family: 4 },
+      { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 },
+    ]);
+    await expect(resolvePublicAddresses("example.com")).resolves.toEqual([
+      { address: "93.184.216.34", family: 4 },
+      { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 },
+    ]);
+  });
+
+  it("returns a public IP literal without hitting DNS", async () => {
+    await expect(resolvePublicAddresses("8.8.8.8")).resolves.toEqual([
+      { address: "8.8.8.8", family: 4 },
+    ]);
+    expect(lookupMock).not.toHaveBeenCalled();
+  });
+
+  it("tags an IPv6 literal with family 6", async () => {
+    await expect(
+      resolvePublicAddresses("2001:4860:4860::8888"),
+    ).resolves.toEqual([{ address: "2001:4860:4860::8888", family: 6 }]);
+  });
+
+  it("throws if any resolved address is private (rebinding guard)", async () => {
+    lookupMock.mockResolvedValueOnce([
+      { address: "93.184.216.34", family: 4 },
+      { address: "169.254.169.254", family: 4 },
+    ]);
+    await expect(resolvePublicAddresses("rebind.example.com")).rejects.toThrow(
       IngestError,
     );
   });
