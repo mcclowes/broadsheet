@@ -11,6 +11,7 @@
   border-radius: 6px;
   box-shadow: 0 4px 14px var(--shadow-md);
   z-index: 60;
+  animation: toolbarIn var(--motion-base) var(--ease-out) both;
 
   // On narrow viewports the native selection menu (iOS "Writing Tools",
   // Android context bar) competes with an absolutely-positioned toolbar
@@ -25,6 +26,17 @@
   }
 }
 
+@keyframes toolbarIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .swatch {
   width: 20px;
   height: 20px;
@@ -32,6 +44,11 @@
   border: 1px solid var(--rule);
   cursor: pointer;
   padding: 0;
+  transition: transform var(--motion-quick) var(--ease-out);
+
+  &:hover {
+    transform: scale(1.12);
+  }
 
   &[data-color="yellow"] {
     background: #fde68a;
@@ -68,6 +85,18 @@
   border-radius: 8px;
   box-shadow: 0 10px 30px var(--shadow-lg);
   z-index: 70;
+  animation: notePanelIn var(--motion-slow) var(--ease-out) both;
+}
+
+@keyframes notePanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .quote {

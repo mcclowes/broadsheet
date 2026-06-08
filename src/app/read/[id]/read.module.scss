@@ -55,6 +55,8 @@
 
 .heroFigure {
   margin: 0 0 2rem;
+  overflow: hidden;
+  border-radius: 0.5rem;
 }
 
 .heroImage {
@@ -63,6 +65,18 @@
   max-height: 28rem;
   object-fit: cover;
   border-radius: 0.5rem;
+  animation: heroImageIn 480ms var(--ease-out) both;
+}
+
+@keyframes heroImageIn {
+  from {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .header {
@@ -170,6 +184,18 @@
   border: 1px solid var(--fg-muted);
   border-radius: 999px;
   color: var(--fg);
+  animation: tagIn var(--motion-base) var(--ease-out) both;
+}
+
+@keyframes tagIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .tagRemove {
@@ -198,6 +224,9 @@
   background: var(--bg-elevated);
   color: var(--fg);
   width: 8rem;
+  transition:
+    border-color var(--motion-quick) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out);
 
   &::placeholder {
     color: var(--fg-muted);
@@ -206,7 +235,7 @@
   &:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
   }
 }
 

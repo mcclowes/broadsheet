@@ -55,11 +55,10 @@ const CSP_DIRECTIVES = [
   // Clerk needs to POST to its API; everything else talks to our origin.
   "connect-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.marginalutility.dev https://vitals.vercel-insights.com",
   "frame-src 'self' https://*.clerk.com https://challenges.cloudflare.com",
-  // ClerkJS spawns a bot-detection worker from a blob: URL, and our own
-  // service worker is same-origin. Without an explicit `worker-src`, CSP
-  // falls back to `script-src`, which does not include `blob:` — that
-  // blocks the ClerkJS worker and breaks programmatic sign-in (including
-  // the prod-smoke e2e suite).
+  // ClerkJS spawns a bot-detection worker from a blob: URL. Without an
+  // explicit `worker-src`, CSP falls back to `script-src`, which does not
+  // include `blob:` — that blocks the ClerkJS worker and breaks
+  // programmatic sign-in (including the prod-smoke e2e suite).
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "form-action 'self'",
@@ -89,23 +88,6 @@ const config: NextConfig = {
   serverExternalPackages: ["jsdom"],
   async headers() {
     return [
-      // /sw.js and /manifest.json must not be edge-cached. A stale SW keeps
-      // users on an old app shell across deploys even after CACHE_VERSION bumps.
-      {
-        source: "/sw.js",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
-          { key: "Service-Worker-Allowed", value: "/" },
-        ],
-      },
-      {
-        source: "/manifest.json",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
-        ],
-      },
-      // Security headers on everything else. Put them last so route-specific
-      // headers above don't get clobbered by the catch-all's merge.
       {
         source: "/:path*",
         headers: SECURITY_HEADERS,

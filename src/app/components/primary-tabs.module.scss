@@ -22,9 +22,13 @@
   border-radius: 999px;
   text-decoration: none;
   color: var(--fg-muted);
+  transition:
+    color var(--motion-quick) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out);
 
   &:hover {
     color: var(--fg);
+    background: var(--bg-elevated);
   }
 }
 
@@ -34,5 +38,6 @@
 
   &:hover {
     color: var(--bg);
+    background: var(--fg);
   }
 }

@@ -37,9 +37,13 @@
   border-radius: 999px;
   text-decoration: none;
   color: var(--fg-muted);
+  transition:
+    color var(--motion-quick) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out);
 
   &:hover {
     color: var(--fg);
+    background: var(--bg-elevated);
   }
 }
 
@@ -49,6 +53,7 @@
 
   &:hover {
     color: var(--bg);
+    background: var(--fg);
   }
 }
 
@@ -122,6 +127,10 @@
   color: var(--fg);
   cursor: pointer;
   white-space: nowrap;
+  transition:
+    color var(--motion-quick) var(--ease-out),
+    border-color var(--motion-quick) var(--ease-out),
+    background-color var(--motion-quick) var(--ease-out);
 
   &:hover {
     border-color: var(--fg);
@@ -222,9 +231,13 @@
   background: transparent;
   color: var(--fg-muted);
   cursor: pointer;
+  transition:
+    color var(--motion-quick) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out);
 
   &:hover {
     color: var(--fg);
+    background: var(--bg-elevated);
   }
 }
 
@@ -234,5 +247,6 @@
 
   &:hover {
     color: var(--bg);
+    background: var(--fg);
   }
 }

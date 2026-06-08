@@ -7,6 +7,7 @@
   align-items: flex-start;
   justify-content: center;
   padding-top: min(20vh, 8rem);
+  animation: paletteOverlayIn var(--motion-base) var(--ease-out) both;
 }
 
 .palette {
@@ -20,6 +21,28 @@
     0 16px 48px var(--shadow-lg),
     0 4px 12px var(--shadow-sm);
   overflow: hidden;
+  transform-origin: top center;
+  animation: paletteIn var(--motion-slow) var(--ease-out) both;
+}
+
+@keyframes paletteOverlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes paletteIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .inputRow {
@@ -104,6 +127,7 @@
   flex-direction: column;
   gap: 0.125rem;
   list-style: none;
+  transition: background-color var(--motion-quick) var(--ease-out);
 }
 
 .itemActive {

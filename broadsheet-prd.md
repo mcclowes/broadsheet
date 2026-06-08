@@ -20,7 +20,7 @@ The market gap is real. Pocket's decline and eventual wind-down leaves a signifi
 
 - **Save friction is the enemy.** Every tap between "I want to read this" and "it's saved" is a conversion killer.
 - **Reading is the product.** The app exists to surface articles cleanly, not to compete with the articles themselves.
-- **Parse at ingestion, not at read time.** Convert articles to Markdown when they're saved. Faster rendering, offline support, lower compute at scale.
+- **Parse at ingestion, not at read time.** Convert articles to Markdown when they're saved. Faster rendering, lower compute at scale.
 - **Open articles and paywalled articles are different problems.** Treat them as such from the start.
 
 ---
@@ -55,13 +55,12 @@ On share:
 
 ---
 
-### 2. Web App — Secondary Surface (PWA)
+### 2. Web App — Secondary Surface
 
-No dedicated desktop app. A well-built PWA covers the use case and ships faster.
+No dedicated desktop app. A well-built web app covers the use case and ships faster.
 
 - Full reading and library management
-- PWA manifest and service worker for installability and offline support
-- Responsive: works on desktop browsers, installable to home screen on mobile
+- Responsive: works on desktop browsers and mobile browsers
 - Auth-gated on load
 
 The web app should feel native, not like a fallback.
@@ -186,7 +185,6 @@ The minimum viable product needs to answer one question convincingly: _can someo
 **MVP scope, still unbuilt:**
 
 - iOS app with share sheet integration (the original "primary surface" — deferred)
-- PWA manifest / service worker for the web app
 - Full-text search
 
 **Explicitly out of scope (post-MVP):**

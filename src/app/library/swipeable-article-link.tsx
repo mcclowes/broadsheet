@@ -4,10 +4,6 @@ import Link from "next/link";
 import { useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
-  updateCachedArticleMeta,
-  patchCachedArticleMeta,
-} from "@/lib/offline-storage";
-import {
   isHorizontalSwipe,
   shouldCommitSwipe,
   SWIPE_START_PX,
@@ -80,19 +76,14 @@ export function SwipeableArticleLink({
     if (next) window.dispatchEvent(new CustomEvent("article-marked-read"));
 
     try {
-      if (!navigator.onLine) {
-        await updateCachedArticleMeta(articleId, { read: next });
-      } else {
-        const res = await fetch(`/api/articles/${articleId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ read: next }),
-        });
-        if (!res.ok) {
-          setRead(!next);
-          return;
-        }
-        patchCachedArticleMeta(articleId, { read: next }).catch(() => {});
+      const res = await fetch(`/api/articles/${articleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ read: next }),
+      });
+      if (!res.ok) {
+        setRead(!next);
+        return;
       }
       startTransition(() => router.refresh());
     } catch {

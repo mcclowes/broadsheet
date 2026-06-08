@@ -1,12 +1,19 @@
 import { auth } from "@clerk/nextjs/server";
 import { fetchAndParse, IngestError, parseArticleFromHtml } from "@/lib/ingest";
 import {
+  getArticle,
   listArticles,
   listArticlesPage,
   parseListFilters,
   saveArticleWithOutcome,
   saveArticleRequestSchema,
 } from "@/lib/articles";
+import {
+  addHighlight,
+  addUnanchoredHighlights,
+  HighlightLimitError,
+} from "@/lib/annotations";
+import { anchorSelection } from "@/lib/anchor";
 import { authedUserId } from "@/lib/auth-types";
 import { articleIngestLimiter } from "@/lib/rate-limit";
 
@@ -89,8 +96,50 @@ export async function POST(req: Request) {
       saveUrl,
       article,
     );
+
+    // If the caller passed a `selection`, try to anchor it against the
+    // stored article body and create a highlight. We re-read the stored
+    // body so the offset space matches what the reader will render — for
+    // an "already saved" article that may differ from the freshly-parsed
+    // markdown. Failures here don't fail the save.
+    let highlightCreated: "anchored" | "unanchored" | "skipped" = "skipped";
+    if (parsed.data.selection) {
+      try {
+        const stored = await getArticle(userId, summary.id);
+        if (stored) {
+          const match = anchorSelection(
+            stored.body,
+            parsed.data.selection.text,
+          );
+          if (match) {
+            await addHighlight(userId, summary.id, {
+              start: match.start,
+              end: match.end,
+              text: parsed.data.selection.text.trim().slice(0, 2000),
+            });
+            highlightCreated = "anchored";
+          } else {
+            await addUnanchoredHighlights(userId, summary.id, [
+              {
+                text: parsed.data.selection.text,
+                createdAt: new Date().toISOString(),
+              },
+            ]);
+            highlightCreated = "unanchored";
+          }
+        }
+      } catch (err) {
+        if (!(err instanceof HighlightLimitError)) {
+          console.error("[api/articles] highlight from selection failed", {
+            articleId: summary.id,
+            err,
+          });
+        }
+      }
+    }
+
     return Response.json(
-      { article: summary, created },
+      { article: summary, created, highlight: highlightCreated },
       { status: created ? 201 : 200 },
     );
   } catch (err) {

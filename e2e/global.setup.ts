@@ -10,7 +10,6 @@ setup("clerk setup", async () => {
   assertEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY");
   assertEnv("CLERK_SECRET_KEY");
   assertEnv("E2E_CLERK_USER_USERNAME");
-  assertEnv("E2E_CLERK_USER_PASSWORD");
   await clerkSetup();
 });
 

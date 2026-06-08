@@ -11,7 +11,6 @@ import {
 import { authedUserId } from "@/lib/auth-types";
 import { SaveForm } from "./save-form";
 import { DigestToggle } from "./digest-toggle";
-import { CacheLibrary } from "./cache-library";
 import { SwipeableArticleLink } from "./swipeable-article-link";
 import { LibraryItemActions } from "./library-item-actions";
 import { LibrarySidebar } from "./library-sidebar";
@@ -27,6 +26,7 @@ import {
 import { PaletteTrigger } from "@/app/components/palette-trigger";
 import { PrimaryTabs } from "@/app/components/primary-tabs";
 import { UserMenu } from "@/app/components/user-menu";
+import { WelcomeOverlay } from "@/app/components/welcome-overlay";
 import { getHighlightCounts } from "@/lib/annotations";
 import styles from "./library.module.scss";
 
@@ -41,6 +41,7 @@ type SearchParams = Promise<{
   sort?: string;
   q?: string;
   page?: string;
+  welcome?: string;
 }>;
 
 const PAGE_SIZE = 50;
@@ -189,6 +190,7 @@ export default async function LibraryPage({
   const sort = parseSort(sp.sort);
   const q = sp.q?.trim() || undefined;
   const page = parsePage(sp.page);
+  const welcome = sp.welcome === "1";
   const current: CurrentFilters = {
     view,
     state,
@@ -244,23 +246,6 @@ export default async function LibraryPage({
   const pageStart = (safePage - 1) * PAGE_SIZE;
   const articles = filteredArticles.slice(pageStart, pageStart + PAGE_SIZE);
 
-  const summariesForCache = allArticles.map((a) => ({
-    id: a.id,
-    title: a.title,
-    url: a.url,
-    source: a.source,
-    byline: a.byline,
-    excerpt: a.excerpt,
-    lang: a.lang,
-    image: a.image ?? null,
-    wordCount: a.wordCount,
-    readMinutes: a.readMinutes,
-    savedAt: a.savedAt,
-    readAt: a.readAt,
-    archivedAt: a.archivedAt,
-    tags: a.tags,
-  }));
-
   const grouped = bucketByDate(articles);
 
   const lengthOptions: FilterMenuOption[] = (
@@ -306,7 +291,7 @@ export default async function LibraryPage({
 
   return (
     <main className={styles.main}>
-      <CacheLibrary articles={summariesForCache} />
+      <WelcomeOverlay show={welcome} />
 
       <h1 className="srOnly">Library</h1>
 

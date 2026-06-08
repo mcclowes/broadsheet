@@ -11,10 +11,15 @@
   font-family: var(--font-sans);
   font-size: 0.75rem;
   line-height: 1;
+  transition:
+    color var(--motion-quick) var(--ease-out),
+    border-color var(--motion-quick) var(--ease-out),
+    background-color var(--motion-quick) var(--ease-out);
 
   &:hover {
     color: var(--fg);
     border-color: var(--fg-muted);
+    background: var(--bg-elevated);
   }
 }
 

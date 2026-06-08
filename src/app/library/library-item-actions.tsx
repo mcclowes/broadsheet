@@ -2,10 +2,6 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  patchCachedArticleMeta,
-  updateCachedArticleMeta,
-} from "@/lib/offline-storage";
 import styles from "./library-item-actions.module.scss";
 
 interface Props {
@@ -18,17 +14,12 @@ interface Props {
 type Patch = { read?: boolean; archived?: boolean };
 
 async function patch(articleId: string, body: Patch): Promise<Patch | null> {
-  if (!navigator.onLine) {
-    await updateCachedArticleMeta(articleId, body);
-    return body;
-  }
   const res = await fetch(`/api/articles/${articleId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!res.ok) return null;
-  patchCachedArticleMeta(articleId, body).catch(() => {});
   return res.json();
 }
 

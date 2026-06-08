@@ -1,0 +1,133 @@
+// Plays once after sign-in (?welcome=1). Covers the viewport with --bg so
+// the library skeleton/data render hidden underneath, then fades out.
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  padding: 2rem 1rem;
+  animation: fadeOut 0.5s ease-out 2.05s forwards;
+}
+
+.card {
+  width: min(28rem, 92vw);
+  text-align: center;
+  color: var(--fg);
+}
+
+.kicker {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  opacity: 0;
+  transform: translateY(0.4rem);
+  animation: rise 0.55s ease-out 0.1s forwards;
+}
+
+.title {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-serif);
+  font-weight: 800;
+  font-size: clamp(2.75rem, 9vw, 5.25rem);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  opacity: 0;
+  transform: translateY(0.6rem);
+  animation: rise 0.7s ease-out 0.25s forwards;
+}
+
+.rules {
+  position: relative;
+  height: 6px;
+  margin: 1rem auto;
+  width: min(20rem, 70vw);
+}
+
+.rule {
+  position: absolute;
+  left: 50%;
+  height: 1.5px;
+  width: 0;
+  background: var(--fg);
+  transform: translateX(-50%);
+  animation: drawRule 0.8s cubic-bezier(0.2, 0.65, 0.2, 1) 0.65s forwards;
+}
+
+.ruleTop {
+  top: 0;
+}
+
+.ruleBottom {
+  bottom: 0;
+  // The lower rule is a hair lighter — classic newspaper double-rule treatment.
+  background: var(--rule-strong);
+  animation-delay: 0.78s;
+}
+
+.date {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--fg-muted);
+  opacity: 0;
+  transform: translateY(0.4rem);
+  animation: rise 0.5s ease-out 1.15s forwards;
+}
+
+.tagline {
+  margin: 0.45rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--fg-faint);
+  opacity: 0;
+  transform: translateY(0.4rem);
+  animation: rise 0.5s ease-out 1.45s forwards;
+}
+
+@keyframes rise {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawRule {
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    // Quick courtesy flash so users still see the masthead, no movement.
+    animation: fadeOut 0.2s linear 0.6s forwards;
+  }
+
+  .kicker,
+  .title,
+  .date,
+  .tagline {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .rule {
+    animation: none;
+    width: 100%;
+  }
+}

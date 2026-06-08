@@ -52,6 +52,10 @@
   color: var(--fg-muted);
   text-decoration: none;
   background: var(--bg);
+  transition:
+    color var(--motion-quick) var(--ease-out),
+    border-color var(--motion-quick) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out);
 
   &:hover {
     color: var(--fg);
@@ -98,6 +102,9 @@
   border-radius: 0.375rem;
   color: var(--fg);
   text-decoration: none;
+  transition:
+    background-color var(--motion-quick) var(--ease-out),
+    color var(--motion-quick) var(--ease-out);
 
   &:hover {
     background: var(--bg-elevated);
@@ -157,6 +164,7 @@
   min-height: 2px;
   background: var(--rule-strong);
   border-radius: 1px;
+  transition: height var(--motion-slow) var(--ease-out);
 }
 
 .chartBarToday {
