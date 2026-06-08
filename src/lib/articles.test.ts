@@ -5,6 +5,7 @@ import {
   decodeCursor,
   encodeCursor,
   filterArticles,
+  suggestNextArticle,
   type ArticleSummary,
 } from "./articles";
 
@@ -174,6 +175,66 @@ describe("filterArticles", () => {
     expect(
       filterArticles(corpus, { q: "react hooks" }).map((a) => a.id),
     ).toEqual(["x"]);
+  });
+});
+
+describe("suggestNextArticle", () => {
+  const current = make("current", {
+    source: "nytimes.com",
+    tags: ["politics", "longread"],
+  });
+
+  it("returns null when there are no other candidates", () => {
+    expect(suggestNextArticle([current], current)).toBeNull();
+  });
+
+  it("never suggests the article just read", () => {
+    expect(suggestNextArticle([current], current)).toBeNull();
+  });
+
+  it("skips archived and already-read candidates", () => {
+    const candidates = [
+      make("archived", { archivedAt: "2026-04-11T00:00:00.000Z" }),
+      make("read", { readAt: "2026-04-11T00:00:00.000Z" }),
+    ];
+    expect(suggestNextArticle(candidates, current)).toBeNull();
+  });
+
+  it("prefers a same-source article over an unrelated one", () => {
+    const candidates = [
+      make("other", { source: "theverge.com", tags: [] }),
+      make("same-source", { source: "nytimes.com", tags: [] }),
+    ];
+    expect(suggestNextArticle(candidates, current)?.id).toBe("same-source");
+  });
+
+  it("prefers more shared tags when sources differ", () => {
+    const candidates = [
+      make("one-tag", { source: "a.com", tags: ["politics"] }),
+      make("two-tags", { source: "b.com", tags: ["politics", "longread"] }),
+    ];
+    expect(suggestNextArticle(candidates, current)?.id).toBe("two-tags");
+  });
+
+  it("falls back to input order for equally-relevant candidates", () => {
+    const candidates = [
+      make("newest", { source: "z.com", tags: [] }),
+      make("older", { source: "y.com", tags: [] }),
+    ];
+    expect(suggestNextArticle(candidates, current)?.id).toBe("newest");
+  });
+
+  it("does not treat a null source as a shared source", () => {
+    const noSource = make("no-source", { source: null, tags: [] });
+    const candidates = [
+      make("also-null", { source: null, tags: [] }),
+      make("has-tag", { source: "x.com", tags: ["politics"] }),
+    ];
+    // current has source null here, so the tag overlap should win over the
+    // null-source "match".
+    expect(
+      suggestNextArticle(candidates, { ...noSource, tags: ["politics"] })?.id,
+    ).toBe("has-tag");
   });
 });
 

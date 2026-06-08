@@ -685,6 +685,36 @@ export function cleanTags(tags: string[]): string[] {
     .slice(0, MAX_TAGS);
 }
 
+/**
+ * Pick the best "read next" suggestion to show when the reader finishes an
+ * article. Considers only unread, un-archived candidates other than the one
+ * just read. Relevance is scored by shared source (strong signal) and
+ * overlapping tags (weaker, additive); ties fall back to the input order, so
+ * callers should pass the list already in newest-first order to get the most
+ * recent of equally-relevant candidates. Returns null when nothing qualifies.
+ */
+export function suggestNextArticle(
+  candidates: ArticleSummary[],
+  current: Pick<ArticleSummary, "id" | "source" | "tags">,
+): ArticleSummary | null {
+  const currentTags = new Set(current.tags);
+  let best: ArticleSummary | null = null;
+  let bestScore = -1;
+  for (const candidate of candidates) {
+    if (candidate.id === current.id) continue;
+    if (candidate.archivedAt || candidate.readAt) continue;
+    const sameSource =
+      current.source !== null && candidate.source === current.source;
+    const sharedTags = candidate.tags.filter((t) => currentTags.has(t)).length;
+    const score = (sameSource ? 2 : 0) + sharedTags;
+    if (score > bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
 export async function setTags(
   userId: AuthedUserId,
   id: string,
