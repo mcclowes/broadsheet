@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import { getArticle, rehydrateArticle } from "@/lib/articles";
+import {
+  getArticle,
+  listArticles,
+  rehydrateArticle,
+  suggestNextArticle,
+} from "@/lib/articles";
 import { fetchAndParse, IngestError } from "@/lib/ingest";
 import { listHighlights, listUnanchoredHighlights } from "@/lib/annotations";
 import { renderMarkdown } from "@/lib/markdown";
@@ -12,6 +17,7 @@ import { ArticleMenu } from "./article-menu";
 import { ReadTracker } from "./read-tracker";
 import { ReadingProgress } from "./reading-progress";
 import { QuickActions } from "./quick-actions";
+import { EndOfArticle } from "./end-of-article";
 import { ScrollNav } from "./scroll-nav";
 import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./read.module.scss";
@@ -61,6 +67,21 @@ export default async function ReadPage({
   }
 
   const html = renderMarkdown(article.body);
+
+  // "Read next" suggestion for the end-of-article footer (#198). Inbox view
+  // already excludes archived items; suggestNextArticle drops the current
+  // article and anything already read, then ranks by source/tag overlap.
+  const inbox = await listArticles(userId, { view: "inbox" });
+  const nextArticle = suggestNextArticle(inbox, article);
+  const nextSuggestion = nextArticle
+    ? {
+        id: nextArticle.id,
+        title: nextArticle.title,
+        url: nextArticle.url,
+        source: nextArticle.source,
+        readMinutes: nextArticle.readMinutes,
+      }
+    : null;
 
   return (
     <main className={styles.main}>
@@ -140,6 +161,13 @@ export default async function ReadPage({
           </ul>
         </section>
       ) : null}
+
+      <EndOfArticle
+        articleId={article.id}
+        backHref={backHref}
+        initialArchived={article.archivedAt !== null}
+        next={nextSuggestion}
+      />
 
       <QuickActions
         articleId={article.id}
