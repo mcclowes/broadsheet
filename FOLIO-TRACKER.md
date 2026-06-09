@@ -14,7 +14,7 @@ adapter fails with `ConflictError` in production, so any article mutation
 
 Root cause: `VercelBlobAdapter.get()` (`adapters/blob.js`) reads the etag
 from `@vercel/blob`'s `get()`, which does a plain `fetch(blobUrl)` against
-the Blob CDN *without* `useCache: false`. The HTTP `ETag` on that
+the Blob CDN _without_ `useCache: false`. The HTTP `ETag` on that
 cached/edge response is not guaranteed to equal the authoritative storage
 etag that the Blob API validates the `x-if-match` header against
 server-side (CDN caching/staleness, content-encoding suffixes beyond the
