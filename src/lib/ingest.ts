@@ -1,5 +1,7 @@
 import net from "node:net";
 import dns from "node:dns/promises";
+import type { LookupAddress } from "node:dns";
+import { Agent } from "undici";
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
@@ -360,7 +362,18 @@ export function isPrivateAddress(ip: string): boolean {
   return true;
 }
 
-export async function assertPublicHost(hostname: string): Promise<void> {
+/**
+ * Resolve `hostname` and return every address, having verified that *all* of
+ * them are public. Throws an {@link IngestError} on lookup failure, an empty
+ * result, or any private address. IP literals short-circuit DNS.
+ *
+ * The returned list is what the SSRF dispatcher pins the connection to (see
+ * {@link ssrfDispatcher}), so the addresses we validate here are exactly the
+ * addresses the socket connects to — there is no second, unchecked resolution.
+ */
+export async function resolvePublicAddresses(
+  hostname: string,
+): Promise<LookupAddress[]> {
   const stripped = hostname.replace(/^\[|\]$/g, "");
   if (net.isIP(stripped)) {
     if (isPrivateAddress(stripped)) {
@@ -370,9 +383,9 @@ export async function assertPublicHost(hostname: string): Promise<void> {
         "Refusing to fetch a non-public address",
       );
     }
-    return;
+    return [{ address: stripped, family: net.isIPv6(stripped) ? 6 : 4 }];
   }
-  let results: { address: string; family: number }[];
+  let results: LookupAddress[];
   try {
     results = await dns.lookup(stripped, { all: true });
   } catch (err) {
@@ -398,6 +411,76 @@ export async function assertPublicHost(hostname: string): Promise<void> {
       );
     }
   }
+  return results;
+}
+
+export async function assertPublicHost(hostname: string): Promise<void> {
+  await resolvePublicAddresses(hostname);
+}
+
+type LookupCallback = (
+  err: NodeJS.ErrnoException | null,
+  address?: string | LookupAddress[],
+  family?: number,
+) => void;
+
+/**
+ * Custom DNS lookup for the SSRF-hardened undici dispatcher. Resolves and
+ * validates in the same step undici uses to connect, which closes the DNS
+ * rebinding TOCTOU: a hostile resolver can no longer hand a public IP to the
+ * pre-flight guard and a private IP to the socket, because there is only one
+ * resolution and it is validated here (#79). Honours the Node `dns.lookup`
+ * contract for both `{ all: true }` (array) and single-address callers.
+ */
+function guardedLookup(
+  hostname: string,
+  options: { all?: boolean; family?: number | "IPv4" | "IPv6" },
+  callback: LookupCallback,
+): void {
+  resolvePublicAddresses(hostname)
+    .then((addresses) => {
+      if (options?.all) {
+        callback(null, addresses);
+        return;
+      }
+      const wantFamily =
+        options?.family === 4 || options?.family === "IPv4"
+          ? 4
+          : options?.family === 6 || options?.family === "IPv6"
+            ? 6
+            : undefined;
+      const chosen =
+        (wantFamily
+          ? addresses.find((a) => a.family === wantFamily)
+          : undefined) ?? addresses[0];
+      callback(null, chosen.address, chosen.family);
+    })
+    .catch((err: Error) => {
+      // Surface as a DNS error so undici aborts the connection. The friendly
+      // IngestError (with publicMessage) is produced by the pre-flight
+      // assertPublicHost call in connectPublicResource; this is the backstop
+      // for the rebinding race between that check and the actual connect.
+      const e: NodeJS.ErrnoException =
+        err instanceof Error ? err : new Error(String(err));
+      e.code = e.code ?? "ENOTFOUND";
+      callback(e);
+    });
+}
+
+// Single shared dispatcher: the lookup is stateless and re-validates per
+// connection, so one Agent safely serves every host without leaking sockets.
+let _ssrfDispatcher: Agent | null = null;
+function ssrfDispatcher(): Agent {
+  if (!_ssrfDispatcher) {
+    // Cast: guardedLookup omits the `address` arg on the error path
+    // (callback(err) only), which is valid at runtime but doesn't structurally
+    // match undici's stricter LookupFunction signature. Safe — undici ignores
+    // address/family when err is set.
+    _ssrfDispatcher = new Agent({
+      connect: { lookup: guardedLookup as never },
+    });
+  }
+  return _ssrfDispatcher;
 }
 
 /**
@@ -737,7 +820,10 @@ async function connectPublicResource(
           ...opts.extraHeaders,
         },
         redirect: "manual",
-      });
+        // Pin the connection to the addresses we just validated, eliminating
+        // the DNS-rebinding TOCTOU between assertPublicHost and connect (#79).
+        dispatcher: ssrfDispatcher(),
+      } as RequestInit & { dispatcher: Agent });
     } catch (err) {
       const e = err as Error;
       const isTimeout = e.name === "TimeoutError" || e.name === "AbortError";
