@@ -5,7 +5,7 @@ import styles from "./privacy.module.scss";
 export const metadata: Metadata = {
   title: "Privacy policy — Broadsheet",
   description:
-    "How the Broadsheet web app and Chrome extension handle your data.",
+    "How the Broadsheet web app and browser extension handle your data.",
 };
 
 const LAST_UPDATED = "2026-04-11";
@@ -26,7 +26,7 @@ export default function PrivacyPage() {
         <p>
           Broadsheet is a read-it-later app. You save articles from the web, and
           we store them in a per-user library so you can read them later. This
-          policy covers both the Broadsheet web app and the Broadsheet Chrome
+          policy covers both the Broadsheet web app and the Broadsheet browser
           extension (the &ldquo;service&rdquo;).
         </p>
 
@@ -45,7 +45,7 @@ export default function PrivacyPage() {
         <h2>Article data</h2>
         <p>
           When you save a URL, Broadsheet fetches the page (or receives the
-          rendered HTML from the Chrome extension), parses it into clean
+          rendered HTML from the browser extension), parses it into clean
           Markdown with{" "}
           <a href="https://github.com/mozilla/readability" rel="noreferrer">
             Mozilla Readability
@@ -64,9 +64,9 @@ export default function PrivacyPage() {
           your library.
         </p>
 
-        <h2>Chrome extension</h2>
+        <h2>Browser extension</h2>
         <p>
-          The Broadsheet Chrome extension is a thin client for this web app.
+          The Broadsheet browser extension is a thin client for this web app.
           When you click the toolbar icon, press the save shortcut, or click{" "}
           <strong>Save this tab</strong> in the popup, the extension reads:
         </p>

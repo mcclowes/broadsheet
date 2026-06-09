@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CHROME_WEB_STORE_URL, FIREFOX_ADDON_URL } from "@/lib/links";
 import styles from "./help.module.scss";
 
 export const metadata: Metadata = {
@@ -40,7 +41,7 @@ export default function HelpPage() {
               <a href="#saving">Saving articles</a>
             </li>
             <li>
-              <a href="#extension">Chrome extension</a>
+              <a href="#extension">Browser extension</a>
             </li>
             <li>
               <a href="#reading">Reading & organising</a>
@@ -70,7 +71,7 @@ export default function HelpPage() {
           </li>
           <li>
             Save your first article from the{" "}
-            <Link href="/import">import page</Link>, or install the Chrome
+            <Link href="/import">import page</Link>, or install the browser
             extension for one-click saving.
           </li>
           <li>
@@ -88,10 +89,10 @@ export default function HelpPage() {
             server-side, extracts the main content, and stores it as Markdown.
           </li>
           <li>
-            <strong>Chrome extension</strong>. Click the toolbar icon or use the
-            save shortcut to send the current tab to Broadsheet. This path also
-            works for paywalled or client-rendered pages the server can&rsquo;t
-            reach directly.
+            <strong>Browser extension</strong>. Click the toolbar icon or use
+            the save shortcut to send the current tab to Broadsheet. This path
+            also works for paywalled or client-rendered pages the server
+            can&rsquo;t reach directly.
           </li>
           <li>
             <strong>Command palette</strong>. Press <kbd>⌘ K</kbd> (or{" "}
@@ -105,11 +106,23 @@ export default function HelpPage() {
           existing entry rather than creating a duplicate.
         </p>
 
-        <h2 id="extension">Chrome extension</h2>
+        <h2 id="extension">Browser extension</h2>
         <h3>Install</h3>
         <p>
-          The extension lives in <code>apps/extension/</code> in the repo. Until
-          it&rsquo;s on the Chrome Web Store, load it as an unpacked extension:
+          Install Broadsheet from the{" "}
+          <a href={CHROME_WEB_STORE_URL} target="_blank" rel="noreferrer">
+            Chrome Web Store
+          </a>{" "}
+          or{" "}
+          <a href={FIREFOX_ADDON_URL} target="_blank" rel="noreferrer">
+            Firefox Add-ons
+          </a>
+          , then pin the icon to your toolbar for one-click saving.
+        </p>
+        <h3>Load from source</h3>
+        <p>
+          The extension also lives in <code>apps/extension/</code> in the repo.
+          To run a local build, load it as an unpacked extension:
         </p>
         <ol>
           <li>
@@ -188,7 +201,7 @@ export default function HelpPage() {
         <ul>
           <li>
             The site requires JavaScript to render its content &mdash; use the
-            Chrome extension instead, which captures the already-rendered HTML.
+            browser extension instead, which captures the already-rendered HTML.
           </li>
           <li>
             The site is behind a paywall or login wall &mdash; same answer; the
@@ -213,8 +226,8 @@ export default function HelpPage() {
         <h3>Extension saves to the wrong instance</h3>
         <p>
           Check the base URL in the extension&rsquo;s options page. If
-          you&rsquo;ve pointed it at a non-default host, Chrome may prompt for
-          optional host permissions the first time.
+          you&rsquo;ve pointed it at a non-default host, your browser may prompt
+          for optional host permissions the first time.
         </p>
 
         <h3>Article renders badly or misses content</h3>

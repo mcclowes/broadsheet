@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { SignInButton } from "@clerk/nextjs";
 import { listArticles, type ArticleSummary } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
+import { CHROME_WEB_STORE_URL, FIREFOX_ADDON_URL } from "@/lib/links";
 import { PaletteTrigger } from "./components/palette-trigger";
 import { UserMenu } from "./components/user-menu";
 import styles from "./page.module.scss";
@@ -69,6 +70,22 @@ export default async function HomePage() {
                 Get started &mdash; it&apos;s free
               </button>
             </SignInButton>
+            <a
+              className={styles.ctaSecondary}
+              href={CHROME_WEB_STORE_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Add to Chrome
+            </a>
+            <a
+              className={styles.ctaSecondary}
+              href={FIREFOX_ADDON_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Add to Firefox
+            </a>
           </div>
         </section>
 
@@ -79,7 +96,7 @@ export default async function HomePage() {
               One click from your browser
             </p>
             <p className={styles.featureDesc}>
-              The Chrome extension saves any article to your personal library
+              The browser extension saves any article to your personal library
               instantly. No copying links, no emailing yourself.
             </p>
           </div>
@@ -138,7 +155,25 @@ export default async function HomePage() {
               <div>
                 <p className={styles.stepTitle}>Install the extension</p>
                 <p className={styles.stepDesc}>
-                  Add the Chrome extension to your browser.
+                  Add it to{" "}
+                  <a
+                    className={styles.stepLink}
+                    href={CHROME_WEB_STORE_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Chrome
+                  </a>{" "}
+                  or{" "}
+                  <a
+                    className={styles.stepLink}
+                    href={FIREFOX_ADDON_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Firefox
+                  </a>
+                  .
                 </p>
               </div>
             </li>
