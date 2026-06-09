@@ -3,7 +3,7 @@ import Link from "next/link";
 import styles from "./privacy.module.scss";
 
 export const metadata: Metadata = {
-  title: "Privacy policy — Broadsheet",
+  title: "Privacy policy",
   description:
     "How the Broadsheet web app and browser extension handle your data.",
 };

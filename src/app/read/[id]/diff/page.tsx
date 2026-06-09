@@ -3,10 +3,12 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getArticle } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
+import { privatePage } from "@/lib/metadata";
 import { DiffViewer } from "./diff-viewer";
 import styles from "./diff.module.scss";
 
 export const dynamic = "force-dynamic";
+export const metadata = privatePage("Article changes");
 
 export default async function DiffPage({
   params,

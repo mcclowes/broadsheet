@@ -2,11 +2,13 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { authedUserId } from "@/lib/auth-types";
+import { privatePage } from "@/lib/metadata";
 import { UserMenu } from "@/app/components/user-menu";
 import { PocketImportForm } from "./import-form";
 import styles from "./import.module.scss";
 
 export const dynamic = "force-dynamic";
+export const metadata = privatePage("Import from Pocket");
 
 export default async function PocketImportPage() {
   const { userId: rawUserId } = await auth();

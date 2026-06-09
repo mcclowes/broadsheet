@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { listArticles, type ArticleSummary } from "@/lib/articles";
 import { listAllAnnotations, type ArticleAnnotations } from "@/lib/annotations";
 import { authedUserId } from "@/lib/auth-types";
+import { privatePage } from "@/lib/metadata";
 import { PaletteTrigger } from "@/app/components/palette-trigger";
 import { PrimaryTabs } from "@/app/components/primary-tabs";
 import { UserMenu } from "@/app/components/user-menu";
@@ -11,6 +12,7 @@ import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./annotations.module.scss";
 
 export const dynamic = "force-dynamic";
+export const metadata = privatePage("Annotations");
 
 function formatDate(iso: string): string {
   const d = new Date(iso);

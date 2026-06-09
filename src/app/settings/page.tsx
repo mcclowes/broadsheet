@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { authedUserId } from "@/lib/auth-types";
+import { privatePage } from "@/lib/metadata";
 import { DigestSettings } from "./digest-settings";
 import { ThemeSettings } from "./theme-settings";
 import { AutoArchiveSettings } from "./auto-archive-settings";
@@ -10,6 +11,7 @@ import { UserMenu } from "@/app/components/user-menu";
 import styles from "./settings.module.scss";
 
 export const dynamic = "force-dynamic";
+export const metadata = privatePage("Settings");
 
 export default async function SettingsPage() {
   const { userId: rawUserId } = await auth();

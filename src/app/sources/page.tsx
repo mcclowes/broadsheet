@@ -9,6 +9,7 @@ import {
 } from "@/lib/sources";
 import { articleIdForUrl, listArticles } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
+import { privatePage } from "@/lib/metadata";
 import { PrimaryTabs } from "@/app/components/primary-tabs";
 import { UserMenu } from "@/app/components/user-menu";
 import { AddSourceForm } from "./add-source-form";
@@ -16,6 +17,7 @@ import { ItemActions } from "./item-actions";
 import styles from "./sources.module.scss";
 
 export const dynamic = "force-dynamic";
+export const metadata = privatePage("Sources");
 
 function hostOf(url: string | null): string | null {
   if (!url) return null;

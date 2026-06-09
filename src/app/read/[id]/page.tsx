@@ -1,3 +1,5 @@
+import { cache } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
@@ -24,6 +26,31 @@ import styles from "./read.module.scss";
 
 export const dynamic = "force-dynamic";
 
+// Memoised per request so generateMetadata and the page share a single read
+// instead of hitting Folio twice.
+const getArticleCached = cache(getArticle);
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId) return { title: "Read", robots: { index: false } };
+
+  const { id } = await params;
+  const article = await getArticleCached(authedUserId(rawUserId), id);
+  if (!article) return { title: "Article not found", robots: { index: false } };
+
+  return {
+    // article.title can fall back to the URL for not-yet-ingested saves; the
+    // template still wraps it as "<url> · Broadsheet", which is acceptable.
+    title: article.title,
+    description: article.excerpt ?? undefined,
+    robots: { index: false, follow: false },
+  };
+}
+
 export default async function ReadPage({
   params,
   searchParams,
@@ -39,7 +66,7 @@ export default async function ReadPage({
   const { from } = await searchParams;
   const backHref = from?.startsWith("/library") ? from : "/library";
   const [articleResult, highlights, unanchoredHighlights] = await Promise.all([
-    getArticle(userId, id),
+    getArticleCached(userId, id),
     listHighlights(userId, id),
     listUnanchoredHighlights(userId, id),
   ]);

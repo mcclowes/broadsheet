@@ -6,7 +6,10 @@ import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.scss";
 
 export const metadata: Metadata = {
-  title: "Broadsheet",
+  title: {
+    default: "Broadsheet",
+    template: "%s · Broadsheet",
+  },
   description: "Save articles. Read them cleanly. Keep them.",
   referrer: "no-referrer",
   icons: {
