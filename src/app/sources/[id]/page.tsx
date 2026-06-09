@@ -1,15 +1,34 @@
+import { cache } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { notFound, redirect } from "next/navigation";
 import { fetchSourceItems, getSource } from "@/lib/sources";
 import { articleIdForUrl, listArticles } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
+import { privatePage } from "@/lib/metadata";
 import { UserMenu } from "@/app/components/user-menu";
 import { ItemActions } from "../item-actions";
 import { RemoveSourceButton } from "../remove-source-button";
 import styles from "../sources.module.scss";
 
 export const dynamic = "force-dynamic";
+
+// Shared between generateMetadata and the page so we read the source once.
+const getSourceCached = cache(getSource);
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { userId: rawUserId } = await auth();
+  if (!rawUserId) return privatePage("Source");
+
+  const { id } = await params;
+  const source = await getSourceCached(authedUserId(rawUserId), id);
+  return privatePage(source?.title ?? "Source");
+}
 
 function hostOf(url: string | null): string | null {
   if (!url) return null;
@@ -45,7 +64,7 @@ export default async function SourceDetailPage({
   const userId = authedUserId(rawUserId);
 
   const { id } = await params;
-  const source = await getSource(userId, id);
+  const source = await getSourceCached(userId, id);
   if (!source) notFound();
 
   const [fetched, savedArticles] = await Promise.all([

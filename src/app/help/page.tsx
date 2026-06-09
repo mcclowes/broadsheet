@@ -4,7 +4,7 @@ import { CHROME_WEB_STORE_URL, FIREFOX_ADDON_URL } from "@/lib/links";
 import styles from "./help.module.scss";
 
 export const metadata: Metadata = {
-  title: "Help & troubleshooting — Broadsheet",
+  title: "Help & troubleshooting",
   description:
     "How to save, read, and organise articles in Broadsheet, plus answers to common problems.",
 };

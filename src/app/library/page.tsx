@@ -9,6 +9,7 @@ import {
   type ReadState,
 } from "@/lib/articles";
 import { authedUserId } from "@/lib/auth-types";
+import { privatePage } from "@/lib/metadata";
 import { SaveForm } from "./save-form";
 import { DigestToggle } from "./digest-toggle";
 import { SwipeableArticleLink } from "./swipeable-article-link";
@@ -31,6 +32,7 @@ import { getHighlightCounts } from "@/lib/annotations";
 import styles from "./library.module.scss";
 
 export const dynamic = "force-dynamic";
+export const metadata = privatePage("Library");
 
 type SearchParams = Promise<{
   view?: string;
