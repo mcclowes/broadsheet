@@ -5,6 +5,42 @@ actioned upstream rather than worked around inline.
 
 ## Open
 
+### `VercelBlobAdapter.get()` sources the CAS etag from a cached CDN fetch — conditional `put` 412s forever
+
+Every conditional write (`patch`, `set({ifMatch})`) on the Vercel Blob
+adapter fails with `ConflictError` in production, so any article mutation
+(archive, mark-read, tag, progress — all go through `Volume.patch` →
+`adapter.put({ifMatch})`) returns a 409 to the client deterministically.
+
+Root cause: `VercelBlobAdapter.get()` (`adapters/blob.js`) reads the etag
+from `@vercel/blob`'s `get()`, which does a plain `fetch(blobUrl)` against
+the Blob CDN *without* `useCache: false`. The HTTP `ETag` on that
+cached/edge response is not guaranteed to equal the authoritative storage
+etag that the Blob API validates the `x-if-match` header against
+server-side (CDN caching/staleness, content-encoding suffixes beyond the
+`-gzip` that `normalizeEtag` strips, weak validators). When they diverge,
+`put({ifMatch})` → 412 → `ConflictError`. `Volume.patch`'s internal retries
+and broadsheet's `retryOnConflict` both re-`get` the same cached etag, so
+every attempt fails — the 409 is permanent, not transient contention.
+
+Smoking gun: the adapter is internally inconsistent about where etags come
+from. `put` (via `head()`), `list`, and `listKeys` all use the authoritative
+Blob-API etag; only `get()` uses the CDN fetch etag. So a slug read via
+`list` and one read via `get` can carry different etag strings for the same
+object — and `patch` reads via `get`.
+
+Fix (upstream, in folio's `VercelBlobAdapter.get`): source the etag for CAS
+from an authoritative, uncached path — pass `useCache: false` to
+`@vercel/blob`'s `get()`, or take the etag from `head(url, {token})` (the
+adapter already calls `head` in `put` for `uploadedAt`), so the round-trip
+`get().etag` → `put({ifMatch})` compares equal. The conformance suite passes
+today only because it runs against in-process stores (memory/fs) with
+immediate read-after-write and no CDN; add a live-blob conformance case that
+writes, then reads via `get()`, then `put({ifMatch: get().etag})`.
+
+**Opened:** 2026-06-09 · **Fix pushed:** mcclowes/folio#74 (awaiting
+release + a `folio-db-next` bump here before archiving works in prod).
+
 ### Relax `Frontmatter = Record<string, unknown>` constraint
 
 `Frontmatter` is exported as `Record<string, unknown>`. Consumer types have
