@@ -21,6 +21,7 @@ import { ReadingProgress } from "./reading-progress";
 import { QuickActions } from "./quick-actions";
 import { EndOfArticle } from "./end-of-article";
 import { ScrollNav } from "./scroll-nav";
+import { ArticleToc } from "./article-toc";
 import { PublicationIcon } from "@/components/publication-icon";
 import styles from "./read.module.scss";
 
@@ -169,6 +170,8 @@ export default async function ReadPage({
           or reload to retry.
         </p>
       ) : null}
+
+      <ArticleToc />
 
       <Annotator articleId={article.id} html={html} initial={highlights} />
 

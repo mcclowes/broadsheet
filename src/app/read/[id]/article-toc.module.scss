@@ -1,0 +1,154 @@
+// Desktop-only right rail. Hidden by default; only shown when the viewport is
+// wide enough to sit a column of links clear of the centred reading measure.
+.toc {
+  display: none;
+}
+
+@media (min-width: 1240px) {
+  .toc {
+    display: block;
+    position: fixed;
+    top: 50%;
+    // Just right of the centred reading column (50% + half the measure) with
+    // a comfortable gutter. The breakpoint guarantees this clears the text.
+    left: calc(50% + var(--max-read-width) / 2 + 3rem);
+    transform: translateY(-50%);
+    width: 13rem;
+    max-height: 76vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.25rem 0 0.25rem 1.125rem;
+    border-left: 1px solid var(--rule);
+    z-index: 40;
+    scrollbar-width: thin;
+    scrollbar-color: var(--rule) transparent;
+    animation: tocIn 520ms var(--ease-out) both;
+  }
+}
+
+@media (min-width: 1480px) {
+  .toc {
+    width: 15rem;
+  }
+}
+
+.label {
+  margin: 0 0 0.875rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.item,
+.sub {
+  // Staggered reveal: each entry eases up a beat after the rail appears.
+  animation: tocItemIn 460ms var(--ease-out) both;
+  animation-delay: calc(120ms + var(--i) * 45ms);
+}
+
+.sub {
+  padding-left: 0.875rem;
+}
+
+.link {
+  display: block;
+  position: relative;
+  padding: 0.3rem 0 0.3rem 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--fg-muted);
+  text-decoration: none;
+  border-radius: 0 0.25rem 0.25rem 0;
+  transition:
+    color var(--motion-base) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out);
+
+  // Sliding marker that anchors the active item against the left rule.
+  &::before {
+    content: "";
+    position: absolute;
+    left: calc(-1.125rem - 1px);
+    top: 50%;
+    width: 2px;
+    height: 0;
+    background: var(--accent);
+    transform: translateY(-50%);
+    transition: height var(--motion-base) var(--ease-out);
+  }
+
+  &:hover {
+    color: var(--fg);
+    background: var(--bg-elevated);
+  }
+}
+
+.sub .link {
+  font-size: 0.78125rem;
+}
+
+.active {
+  color: var(--accent);
+  font-weight: 500;
+
+  &::before {
+    height: 1.05rem;
+  }
+
+  &:hover {
+    color: var(--accent);
+  }
+}
+
+.text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+@keyframes tocIn {
+  from {
+    opacity: 0;
+    transform: translate(0.75rem, -50%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+}
+
+@keyframes tocItemIn {
+  from {
+    opacity: 0;
+    transform: translateX(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toc,
+  .item,
+  .sub {
+    animation: none;
+  }
+
+  .link,
+  .link::before {
+    transition: none;
+  }
+}
